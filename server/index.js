@@ -1,4 +1,8 @@
+process.on('uncaughtException', (err) => { console.error('UNCAUGHT EXCEPTION:', err); process.exit(1); });
+process.on('unhandledRejection', (err) => { console.error('UNHANDLED REJECTION:', err); process.exit(1); });
+console.log('[BOOT] Starting server...');
 try { require('dotenv').config({ path: require('path').join(__dirname, '../.env') }); } catch (e) { }
+console.log('[BOOT] NODE_ENV:', process.env.NODE_ENV, 'PORT:', process.env.PORT);
 
 const express = require('express');
 const cors = require('cors');
