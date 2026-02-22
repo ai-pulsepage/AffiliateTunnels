@@ -20,6 +20,7 @@ FROM node:20-alpine AS production
 WORKDIR /app
 
 COPY --from=base /app/package.json ./
+COPY --from=base /app/start.js ./
 COPY --from=base /app/server ./server
 COPY --from=base /app/shared ./shared
 COPY --from=base /app/client/dist ./client/dist
@@ -28,4 +29,4 @@ COPY --from=base /app/node_modules ./node_modules
 ENV NODE_ENV=production
 EXPOSE 3001
 
-CMD ["node", "server/index.js"]
+CMD ["node", "start.js"]
