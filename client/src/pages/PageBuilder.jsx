@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { funnelApi, publishApi } from '../lib/api';
+import { funnelApi, publishApi, aiApi } from '../lib/api';
 import {
     ArrowLeft, Save, Eye, Globe, Undo2, Redo2, Monitor, Tablet, Smartphone,
-    Settings2, Code2, History, Layers, X, ChevronRight
+    Settings2, Code2, History, Layers, X, ChevronRight, Wand2, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -27,6 +27,9 @@ export default function PageBuilder() {
     const [seoDesc, setSeoDesc] = useState('');
     const [lastSaved, setLastSaved] = useState(null);
     const [dirty, setDirty] = useState(false);
+    const [showAiModal, setShowAiModal] = useState(false);
+    const [aiGenerating, setAiGenerating] = useState(false);
+    const [aiForm, setAiForm] = useState({ productName: '', productDescription: '', affiliateLink: '', style: 'advertorial', emailSwipes: '' });
 
     useEffect(() => {
         loadPageAndInitEditor();
@@ -223,6 +226,27 @@ export default function PageBuilder() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [performSave]);
 
+    async function handleAiGenerate() {
+        if (!aiForm.productName || !aiForm.affiliateLink) {
+            toast.error('Product name and affiliate link required');
+            return;
+        }
+        setAiGenerating(true);
+        try {
+            const result = await aiApi.generatePage(aiForm);
+            if (result.html && editorRef.current) {
+                editorRef.current.setComponents(result.html);
+                setDirty(true);
+                setShowAiModal(false);
+                toast.success('Article generated! Edit it below.');
+            }
+        } catch (err) {
+            toast.error(err.message || 'AI generation failed');
+        } finally {
+            setAiGenerating(false);
+        }
+    }
+
     return (
         <div className="h-screen flex flex-col bg-surface-900">
             {/* Toolbar */}
@@ -283,6 +307,12 @@ export default function PageBuilder() {
                     </button>
                     <button onClick={() => setShowSettings(true)} className="p-2 hover:bg-white/5 rounded-lg" title="Page Settings">
                         <Settings2 className="w-4 h-4 text-gray-400" />
+                    </button>
+
+                    <div className="w-px h-5 bg-white/10 mx-1" />
+
+                    <button onClick={() => { setAiForm(f => ({ ...f, affiliateLink: funnel?.affiliate_link || '' })); setShowAiModal(true); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-brand-600 text-white text-sm font-medium rounded-lg hover:from-purple-500 hover:to-brand-500 transition-all">
+                        <Wand2 className="w-3.5 h-3.5" /> Start with AI
                     </button>
 
                     <div className="w-px h-5 bg-white/10 mx-1" />
@@ -381,6 +411,55 @@ export default function PageBuilder() {
                         </div>
                     )}
                 </SlidePanel>
+            )}
+
+            {/* AI Generation Modal */}
+            {showAiModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => !aiGenerating && setShowAiModal(false)}>
+                    <div className="bg-surface-850 rounded-2xl w-full max-w-lg border border-white/10 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+                            <div className="flex items-center gap-2">
+                                <Wand2 className="w-5 h-5 text-purple-400" />
+                                <h2 className="text-lg font-semibold text-white">AI Article Generator</h2>
+                            </div>
+                            <button onClick={() => setShowAiModal(false)} disabled={aiGenerating} className="p-1.5 hover:bg-white/5 rounded-lg">
+                                <X className="w-4 h-4 text-gray-400" />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                            <div>
+                                <label className="block text-sm text-gray-300 mb-1">Product Name *</label>
+                                <input type="text" value={aiForm.productName} onChange={e => setAiForm(f => ({ ...f, productName: e.target.value }))} className="input-field" placeholder="e.g. CitrusBurn" />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-300 mb-1">Product Description</label>
+                                <textarea value={aiForm.productDescription} onChange={e => setAiForm(f => ({ ...f, productDescription: e.target.value }))} className="input-field h-24" placeholder="What does it do? Key benefits, ingredients, etc." />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-300 mb-1">Affiliate Link *</label>
+                                <input type="text" value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} className="input-field" placeholder="https://xxxxx.hop.clickbank.net" />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-300 mb-1">Article Style</label>
+                                <select value={aiForm.style} onChange={e => setAiForm(f => ({ ...f, style: e.target.value }))} className="input-field">
+                                    <option value="advertorial">Advertorial (News Article)</option>
+                                    <option value="health_review">Health Review</option>
+                                    <option value="listicle">Listicle (7 Reasons Why...)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-300 mb-1">Email Swipes (optional)</label>
+                                <textarea value={aiForm.emailSwipes} onChange={e => setAiForm(f => ({ ...f, emailSwipes: e.target.value }))} className="input-field h-24 text-xs" placeholder="Paste email swipes here so the AI matches the tone and angles..." />
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-3">
+                            <button onClick={() => setShowAiModal(false)} disabled={aiGenerating} className="btn-secondary text-sm">Cancel</button>
+                            <button onClick={handleAiGenerate} disabled={aiGenerating} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-brand-600 text-white text-sm font-medium rounded-xl hover:from-purple-500 hover:to-brand-500 transition-all disabled:opacity-50">
+                                {aiGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Wand2 className="w-4 h-4" /> Generate Article</>}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

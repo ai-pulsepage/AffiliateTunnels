@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { emailApi } from '../lib/api';
-import { Plus, Trash2, Mail, Pencil, Copy, Eye, X, ChevronDown, Code2 } from 'lucide-react';
+import { Plus, Trash2, Mail, Pencil, Copy, Eye, X, Code2, FileText, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const CATEGORIES = ['affiliate', 'welcome', 'followup', 'promo', 'newsletter'];
@@ -15,9 +15,16 @@ const MERGE_TAGS = [
 export default function EmailBuilder() {
     const [templates, setTemplates] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [editing, setEditing] = useState(null); // null = list, object = editor
+    const [editing, setEditing] = useState(null);
     const [preview, setPreview] = useState(null);
     const [filter, setFilter] = useState('');
+    const [mode, setMode] = useState('quick'); // 'quick' or 'advanced'
+
+    // Quick Create fields
+    const [quickFromName, setQuickFromName] = useState('');
+    const [quickBody, setQuickBody] = useState('');
+    const [quickCtaText, setQuickCtaText] = useState('');
+    const [quickCtaLink, setQuickCtaLink] = useState('');
 
     useEffect(() => { loadTemplates(); }, []);
 
@@ -28,25 +35,83 @@ export default function EmailBuilder() {
     }
 
     function startCreate() {
-        setEditing({ name: '', subject: '', html_content: getDefaultTemplate(), text_content: '', category: 'affiliate' });
+        setMode('quick');
+        setQuickFromName('');
+        setQuickBody('');
+        setQuickCtaText('Click Here →');
+        setQuickCtaLink('');
+        setEditing({ name: '', subject: '', html_content: '', text_content: '', category: 'affiliate' });
     }
 
     function startEdit(template) {
+        setMode('advanced');
         setEditing({ ...template });
     }
 
+    function convertQuickToHtml() {
+        const paragraphs = quickBody.split('\n').filter(l => l.trim()).map(line => {
+            const trimmed = line.trim();
+            // Lines starting with ✅ or • or - become list items
+            if (trimmed.startsWith('✅') || trimmed.startsWith('•') || trimmed.startsWith('-')) {
+                return `<p style="color:#475569; font-size:16px; line-height:1.6; padding-left:8px;">${trimmed}</p>`;
+            }
+            // Lines starting with ⇒ or => become CTA links (inline)
+            if (trimmed.startsWith('⇒') || trimmed.startsWith('=>')) {
+                const text = trimmed.replace(/^(⇒|=>)\s*/, '');
+                return ''; // We'll use the CTA button instead
+            }
+            return `<p style="color:#475569; font-size:16px; line-height:1.6;">${trimmed}</p>`;
+        }).filter(Boolean).join('\n    ');
+
+        const ctaHtml = quickCtaText && quickCtaLink ? `
+    <div style="margin:32px 0; text-align:center;">
+      <a href="${quickCtaLink}" style="display:inline-block; padding:16px 40px; background:linear-gradient(135deg, #f59e0b, #d97706); color:#fff; font-weight:800; font-size:18px; border-radius:12px; text-decoration:none; box-shadow:0 4px 14px rgba(245,158,11,0.4);">
+        ${quickCtaText}
+      </a>
+    </div>` : '';
+
+        return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0; padding:0; background:#f8fafc; font-family:Georgia, 'Times New Roman', serif;">
+  <div style="max-width:600px; margin:0 auto; padding:32px 24px;">
+    <p style="color:#475569; font-size:16px; line-height:1.8;">Hey {{name}},</p>
+    ${paragraphs}
+    ${ctaHtml}
+    <p style="color:#94a3b8; font-size:12px; margin-top:40px; text-align:center; border-top:1px solid #e2e8f0; padding-top:20px;">
+      <a href="{{unsubscribe_url}}" style="color:#94a3b8;">Unsubscribe</a>
+    </p>
+  </div>
+</body>
+</html>`;
+    }
+
     async function handleSave() {
-        if (!editing.name || !editing.subject || !editing.html_content) {
-            toast.error('Name, subject, and content are required');
+        if (!editing.name || !editing.subject) {
+            toast.error('Name and subject are required');
             return;
         }
+
+        let finalData = { ...editing };
+
+        if (mode === 'quick') {
+            const html = convertQuickToHtml();
+            finalData.html_content = html;
+            finalData.text_content = `Hey {{name}},\n\n${quickBody}\n\n${quickCtaText}: ${quickCtaLink}`;
+        }
+
+        if (!finalData.html_content) {
+            toast.error('Email content is required');
+            return;
+        }
+
         try {
-            if (editing.id) {
-                const d = await emailApi.updateTemplate(editing.id, editing);
-                setTemplates(prev => prev.map(t => t.id === editing.id ? d.template : t));
+            if (finalData.id) {
+                const d = await emailApi.updateTemplate(finalData.id, finalData);
+                setTemplates(prev => prev.map(t => t.id === finalData.id ? d.template : t));
                 toast.success('Template updated');
             } else {
-                const d = await emailApi.createTemplate(editing);
+                const d = await emailApi.createTemplate(finalData);
                 setTemplates(prev => [d.template, ...prev]);
                 toast.success('Template created');
             }
@@ -64,6 +129,7 @@ export default function EmailBuilder() {
     }
 
     function handleDuplicate(template) {
+        setMode('advanced');
         setEditing({
             name: template.name + ' (Copy)',
             subject: template.subject,
@@ -75,7 +141,11 @@ export default function EmailBuilder() {
 
     function insertMergeTag(tag) {
         if (!editing) return;
-        setEditing(prev => ({ ...prev, html_content: prev.html_content + tag }));
+        if (mode === 'quick') {
+            setQuickBody(prev => prev + tag);
+        } else {
+            setEditing(prev => ({ ...prev, html_content: prev.html_content + tag }));
+        }
     }
 
     const filtered = filter ? templates.filter(t => t.category === filter) : templates;
@@ -90,7 +160,7 @@ export default function EmailBuilder() {
                         <p className="text-sm text-gray-500 mt-1">{templates.length} templates</p>
                     </div>
                     <button onClick={startCreate} className="btn-primary flex items-center gap-2">
-                        <Plus className="w-4 h-4" /> New Template
+                        <Plus className="w-4 h-4" /> Quick Create
                     </button>
                 </div>
 
@@ -110,6 +180,7 @@ export default function EmailBuilder() {
                     <div className="card text-center py-12">
                         <Mail className="w-10 h-10 text-gray-600 mx-auto mb-3" />
                         <p className="text-gray-400">{filter ? `No ${filter} templates.` : 'No email templates yet.'}</p>
+                        <p className="text-sm text-gray-600 mt-2">Click "Quick Create" to paste your email copy</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -172,63 +243,147 @@ export default function EmailBuilder() {
                     <button onClick={() => setEditing(null)} className="btn-secondary text-sm">← Back</button>
                     <h1 className="text-xl font-bold text-white">{editing.id ? 'Edit Template' : 'New Template'}</h1>
                 </div>
-                <button onClick={handleSave} className="btn-primary flex items-center gap-2">
-                    <Mail className="w-4 h-4" /> Save Template
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* Mode Toggle */}
+                    <div className="flex bg-surface-800 rounded-lg p-0.5">
+                        <button
+                            onClick={() => setMode('quick')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${mode === 'quick' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            <FileText className="w-3.5 h-3.5" /> Quick Create
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (mode === 'quick' && quickBody) {
+                                    setEditing(prev => ({ ...prev, html_content: convertQuickToHtml() }));
+                                }
+                                setMode('advanced');
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${mode === 'advanced' ? 'bg-brand-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            <Code2 className="w-3.5 h-3.5" /> Advanced HTML
+                        </button>
+                    </div>
+                    <button onClick={handleSave} className="btn-primary flex items-center gap-2">
+                        <Mail className="w-4 h-4" /> Save Template
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left: Fields */}
                 <div className="lg:col-span-2 space-y-4">
                     <div className="card space-y-4">
-                        <div>
-                            <label className="block text-sm text-gray-300 mb-1">Template Name</label>
-                            <input type="text" value={editing.name} onChange={e => setEditing(p => ({ ...p, name: e.target.value }))} className="input-field" placeholder="e.g. Welcome Email" />
-                        </div>
-                        <div>
-                            <label className="block text-sm text-gray-300 mb-1">Subject Line</label>
-                            <input type="text" value={editing.subject} onChange={e => setEditing(p => ({ ...p, subject: e.target.value }))} className="input-field" placeholder="e.g. Welcome to {{funnel_name}}, {{name}}!" />
-                        </div>
-                        <div>
-                            <label className="block text-sm text-gray-300 mb-1">Category</label>
-                            <select value={editing.category || ''} onChange={e => setEditing(p => ({ ...p, category: e.target.value }))} className="input-field">
-                                <option value="">Select category</option>
-                                {CATEGORIES.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="card">
-                        <div className="flex items-center justify-between mb-3">
-                            <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                                <Code2 className="w-4 h-4" /> HTML Content
-                            </label>
-                            <div className="flex gap-1">
-                                {MERGE_TAGS.slice(0, 3).map(m => (
-                                    <button key={m.tag} onClick={() => insertMergeTag(m.tag)} className="text-[10px] px-2 py-1 bg-brand-500/10 text-brand-400 rounded-md hover:bg-brand-500/20 transition-colors" title={m.label}>
-                                        {m.tag}
-                                    </button>
-                                ))}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm text-gray-300 mb-1">Template Name</label>
+                                <input type="text" value={editing.name} onChange={e => setEditing(p => ({ ...p, name: e.target.value }))} className="input-field" placeholder="e.g. Spanish Orange Trick" />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-300 mb-1">Category</label>
+                                <select value={editing.category || ''} onChange={e => setEditing(p => ({ ...p, category: e.target.value }))} className="input-field">
+                                    <option value="">Select category</option>
+                                    {CATEGORIES.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
+                                </select>
                             </div>
                         </div>
-                        <textarea
-                            value={editing.html_content}
-                            onChange={e => setEditing(p => ({ ...p, html_content: e.target.value }))}
-                            className="input-field font-mono text-xs leading-relaxed"
-                            style={{ minHeight: 400 }}
-                            placeholder="<html>...</html>"
-                        />
+                        {mode === 'quick' && (
+                            <div>
+                                <label className="block text-sm text-gray-300 mb-1">From Name</label>
+                                <input type="text" value={quickFromName} onChange={e => setQuickFromName(e.target.value)} className="input-field" placeholder="e.g. Spanish Orange Trick" />
+                                <p className="text-xs text-gray-600 mt-1">The sender name shown in the inbox</p>
+                            </div>
+                        )}
+                        <div>
+                            <label className="block text-sm text-gray-300 mb-1">Subject Line</label>
+                            <input type="text" value={editing.subject} onChange={e => setEditing(p => ({ ...p, subject: e.target.value }))} className="input-field" placeholder="e.g. Soak this orange peel in hot water to melt belly fat" />
+                        </div>
                     </div>
 
-                    <div className="card">
-                        <label className="block text-sm text-gray-300 mb-1">Plain Text Version (optional)</label>
-                        <textarea
-                            value={editing.text_content || ''}
-                            onChange={e => setEditing(p => ({ ...p, text_content: e.target.value }))}
-                            className="input-field h-32 font-mono text-xs"
-                            placeholder="Plain text fallback..."
-                        />
-                    </div>
+                    {mode === 'quick' ? (
+                        /* ── QUICK CREATE MODE ── */
+                        <>
+                            <div className="card">
+                                <div className="flex items-center justify-between mb-3">
+                                    <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                                        <FileText className="w-4 h-4" /> Email Body
+                                        <span className="text-[10px] text-gray-500 font-normal">— just paste your copy</span>
+                                    </label>
+                                    <div className="flex gap-1">
+                                        {MERGE_TAGS.slice(0, 2).map(m => (
+                                            <button key={m.tag} onClick={() => insertMergeTag(m.tag)} className="text-[10px] px-2 py-1 bg-brand-500/10 text-brand-400 rounded-md hover:bg-brand-500/20 transition-colors" title={m.label}>
+                                                {m.tag}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <textarea
+                                    value={quickBody}
+                                    onChange={e => setQuickBody(e.target.value)}
+                                    className="input-field leading-relaxed"
+                                    style={{ minHeight: 300 }}
+                                    placeholder={`Paste your email copy here...
+
+Example:
+Doctors are SHOCKED.
+A clinical nutritionist just discovered that soaking THIS specific orange peel in hot water each morning can ERASE stubborn belly fat...
+
+Just paste the raw text — it will be auto-styled into a beautiful HTML email.`}
+                                />
+                            </div>
+
+                            <div className="card space-y-4">
+                                <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                                    <Wand2 className="w-4 h-4 text-brand-400" /> Call-to-Action Button
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs text-gray-500 mb-1">Button Text</label>
+                                        <input type="text" value={quickCtaText} onChange={e => setQuickCtaText(e.target.value)} className="input-field" placeholder="e.g. Try the Spanish Orange Trick →" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-gray-500 mb-1">Button Link (Hop Link)</label>
+                                        <input type="text" value={quickCtaLink} onChange={e => setQuickCtaLink(e.target.value)} className="input-field" placeholder="https://xxxxx.hop.clickbank.net" />
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        /* ── ADVANCED HTML MODE ── */
+                        <>
+                            <div className="card">
+                                <div className="flex items-center justify-between mb-3">
+                                    <label className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                                        <Code2 className="w-4 h-4" /> HTML Content
+                                    </label>
+                                    <div className="flex gap-1">
+                                        {MERGE_TAGS.slice(0, 3).map(m => (
+                                            <button key={m.tag} onClick={() => insertMergeTag(m.tag)} className="text-[10px] px-2 py-1 bg-brand-500/10 text-brand-400 rounded-md hover:bg-brand-500/20 transition-colors" title={m.label}>
+                                                {m.tag}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <textarea
+                                    value={editing.html_content}
+                                    onChange={e => setEditing(p => ({ ...p, html_content: e.target.value }))}
+                                    className="input-field font-mono text-xs leading-relaxed"
+                                    style={{ minHeight: 400 }}
+                                    placeholder="<html>...</html>"
+                                />
+                            </div>
+
+                            <div className="card">
+                                <label className="block text-sm text-gray-300 mb-1">Plain Text Version (optional)</label>
+                                <textarea
+                                    value={editing.text_content || ''}
+                                    onChange={e => setEditing(p => ({ ...p, text_content: e.target.value }))}
+                                    className="input-field h-32 font-mono text-xs"
+                                    placeholder="Plain text fallback..."
+                                />
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {/* Right: Merge tags + preview */}
@@ -246,40 +401,23 @@ export default function EmailBuilder() {
                     </div>
 
                     <div className="card">
-                        <h3 className="font-semibold text-white mb-3">Preview</h3>
-                        {editing.html_content ? (
-                            <div className="bg-white rounded-xl p-4 max-h-80 overflow-y-auto">
-                                <div dangerouslySetInnerHTML={{ __html: editing.html_content }} />
+                        <h3 className="font-semibold text-white mb-3">Live Preview</h3>
+                        {(mode === 'quick' ? quickBody : editing.html_content) ? (
+                            <div className="bg-white rounded-xl p-4 max-h-96 overflow-y-auto">
+                                <div dangerouslySetInnerHTML={{
+                                    __html: mode === 'quick'
+                                        ? convertQuickToHtml().replace(/\{\{name\}\}/gi, 'Sarah').replace(/\{\{email\}\}/gi, 'sarah@example.com')
+                                        : editing.html_content.replace(/\{\{name\}\}/gi, 'Sarah').replace(/\{\{email\}\}/gi, 'sarah@example.com')
+                                }} />
                             </div>
                         ) : (
-                            <p className="text-sm text-gray-500 text-center py-8">Enter HTML to see preview</p>
+                            <p className="text-sm text-gray-500 text-center py-8">
+                                {mode === 'quick' ? 'Paste your email copy to see a live preview' : 'Enter HTML to see preview'}
+                            </p>
                         )}
                     </div>
                 </div>
             </div>
         </div>
     );
-}
-
-function getDefaultTemplate() {
-    return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0; padding:0; background:#f8fafc; font-family:system-ui, -apple-system, sans-serif;">
-  <div style="max-width:600px; margin:0 auto; padding:32px 24px;">
-    <h1 style="color:#1e293b; font-size:24px; margin-bottom:16px;">Hey {{name}},</h1>
-    <p style="color:#475569; font-size:16px; line-height:1.6;">
-      Your email content goes here. Use merge tags like {{name}} to personalize.
-    </p>
-    <div style="margin:32px 0; text-align:center;">
-      <a href="#" style="display:inline-block; padding:14px 32px; background:#6366f1; color:#fff; font-weight:700; border-radius:10px; text-decoration:none;">
-        Click Here →
-      </a>
-    </div>
-    <p style="color:#94a3b8; font-size:12px; margin-top:32px; text-align:center;">
-      <a href="{{unsubscribe_url}}" style="color:#94a3b8;">Unsubscribe</a>
-    </p>
-  </div>
-</body>
-</html>`;
 }

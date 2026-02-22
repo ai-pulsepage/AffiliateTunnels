@@ -126,23 +126,64 @@
   color: #6366f1 !important;
 }
 
+/* === CRITICAL LAYOUT FIXES === */
+
+/* Make the GrapeJS editor fill its container */
+.gjs-editor {
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Make the editor row (canvas + right panels) fill remaining height */
+.gjs-editor-cont {
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Right-side panels container — must scroll and not overflow the page */
+.gjs-pn-views-container {
+  background-color: #18181b !important;
+  overflow-y: auto !important;
+  max-height: 100% !important;
+}
+
+/* The views panel (tabs: Blocks, Layers, Styles, Traits) */
+.gjs-pn-views {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Canvas fills remaining space and scrolls internally */
+.gjs-cv-canvas {
+  background-color: #0f0f12 !important;
+  overflow: auto !important;
+}
+
+/* Canvas frames container */
+.gjs-cv-canvas .gjs-frames {
+  overflow: auto !important;
+}
+
 /* Panel backgrounds */
 .gjs-pn-panel {
   background-color: #18181b !important;
   border-color: rgba(255, 255, 255, 0.05) !important;
 }
 
+/* Ensure panels are above the canvas but below our slide panels */
 .gjs-pn-views-container {
-  background-color: #18181b !important;
+  z-index: 5 !important;
 }
 
-.gjs-pn-views {
-  border-color: rgba(255, 255, 255, 0.05) !important;
+/* Our slide panels sit above everything */
+.fixed.inset-0.z-50 {
+  z-index: 100 !important;
 }
 
 /* Block manager */
 .gjs-blocks-cs {
   background-color: #18181b !important;
+  overflow-y: auto !important;
+  max-height: calc(100vh - 120px) !important;
 }
 
 .gjs-block {
@@ -222,11 +263,6 @@
   color: #fff !important;
 }
 
-/* Canvas frame */
-.gjs-cv-canvas {
-  background-color: #0f0f12 !important;
-}
-
 /* Selected component highlight */
 .gjs-selected {
   outline: 2px solid #6366f1 !important;
@@ -235,4 +271,22 @@
 
 .gjs-hovered {
   outline: 1px dashed rgba(99, 102, 241, 0.5) !important;
+}
+
+/* Rich Text Editor in canvas */
+.gjs-rte-toolbar {
+  background-color: #18181b !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  z-index: 50 !important;
+}
+
+.gjs-rte-actionbar {
+  color: #e4e4e7 !important;
+}
+
+/* Style manager sectors scrollable */
+.gjs-sm-sectors {
+  overflow-y: auto !important;
+  max-height: calc(100vh - 120px) !important;
 }

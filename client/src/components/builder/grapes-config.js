@@ -4,15 +4,15 @@
  */
 
 export function registerCustomBlocks(editor) {
-    const bm = editor.BlockManager;
+  const bm = editor.BlockManager;
 
-    // ──────────────────────────────────────────
-    // LAYOUT BLOCKS
-    // ──────────────────────────────────────────
-    bm.add('section-hero', {
-        label: '🎯 Hero Section',
-        category: 'Layout',
-        content: `
+  // ──────────────────────────────────────────
+  // LAYOUT BLOCKS
+  // ──────────────────────────────────────────
+  bm.add('section-hero', {
+    label: '🎯 Hero Section',
+    category: 'Layout',
+    content: `
       <section style="padding: 80px 24px; text-align: center; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);">
         <div style="max-width: 800px; margin: 0 auto;">
           <h1 style="font-size: 48px; font-weight: 800; color: #fff; margin-bottom: 16px; line-height: 1.1;">
@@ -27,12 +27,12 @@ export function registerCustomBlocks(editor) {
         </div>
       </section>
     `,
-    });
+  });
 
-    bm.add('two-columns', {
-        label: '◧ Two Columns',
-        category: 'Layout',
-        content: `
+  bm.add('two-columns', {
+    label: '◧ Two Columns',
+    category: 'Layout',
+    content: `
       <div style="display: flex; gap: 32px; padding: 40px 24px; max-width: 1100px; margin: 0 auto; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 300px; padding: 20px;">
           <h2 style="font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 12px;">Left Column</h2>
@@ -44,12 +44,12 @@ export function registerCustomBlocks(editor) {
         </div>
       </div>
     `,
-    });
+  });
 
-    bm.add('three-columns', {
-        label: '◫ Three Columns',
-        category: 'Layout',
-        content: `
+  bm.add('three-columns', {
+    label: '◫ Three Columns',
+    category: 'Layout',
+    content: `
       <div style="display: flex; gap: 24px; padding: 40px 24px; max-width: 1100px; margin: 0 auto; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 250px; padding: 24px; background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid rgba(255,255,255,0.06);">
           <h3 style="font-size: 20px; font-weight: 600; color: #fff; margin-bottom: 8px;">Feature One</h3>
@@ -65,45 +65,45 @@ export function registerCustomBlocks(editor) {
         </div>
       </div>
     `,
-    });
+  });
 
-    bm.add('divider', {
-        label: '── Divider',
-        category: 'Layout',
-        content: `<hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 40px auto; max-width: 1100px;" />`,
-    });
+  bm.add('divider', {
+    label: '── Divider',
+    category: 'Layout',
+    content: `<hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 40px auto; max-width: 1100px;" />`,
+  });
 
-    bm.add('spacer', {
-        label: '↕ Spacer',
-        category: 'Layout',
-        content: `<div style="height: 60px;"></div>`,
-    });
+  bm.add('spacer', {
+    label: '↕ Spacer',
+    category: 'Layout',
+    content: `<div style="height: 60px;"></div>`,
+  });
 
-    // ──────────────────────────────────────────
-    // TEXT BLOCKS
-    // ──────────────────────────────────────────
-    bm.add('heading', {
-        label: 'H Heading',
-        category: 'Text',
-        content: `<h2 style="font-size: 36px; font-weight: 700; color: #fff; max-width: 800px; margin: 24px auto; padding: 0 24px; text-align: center;">Your Headline Here</h2>`,
-    });
+  // ──────────────────────────────────────────
+  // TEXT BLOCKS
+  // ──────────────────────────────────────────
+  bm.add('heading', {
+    label: 'H Heading',
+    category: 'Text',
+    content: `<h2 style="font-size: 36px; font-weight: 700; color: #fff; max-width: 800px; margin: 24px auto; padding: 0 24px; text-align: center;">Your Headline Here</h2>`,
+  });
 
-    bm.add('subheading', {
-        label: 'h Sub-Heading',
-        category: 'Text',
-        content: `<h3 style="font-size: 24px; font-weight: 500; color: #94a3b8; max-width: 700px; margin: 16px auto; padding: 0 24px; text-align: center;">Supporting text that adds context</h3>`,
-    });
+  bm.add('subheading', {
+    label: 'h Sub-Heading',
+    category: 'Text',
+    content: `<h3 style="font-size: 24px; font-weight: 500; color: #94a3b8; max-width: 700px; margin: 16px auto; padding: 0 24px; text-align: center;">Supporting text that adds context</h3>`,
+  });
 
-    bm.add('paragraph', {
-        label: '¶ Paragraph',
-        category: 'Text',
-        content: `<p style="font-size: 16px; color: #cbd5e1; line-height: 1.8; max-width: 700px; margin: 16px auto; padding: 0 24px;">Write your body text here. This paragraph block includes comfortable reading width and line spacing optimized for long-form content.</p>`,
-    });
+  bm.add('paragraph', {
+    label: '¶ Paragraph',
+    category: 'Text',
+    content: `<p style="font-size: 16px; color: #cbd5e1; line-height: 1.8; max-width: 700px; margin: 16px auto; padding: 0 24px;">Write your body text here. This paragraph block includes comfortable reading width and line spacing optimized for long-form content.</p>`,
+  });
 
-    bm.add('bullet-list', {
-        label: '• Bullet List',
-        category: 'Text',
-        content: `
+  bm.add('bullet-list', {
+    label: '• Bullet List',
+    category: 'Text',
+    content: `
       <ul style="max-width: 600px; margin: 24px auto; padding: 0 24px; list-style: none;">
         <li style="padding: 8px 0; color: #cbd5e1; font-size: 16px; display: flex; align-items: flex-start; gap: 12px;">
           <span style="color: #10b981; font-size: 18px; line-height: 24px;">✓</span>
@@ -119,40 +119,40 @@ export function registerCustomBlocks(editor) {
         </li>
       </ul>
     `,
-    });
+  });
 
-    // ──────────────────────────────────────────
-    // MEDIA BLOCKS
-    // ──────────────────────────────────────────
-    bm.add('image-block', {
-        label: '🖼 Image',
-        category: 'Media',
-        content: `
+  // ──────────────────────────────────────────
+  // MEDIA BLOCKS
+  // ──────────────────────────────────────────
+  bm.add('image-block', {
+    label: '🖼 Image',
+    category: 'Media',
+    content: `
       <div style="text-align: center; padding: 24px;">
         <img src="https://placehold.co/800x400/1a1a2e/6366f1?text=Your+Image" alt="Image" style="max-width: 100%; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);" />
       </div>
     `,
-    });
+  });
 
-    bm.add('video-embed', {
-        label: '▶ Video',
-        category: 'Media',
-        content: `
+  bm.add('video-embed', {
+    label: '▶ Video',
+    category: 'Media',
+    content: `
       <div style="max-width: 800px; margin: 32px auto; padding: 0 24px;">
         <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
           <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allowfullscreen></iframe>
         </div>
       </div>
     `,
-    });
+  });
 
-    // ──────────────────────────────────────────
-    // CONVERSION BLOCKS
-    // ──────────────────────────────────────────
-    bm.add('cta-button', {
-        label: '🔘 CTA Button',
-        category: 'Conversion',
-        content: `
+  // ──────────────────────────────────────────
+  // CONVERSION BLOCKS
+  // ──────────────────────────────────────────
+  bm.add('cta-button', {
+    label: '🔘 CTA Button',
+    category: 'Conversion',
+    content: `
       <div style="text-align: center; padding: 32px 24px;">
         <a href="#" style="display: inline-block; padding: 18px 48px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-size: 20px; font-weight: 700; border-radius: 14px; text-decoration: none; box-shadow: 0 8px 24px rgba(99,102,241,0.3); transition: all 0.2s;">
           Click Here To Get Started →
@@ -160,12 +160,12 @@ export function registerCustomBlocks(editor) {
         <p style="color: #64748b; font-size: 13px; margin-top: 10px;">🔒 30-Day Money Back Guarantee</p>
       </div>
     `,
-    });
+  });
 
-    bm.add('optin-form', {
-        label: '📧 Opt-in Form',
-        category: 'Conversion',
-        content: `
+  bm.add('optin-form', {
+    label: '📧 Opt-in Form',
+    category: 'Conversion',
+    content: `
       <div style="max-width: 480px; margin: 40px auto; padding: 40px; background: rgba(255,255,255,0.03); border-radius: 20px; border: 1px solid rgba(255,255,255,0.08); text-align: center;">
         <h3 style="font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 8px;">Get Your Free Guide</h3>
         <p style="color: #94a3b8; font-size: 14px; margin-bottom: 24px;">Enter your email below to get instant access.</p>
@@ -179,12 +179,12 @@ export function registerCustomBlocks(editor) {
         <p style="color: #475569; font-size: 11px; margin-top: 12px;">We respect your privacy. Unsubscribe at any time.</p>
       </div>
     `,
-    });
+  });
 
-    bm.add('countdown-timer', {
-        label: '⏱ Countdown',
-        category: 'Conversion',
-        content: `
+  bm.add('countdown-timer', {
+    label: '⏱ Countdown',
+    category: 'Conversion',
+    content: `
       <div style="text-align: center; padding: 40px 24px; background: linear-gradient(135deg, #1e1b4b, #312e81); margin: 24px 0;">
         <p style="color: #c4b5fd; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px;">⚡ Limited Time Offer</p>
         <div data-at-countdown="true" data-at-minutes="30" style="display: flex; justify-content: center; gap: 16px;">
@@ -203,12 +203,12 @@ export function registerCustomBlocks(editor) {
         </div>
       </div>
     `,
-    });
+  });
 
-    bm.add('sticky-cta', {
-        label: '📌 Sticky CTA',
-        category: 'Conversion',
-        content: `
+  bm.add('sticky-cta', {
+    label: '📌 Sticky CTA',
+    category: 'Conversion',
+    content: `
       <div data-at-sticky="true" style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(15,15,18,0.95); backdrop-filter: blur(12px); border-top: 1px solid rgba(255,255,255,0.08); padding: 16px 24px; z-index: 1000; text-align: center;">
         <div style="max-width: 800px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
           <p style="color: #fff; font-size: 15px; font-weight: 600; margin: 0;">🔥 Don't miss out — this offer expires soon!</p>
@@ -218,12 +218,12 @@ export function registerCustomBlocks(editor) {
         </div>
       </div>
     `,
-    });
+  });
 
-    bm.add('exit-intent', {
-        label: '🚪 Exit Popup',
-        category: 'Conversion',
-        content: `
+  bm.add('exit-intent', {
+    label: '🚪 Exit Popup',
+    category: 'Conversion',
+    content: `
       <div data-at-exit-intent="true" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center;">
         <div style="background: #1e1e2e; border-radius: 20px; padding: 48px; max-width: 480px; width: 90%; text-align: center; position: relative; border: 1px solid rgba(255,255,255,0.08);">
           <button onclick="this.closest('[data-at-exit-intent]').style.display='none'" style="position: absolute; top: 16px; right: 16px; background: none; border: none; color: #64748b; font-size: 24px; cursor: pointer;">×</button>
@@ -236,15 +236,15 @@ export function registerCustomBlocks(editor) {
         </div>
       </div>
     `,
-    });
+  });
 
-    // ──────────────────────────────────────────
-    // SOCIAL PROOF BLOCKS
-    // ──────────────────────────────────────────
-    bm.add('testimonial', {
-        label: '💬 Testimonial',
-        category: 'Social Proof',
-        content: `
+  // ──────────────────────────────────────────
+  // SOCIAL PROOF BLOCKS
+  // ──────────────────────────────────────────
+  bm.add('testimonial', {
+    label: '💬 Testimonial',
+    category: 'Social Proof',
+    content: `
       <div style="max-width: 600px; margin: 32px auto; padding: 32px; background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid rgba(255,255,255,0.06);">
         <div style="display: flex; gap: 4px; margin-bottom: 16px;">
           <span style="color: #fbbf24; font-size: 18px;">★</span>
@@ -265,12 +265,12 @@ export function registerCustomBlocks(editor) {
         </div>
       </div>
     `,
-    });
+  });
 
-    bm.add('testimonial-row', {
-        label: '💬💬 Testimonials Row',
-        category: 'Social Proof',
-        content: `
+  bm.add('testimonial-row', {
+    label: '💬💬 Testimonials Row',
+    category: 'Social Proof',
+    content: `
       <div style="display: flex; gap: 24px; padding: 40px 24px; max-width: 1100px; margin: 0 auto; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 280px; padding: 28px; background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid rgba(255,255,255,0.06);">
           <div style="display: flex; gap: 3px; margin-bottom: 12px;">${'<span style="color: #fbbf24; font-size: 16px;">★</span>'.repeat(5)}</div>
@@ -289,15 +289,15 @@ export function registerCustomBlocks(editor) {
         </div>
       </div>
     `,
-    });
+  });
 
-    // ──────────────────────────────────────────
-    // PRICING BLOCKS
-    // ──────────────────────────────────────────
-    bm.add('pricing-table', {
-        label: '💰 Pricing Table',
-        category: 'Conversion',
-        content: `
+  // ──────────────────────────────────────────
+  // PRICING BLOCKS
+  // ──────────────────────────────────────────
+  bm.add('pricing-table', {
+    label: '💰 Pricing Table',
+    category: 'Conversion',
+    content: `
       <div style="display: flex; gap: 24px; padding: 48px 24px; max-width: 900px; margin: 0 auto; flex-wrap: wrap; justify-content: center;">
         <div style="flex: 1; min-width: 260px; max-width: 380px; padding: 36px; background: rgba(255,255,255,0.03); border-radius: 20px; border: 1px solid rgba(255,255,255,0.06); text-align: center;">
           <h3 style="font-size: 18px; font-weight: 600; color: #94a3b8; margin-bottom: 8px;">Basic</h3>
@@ -322,15 +322,15 @@ export function registerCustomBlocks(editor) {
         </div>
       </div>
     `,
-    });
+  });
 
-    // ──────────────────────────────────────────
-    // COMPLIANCE BLOCKS
-    // ──────────────────────────────────────────
-    bm.add('affiliate-disclosure', {
-        label: '⚖ Affiliate Disclosure',
-        category: 'Compliance',
-        content: `
+  // ──────────────────────────────────────────
+  // COMPLIANCE BLOCKS
+  // ──────────────────────────────────────────
+  bm.add('affiliate-disclosure', {
+    label: '⚖ Affiliate Disclosure',
+    category: 'Compliance',
+    content: `
       <div style="max-width: 800px; margin: 32px auto; padding: 20px 24px; background: rgba(251,191,36,0.05); border: 1px solid rgba(251,191,36,0.15); border-radius: 12px;">
         <p style="color: #fbbf24; font-size: 12px; font-weight: 600; margin-bottom: 4px;">AFFILIATE DISCLOSURE</p>
         <p style="color: #94a3b8; font-size: 12px; line-height: 1.6; margin: 0;">
@@ -338,12 +338,12 @@ export function registerCustomBlocks(editor) {
         </p>
       </div>
     `,
-    });
+  });
 
-    bm.add('income-disclaimer', {
-        label: '📋 Income Disclaimer',
-        category: 'Compliance',
-        content: `
+  bm.add('income-disclaimer', {
+    label: '📋 Income Disclaimer',
+    category: 'Compliance',
+    content: `
       <div style="max-width: 800px; margin: 32px auto; padding: 20px 24px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
         <p style="color: #64748b; font-size: 12px; font-weight: 600; margin-bottom: 4px;">INCOME DISCLAIMER</p>
         <p style="color: #64748b; font-size: 11px; line-height: 1.6; margin: 0;">
@@ -351,12 +351,12 @@ export function registerCustomBlocks(editor) {
         </p>
       </div>
     `,
-    });
+  });
 
-    bm.add('footer', {
-        label: '🦶 Footer',
-        category: 'Compliance',
-        content: `
+  bm.add('footer', {
+    label: '🦶 Footer',
+    category: 'Compliance',
+    content: `
       <footer style="padding: 40px 24px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center; margin-top: 60px;">
         <div style="max-width: 600px; margin: 0 auto;">
           <p style="color: #475569; font-size: 12px; line-height: 1.8;">
@@ -373,15 +373,15 @@ export function registerCustomBlocks(editor) {
         </div>
       </footer>
     `,
-    });
+  });
 
-    // ──────────────────────────────────────────
-    // BONUS / BRIDGE PAGE BLOCKS
-    // ──────────────────────────────────────────
-    bm.add('bonus-box', {
-        label: '🎁 Bonus Box',
-        category: 'Social Proof',
-        content: `
+  // ──────────────────────────────────────────
+  // BONUS / BRIDGE PAGE BLOCKS
+  // ──────────────────────────────────────────
+  bm.add('bonus-box', {
+    label: '🎁 Bonus Box',
+    category: 'Social Proof',
+    content: `
       <div style="max-width: 600px; margin: 24px auto; padding: 28px; background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02)); border-radius: 16px; border: 1px solid rgba(16,185,129,0.2);">
         <div style="display: flex; align-items: flex-start; gap: 16px;">
           <div style="min-width: 50px; height: 50px; background: rgba(16,185,129,0.15); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">🎁</div>
@@ -394,24 +394,24 @@ export function registerCustomBlocks(editor) {
         </div>
       </div>
     `,
-    });
+  });
 
-    bm.add('urgency-banner', {
-        label: '🔥 Urgency Banner',
-        category: 'Conversion',
-        content: `
+  bm.add('urgency-banner', {
+    label: '🔥 Urgency Banner',
+    category: 'Conversion',
+    content: `
       <div style="background: linear-gradient(90deg, #dc2626, #ef4444); padding: 12px 24px; text-align: center;">
         <p style="color: #fff; font-size: 15px; font-weight: 700; margin: 0;">
           ⚠️ WARNING: This special pricing won't last. Only <span style="text-decoration: underline;">37 spots</span> remaining at this price!
         </p>
       </div>
     `,
-    });
+  });
 
-    bm.add('guarantee-badge', {
-        label: '🛡 Guarantee',
-        category: 'Conversion',
-        content: `
+  bm.add('guarantee-badge', {
+    label: '🛡 Guarantee',
+    category: 'Conversion',
+    content: `
       <div style="text-align: center; padding: 48px 24px;">
         <div style="display: inline-block; padding: 32px 40px; border: 3px solid rgba(16,185,129,0.3); border-radius: 20px; background: rgba(16,185,129,0.05);">
           <div style="font-size: 48px; margin-bottom: 8px;">🛡️</div>
@@ -420,12 +420,12 @@ export function registerCustomBlocks(editor) {
         </div>
       </div>
     `,
-    });
+  });
 
-    bm.add('faq-section', {
-        label: '❓ FAQ',
-        category: 'Social Proof',
-        content: `
+  bm.add('faq-section', {
+    label: '❓ FAQ',
+    category: 'Social Proof',
+    content: `
       <div style="max-width: 700px; margin: 48px auto; padding: 0 24px;">
         <h2 style="font-size: 32px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 32px;">Frequently Asked Questions</h2>
         <div style="border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden;">
@@ -456,64 +456,162 @@ export function registerCustomBlocks(editor) {
         </div>
       </div>
     `,
-    });
+  });
+
+  // ──────────────────────────────────────────
+  // ARTICLE / ADVERTORIAL TEMPLATE
+  // ──────────────────────────────────────────
+  bm.add('article-advertorial', {
+    label: '📰 Article Page',
+    category: 'Templates',
+    content: `
+      <div style="background: #ffffff; min-height: 100vh;">
+        <!-- Top bar -->
+        <div style="background: #1a1a2e; padding: 8px 24px; text-align: center;">
+          <span style="color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">ADVERTISEMENT</span>
+        </div>
+
+        <!-- Article Header -->
+        <div style="max-width: 720px; margin: 0 auto; padding: 40px 24px 0;">
+          <p style="color: #dc2626; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 16px;">HEALTH & WELLNESS</p>
+          <h1 style="font-size: 36px; font-weight: 800; color: #1e293b; line-height: 1.2; margin-bottom: 16px; font-family: Georgia, serif;">
+            Spanish Village Secret: How One Orange Peel Compound Is Changing Weight Loss Forever
+          </h1>
+          <div style="display: flex; align-items: center; gap: 12px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0; margin-bottom: 32px;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: #6366f1; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 14px;">DR</div>
+            <div>
+              <p style="color: #1e293b; font-size: 14px; font-weight: 600; margin: 0;">Dr. Rachel Williams</p>
+              <p style="color: #94a3b8; font-size: 12px; margin: 0;">Published ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · 5 min read</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Article Image -->
+        <div style="max-width: 720px; margin: 0 auto; padding: 0 24px;">
+          <img src="https://placehold.co/720x400/f8fafc/475569?text=Article+Hero+Image" alt="Article image" style="width: 100%; border-radius: 12px; margin-bottom: 32px;" />
+        </div>
+
+        <!-- Article Body -->
+        <div style="max-width: 720px; margin: 0 auto; padding: 0 24px;">
+          <p style="color: #334155; font-size: 18px; line-height: 1.8; font-family: Georgia, serif; margin-bottom: 24px;">
+            For decades, researchers have been baffled by a small village in southern Spain where obesity rates are nearly zero — despite a diet rich in olive oil, bread, and wine.
+          </p>
+          <p style="color: #334155; font-size: 18px; line-height: 1.8; font-family: Georgia, serif; margin-bottom: 24px;">
+            Now, a breakthrough study from the University of Barcelona may have finally uncovered their secret: a unique compound found in the peel of Seville oranges that activates the body's natural fat-burning mechanisms.
+          </p>
+
+          <blockquote style="border-left: 4px solid #6366f1; padding: 16px 24px; margin: 32px 0; background: #f8fafc; border-radius: 0 8px 8px 0;">
+            <p style="color: #1e293b; font-size: 18px; font-style: italic; font-family: Georgia, serif; margin: 0;">"This is the most significant nutritional discovery we've seen in the last decade." — Dr. Carmen Ruiz, University of Barcelona</p>
+          </blockquote>
+
+          <p style="color: #334155; font-size: 18px; line-height: 1.8; font-family: Georgia, serif; margin-bottom: 24px;">
+            The study found that participants who consumed just 500mg of this orange peel extract daily saw remarkable changes in their metabolism within just 14 days...
+          </p>
+
+          <h2 style="font-size: 26px; font-weight: 700; color: #1e293b; margin: 40px 0 16px; font-family: Georgia, serif;">How Does It Work?</h2>
+          <p style="color: #334155; font-size: 18px; line-height: 1.8; font-family: Georgia, serif; margin-bottom: 24px;">
+            Your article content continues here. Explain the science, share testimonials, build curiosity and trust...
+          </p>
+        </div>
+
+        <!-- Mid-article opt-in -->
+        <div style="max-width: 520px; margin: 48px auto; padding: 36px; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border-radius: 16px; border: 2px solid #86efac; text-align: center;">
+          <h3 style="font-size: 22px; font-weight: 700; color: #166534; margin-bottom: 8px;">Want the Full Report?</h3>
+          <p style="color: #4d7c0f; font-size: 15px; margin-bottom: 20px;">Enter your email to get the complete research breakdown — free.</p>
+          <form data-at-form="optin" style="display: flex; flex-direction: column; gap: 10px; max-width: 360px; margin: 0 auto;">
+            <input type="text" name="name" placeholder="Your Name" style="width: 100%; padding: 14px 18px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 15px; box-sizing: border-box;" />
+            <input type="email" name="email" placeholder="Your Email Address" required style="width: 100%; padding: 14px 18px; border: 1px solid #d1d5db; border-radius: 10px; font-size: 15px; box-sizing: border-box;" />
+            <button type="submit" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #16a34a, #15803d); color: #fff; font-size: 17px; font-weight: 700; border: none; border-radius: 10px; cursor: pointer;">
+              Send Me the Report →
+            </button>
+          </form>
+          <p style="color: #6b7280; font-size: 11px; margin-top: 10px;">By signing up you agree to receive emails. Unsubscribe anytime.</p>
+        </div>
+
+        <!-- Continue article -->
+        <div style="max-width: 720px; margin: 0 auto; padding: 0 24px 60px;">
+          <h2 style="font-size: 26px; font-weight: 700; color: #1e293b; margin: 40px 0 16px; font-family: Georgia, serif;">What Real People Are Saying</h2>
+          <p style="color: #334155; font-size: 18px; line-height: 1.8; font-family: Georgia, serif;">
+            Continue your article with social proof, more details, and a final call-to-action...
+          </p>
+
+          <!-- Final CTA -->
+          <div style="text-align: center; margin: 48px 0;">
+            <a href="#" style="display: inline-block; padding: 18px 48px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; font-size: 20px; font-weight: 800; border-radius: 14px; text-decoration: none; box-shadow: 0 8px 24px rgba(245,158,11,0.3);">
+              Try the Spanish Orange Trick →
+            </a>
+            <p style="color: #9ca3af; font-size: 12px; margin-top: 10px;">🔒 60-Day Money Back Guarantee</p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #f8fafc; padding: 32px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+          <p style="color: #9ca3af; font-size: 11px; line-height: 1.8;">
+            ADVERTISEMENT · This article is sponsored content.<br />
+            <a href="#" style="color: #6b7280;">Privacy Policy</a> · <a href="#" style="color: #6b7280;">Terms</a> · <a href="#" style="color: #6b7280;">Disclaimer</a><br />
+            ClickBank is a registered trademark of Click Sales, Inc.
+          </p>
+        </div>
+      </div>
+    `,
+  });
 }
 
 /**
  * Custom GrapeJS style manager configuration
  */
 export const styleManagerConfig = {
-    sectors: [
-        {
-            name: 'Dimension',
-            open: false,
-            properties: [
-                'width', 'min-width', 'max-width',
-                'height', 'min-height', 'max-height',
-                'padding', 'margin',
-            ],
-        },
-        {
-            name: 'Typography',
-            open: false,
-            properties: [
-                'font-family', 'font-size', 'font-weight', 'letter-spacing',
-                'color', 'line-height', 'text-align', 'text-decoration',
-                'text-transform',
-            ],
-        },
-        {
-            name: 'Background',
-            open: false,
-            properties: [
-                'background-color', 'background-image', 'background-repeat',
-                'background-position', 'background-size',
-            ],
-        },
-        {
-            name: 'Border',
-            open: false,
-            properties: [
-                'border-radius', 'border', 'box-shadow',
-            ],
-        },
-        {
-            name: 'Layout',
-            open: false,
-            properties: [
-                'display', 'flex-direction', 'justify-content', 'align-items',
-                'flex-wrap', 'gap', 'position', 'top', 'right', 'bottom', 'left',
-                'z-index', 'overflow',
-            ],
-        },
-        {
-            name: 'Effects',
-            open: false,
-            properties: [
-                'opacity', 'transition', 'transform', 'filter',
-            ],
-        },
-    ],
+  sectors: [
+    {
+      name: 'Dimension',
+      open: false,
+      properties: [
+        'width', 'min-width', 'max-width',
+        'height', 'min-height', 'max-height',
+        'padding', 'margin',
+      ],
+    },
+    {
+      name: 'Typography',
+      open: false,
+      properties: [
+        'font-family', 'font-size', 'font-weight', 'letter-spacing',
+        'color', 'line-height', 'text-align', 'text-decoration',
+        'text-transform',
+      ],
+    },
+    {
+      name: 'Background',
+      open: false,
+      properties: [
+        'background-color', 'background-image', 'background-repeat',
+        'background-position', 'background-size',
+      ],
+    },
+    {
+      name: 'Border',
+      open: false,
+      properties: [
+        'border-radius', 'border', 'box-shadow',
+      ],
+    },
+    {
+      name: 'Layout',
+      open: false,
+      properties: [
+        'display', 'flex-direction', 'justify-content', 'align-items',
+        'flex-wrap', 'gap', 'position', 'top', 'right', 'bottom', 'left',
+        'z-index', 'overflow',
+      ],
+    },
+    {
+      name: 'Effects',
+      open: false,
+      properties: [
+        'opacity', 'transition', 'transform', 'filter',
+      ],
+    },
+  ],
 };
 
 /**
@@ -539,3 +637,42 @@ export const canvasStyles = `
     [style*="display: flex"] { flex-direction: column !important; }
   }
 `;
+
+/**
+ * Script injected into published pages to handle opt-in form submissions.
+ * The funnel_id and redirect_url are replaced at publish time.
+ */
+export const optinFormScript = `
+<script>
+(function() {
+  var forms = document.querySelectorAll('[data-at-form="optin"]');
+  forms.forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var data = {
+        funnel_id: window.__AT_FUNNEL_ID__ || '',
+        page_id: window.__AT_PAGE_ID__ || '',
+        email: form.querySelector('[name="email"]').value,
+        name: (form.querySelector('[name="name"]') || {}).value || ''
+      };
+      var btn = form.querySelector('button[type="submit"]');
+      if (btn) { btn.textContent = 'Sending...'; btn.disabled = true; }
+      fetch((window.__AT_API_BASE__ || '') + '/api/tracking/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(function() {
+        if (window.__AT_REDIRECT__) {
+          window.location.href = window.__AT_REDIRECT__;
+        } else {
+          if (btn) btn.textContent = '✓ Success!';
+        }
+      }).catch(function() {
+        if (btn) { btn.textContent = 'Try Again'; btn.disabled = false; }
+      });
+    });
+  });
+})();
+</script>
+`;
+

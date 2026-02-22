@@ -207,3 +207,8 @@ export const billingApi = {
     openPortal: () => api('/stripe/portal', { body: {} }),
     getSubscription: () => api('/stripe/subscription'),
 };
+
+// AI
+export const aiApi = {
+    generatePage: (data) => api('/ai/generate-page', { body: data }),
+};

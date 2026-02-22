@@ -28,6 +28,7 @@ const stripeRoutes = require('./routes/stripe');
 const clickbankRoutes = require('./routes/clickbank');
 const templateRoutes = require('./routes/templates');
 const affiliateRoutes = require('./routes/affiliate');
+const aiRoutes = require('./routes/ai');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -66,6 +67,7 @@ app.use('/api/stripe', stripeRoutes);
 app.use('/api/clickbank', clickbankRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/affiliate', affiliateRoutes);
+app.use('/api/ai', aiRoutes);
 
 // === Public Routes ===
 

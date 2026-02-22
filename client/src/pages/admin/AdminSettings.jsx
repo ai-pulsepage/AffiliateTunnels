@@ -39,6 +39,7 @@ export default function AdminSettings() {
         'Cloudflare R2': ['r2_access_key', 'r2_secret_key', 'r2_bucket_name', 'r2_public_url', 'r2_endpoint'],
         'ClickBank': ['clickbank_secret_key', 'clickbank_clerk_api_key'],
         'Tracking': ['default_ga4_id', 'default_fb_pixel_id'],
+        'AI (Gemini)': ['gemini_api_key'],
         'Application': ['app_base_url', 'physical_address'],
     };
 
