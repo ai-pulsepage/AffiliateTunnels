@@ -1,0 +1,209 @@
+const API_BASE = '/api';
+
+let accessToken = localStorage.getItem('at_access_token');
+let refreshToken = localStorage.getItem('at_refresh_token');
+
+export function setTokens(access, refresh) {
+    accessToken = access;
+    refreshToken = refresh;
+    if (access) {
+        localStorage.setItem('at_access_token', access);
+        localStorage.setItem('at_refresh_token', refresh);
+    } else {
+        localStorage.removeItem('at_access_token');
+        localStorage.removeItem('at_refresh_token');
+    }
+}
+
+export function getAccessToken() {
+    return accessToken;
+}
+
+async function refreshAccessToken() {
+    try {
+        const res = await fetch(`${API_BASE}/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+        });
+
+        if (!res.ok) {
+            setTokens(null, null);
+            window.location.href = '/login';
+            return null;
+        }
+
+        const data = await res.json();
+        setTokens(data.accessToken, data.refreshToken);
+        return data.accessToken;
+    } catch {
+        setTokens(null, null);
+        window.location.href = '/login';
+        return null;
+    }
+}
+
+export async function api(path, options = {}) {
+    const { body, method = body ? 'POST' : 'GET', headers = {}, raw = false } = options;
+
+    const reqHeaders = {
+        ...headers,
+    };
+
+    if (accessToken) {
+        reqHeaders['Authorization'] = `Bearer ${accessToken}`;
+    }
+
+    if (body && !(body instanceof FormData)) {
+        reqHeaders['Content-Type'] = 'application/json';
+    }
+
+    let res = await fetch(`${API_BASE}${path}`, {
+        method,
+        headers: reqHeaders,
+        body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+    });
+
+    // Token expired — try refresh
+    if (res.status === 401 && refreshToken) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+            reqHeaders['Authorization'] = `Bearer ${newToken}`;
+            res = await fetch(`${API_BASE}${path}`, {
+                method,
+                headers: reqHeaders,
+                body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+            });
+        }
+    }
+
+    if (raw) return res;
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        throw new Error(data.error || 'Something went wrong');
+    }
+
+    return data;
+}
+
+// Auth helpers
+export const authApi = {
+    login: (email, password) => api('/auth/login', { body: { email, password } }),
+    signup: (email, password, name) => api('/auth/signup', { body: { email, password, name } }),
+    me: () => api('/auth/me'),
+    updateProfile: (data) => api('/auth/profile', { body: data, method: 'PUT' }),
+    forgotPassword: (email) => api('/auth/forgot-password', { body: { email } }),
+    resetPassword: (token, password) => api('/auth/reset-password', { body: { token, password } }),
+};
+
+// Funnel helpers
+export const funnelApi = {
+    list: () => api('/funnels'),
+    get: (id) => api(`/funnels/${id}`),
+    create: (data) => api('/funnels', { body: data }),
+    update: (id, data) => api(`/funnels/${id}`, { body: data, method: 'PUT' }),
+    delete: (id) => api(`/funnels/${id}`, { method: 'DELETE' }),
+    duplicate: (id) => api(`/funnels/${id}/duplicate`, { body: {} }),
+    // Pages
+    getPages: (funnelId) => api(`/funnels/${funnelId}/pages`),
+    getPage: (funnelId, pageId) => api(`/funnels/${funnelId}/pages/${pageId}`),
+    createPage: (funnelId, data) => api(`/funnels/${funnelId}/pages`, { body: data }),
+    updatePage: (funnelId, pageId, data) => api(`/funnels/${funnelId}/pages/${pageId}`, { body: data, method: 'PUT' }),
+    deletePage: (funnelId, pageId) => api(`/funnels/${funnelId}/pages/${pageId}`, { method: 'DELETE' }),
+    getVersions: (funnelId, pageId) => api(`/funnels/${funnelId}/pages/${pageId}/versions`),
+    rollback: (funnelId, pageId, versionId) => api(`/funnels/${funnelId}/pages/${pageId}/rollback/${versionId}`, { body: {}, method: 'PUT' }),
+};
+
+// Publish helpers
+export const publishApi = {
+    publishPage: (funnelId, pageId) => api(`/publish/${funnelId}/${pageId}`, { body: {} }),
+    publishAll: (funnelId) => api(`/publish/${funnelId}`, { body: {} }),
+    unpublish: (funnelId) => api(`/publish/${funnelId}/unpublish`, { body: {}, method: 'PUT' }),
+};
+
+// Analytics
+export const analyticsApi = {
+    getFunnel: (funnelId, params = {}) => {
+        const qs = new URLSearchParams(params).toString();
+        return api(`/analytics/funnel/${funnelId}${qs ? '?' + qs : ''}`);
+    },
+};
+
+// Media
+export const mediaApi = {
+    list: (page = 1) => api(`/media?page=${page}`),
+    upload: (file) => {
+        const form = new FormData();
+        form.append('file', file);
+        return api('/media/upload', { body: form, method: 'POST' });
+    },
+    delete: (id) => api(`/media/${id}`, { method: 'DELETE' }),
+};
+
+// Email
+export const emailApi = {
+    listTemplates: () => api('/emails/templates'),
+    createTemplate: (data) => api('/emails/templates', { body: data }),
+    updateTemplate: (id, data) => api(`/emails/templates/${id}`, { body: data, method: 'PUT' }),
+    deleteTemplate: (id) => api(`/emails/templates/${id}`, { method: 'DELETE' }),
+    getDrip: (funnelId) => api(`/emails/drips/${funnelId}`),
+    createDrip: (funnelId, data) => api(`/emails/drips/${funnelId}`, { body: data }),
+    activateDrip: (id, active) => api(`/emails/drips/${id}/activate`, { body: { is_active: active }, method: 'PUT' }),
+    addDripEmail: (id, data) => api(`/emails/drips/${id}/emails`, { body: data }),
+    getMetrics: (funnelId) => api(`/emails/metrics/${funnelId}`),
+    getLeads: (funnelId, page = 1) => api(`/emails/leads/${funnelId}?page=${page}`),
+};
+
+// Admin
+export const adminApi = {
+    getSettings: () => api('/admin/settings'),
+    updateSettings: (settings) => api('/admin/settings', { body: { settings }, method: 'PUT' }),
+    getUsers: (page = 1, search = '') => api(`/admin/users?page=${page}&search=${search}`),
+    suspendUser: (id) => api(`/admin/users/${id}/suspend`, { body: {}, method: 'PUT' }),
+    deleteUser: (id) => api(`/admin/users/${id}`, { method: 'DELETE' }),
+    getStats: () => api('/admin/stats'),
+    getHealth: () => api('/admin/health'),
+    getBilling: () => api('/admin/billing'),
+};
+
+// Templates
+export const templateApi = {
+    list: (category) => api(`/templates${category ? '?category=' + category : ''}`),
+    get: (id) => api(`/templates/${id}`),
+    save: (data) => api('/templates', { body: data }),
+    delete: (id) => api(`/templates/${id}`, { method: 'DELETE' }),
+    apply: (templateId, pageId) => api(`/templates/${templateId}/apply/${pageId}`, { body: {} }),
+};
+
+// Affiliate
+export const affiliateApi = {
+    listContent: (type) => api(`/affiliate/content${type ? '?content_type=' + type : ''}`),
+    uploadContent: (data) => {
+        if (data instanceof FormData) return api('/affiliate/content', { body: data, method: 'POST' });
+        return api('/affiliate/content', { body: data });
+    },
+    deleteContent: (id) => api(`/affiliate/content/${id}`, { method: 'DELETE' }),
+    listHopLinks: () => api('/affiliate/hoplinks'),
+    createHopLink: (data) => api('/affiliate/hoplinks', { body: data }),
+    deleteHopLink: (id) => api(`/affiliate/hoplinks/${id}`, { method: 'DELETE' }),
+    listCloakedLinks: () => api('/affiliate/cloaked-links'),
+    createCloakedLink: (data) => api('/affiliate/cloaked-links', { body: data }),
+    deleteCloakedLink: (id) => api(`/affiliate/cloaked-links/${id}`, { method: 'DELETE' }),
+};
+
+// ClickBank
+export const clickbankApi = {
+    getSales: (params = {}) => {
+        const qs = new URLSearchParams(params).toString();
+        return api(`/clickbank/sales${qs ? '?' + qs : ''}`);
+    },
+};
+
+// Billing / Stripe
+export const billingApi = {
+    createCheckout: (priceId) => api('/stripe/checkout', { body: { priceId } }),
+    openPortal: () => api('/stripe/portal', { body: {} }),
+    getSubscription: () => api('/stripe/subscription'),
+};

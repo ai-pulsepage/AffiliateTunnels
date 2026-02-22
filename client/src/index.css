@@ -1,0 +1,238 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #3f3f46 transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: #3f3f46;
+    border-radius: 3px;
+  }
+
+  ::selection {
+    background-color: rgba(99, 102, 241, 0.3);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg shadow-brand-600/20 hover:shadow-brand-600/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2.5 bg-surface-700 hover:bg-surface-200/10 text-white font-medium rounded-xl transition-all duration-200 border border-white/10 hover:border-white/20 active:scale-[0.98];
+  }
+
+  .btn-danger {
+    @apply px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition-all duration-200 active:scale-[0.98];
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2.5 bg-surface-800 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-surface-800 border border-white/5 rounded-2xl p-6 shadow-lg shadow-black/10;
+  }
+
+  .card-hover {
+    @apply card hover:border-white/10 hover:shadow-xl hover:shadow-black/20 transition-all duration-300 cursor-pointer;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20;
+  }
+
+  .badge-warning {
+    @apply badge bg-amber-500/10 text-amber-400 border border-amber-500/20;
+  }
+
+  .badge-info {
+    @apply badge bg-blue-500/10 text-blue-400 border border-blue-500/20;
+  }
+
+  .stat-card {
+    @apply card flex flex-col gap-1;
+  }
+
+  .stat-value {
+    @apply text-2xl font-bold text-white;
+  }
+
+  .stat-label {
+    @apply text-sm text-gray-400;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-200;
+  }
+
+  .sidebar-link.active {
+    @apply text-white bg-brand-600/10 border border-brand-500/20;
+  }
+}
+
+/* Animations */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.2s ease-out forwards;
+}
+
+/* Scrollbar utility */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #3f3f46 transparent;
+}
+
+/* GrapeJS overrides */
+.gjs-one-bg {
+  background-color: #18181b !important;
+}
+
+.gjs-two-color {
+  color: #e4e4e7 !important;
+}
+
+.gjs-three-bg {
+  background-color: #27272a !important;
+}
+
+.gjs-four-color,
+.gjs-four-color-h:hover {
+  color: #6366f1 !important;
+}
+
+/* Panel backgrounds */
+.gjs-pn-panel {
+  background-color: #18181b !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.gjs-pn-views-container {
+  background-color: #18181b !important;
+}
+
+.gjs-pn-views {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Block manager */
+.gjs-blocks-cs {
+  background-color: #18181b !important;
+}
+
+.gjs-block {
+  background-color: #27272a !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 8px !important;
+  color: #e4e4e7 !important;
+  margin: 4px !important;
+}
+
+.gjs-block:hover {
+  border-color: rgba(99, 102, 241, 0.4) !important;
+  background-color: #2d2d35 !important;
+}
+
+.gjs-block__media {
+  color: #94a3b8 !important;
+}
+
+.gjs-block-label {
+  color: #e4e4e7 !important;
+  font-size: 11px !important;
+}
+
+.gjs-block-categories .gjs-title {
+  background-color: #1f1f23 !important;
+  color: #94a3b8 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Style manager */
+.gjs-sm-sector .gjs-sm-sector-title {
+  background-color: #1f1f23 !important;
+  color: #94a3b8 !important;
+}
+
+.gjs-sm-property .gjs-sm-label {
+  color: #94a3b8 !important;
+}
+
+.gjs-field {
+  background-color: #27272a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #e4e4e7 !important;
+}
+
+.gjs-field input,
+.gjs-field select {
+  color: #e4e4e7 !important;
+}
+
+/* Trait manager */
+.gjs-trt-trait {
+  color: #e4e4e7 !important;
+}
+
+.gjs-trt-trait .gjs-label {
+  color: #94a3b8 !important;
+}
+
+/* Layer manager */
+.gjs-layer {
+  background-color: transparent !important;
+}
+
+.gjs-layer-name {
+  color: #e4e4e7 !important;
+}
+
+/* Toolbar */
+.gjs-toolbar {
+  background-color: #6366f1 !important;
+  border-radius: 6px !important;
+}
+
+.gjs-toolbar-item {
+  color: #fff !important;
+}
+
+/* Canvas frame */
+.gjs-cv-canvas {
+  background-color: #0f0f12 !important;
+}
+
+/* Selected component highlight */
+.gjs-selected {
+  outline: 2px solid #6366f1 !important;
+  outline-offset: -2px;
+}
+
+.gjs-hovered {
+  outline: 1px dashed rgba(99, 102, 241, 0.5) !important;
+}
