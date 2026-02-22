@@ -23,7 +23,6 @@ COPY --from=base /app/server ./server
 COPY --from=base /app/shared ./shared
 COPY --from=base /app/client/dist ./client/dist
 COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/server/node_modules ./server/node_modules 2>/dev/null || true
 
 ENV NODE_ENV=production
 EXPOSE 3001
