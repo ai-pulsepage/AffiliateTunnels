@@ -61,7 +61,7 @@ async function migrate() {
 
 // Run if called directly
 if (require.main === module) {
-    require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+    try { require('dotenv').config({ path: path.join(__dirname, '../../.env') }); } catch (e) { }
     migrate()
         .then(() => process.exit(0))
         .catch(err => {
