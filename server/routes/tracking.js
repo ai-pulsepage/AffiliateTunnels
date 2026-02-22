@@ -40,7 +40,7 @@ router.post('/event', trackingLimiter, async (req, res) => {
 // POST /api/tracking/lead - Public lead capture endpoint
 router.post('/lead', trackingLimiter, async (req, res) => {
     try {
-        const { funnel_id, page_id, email, name, custom_fields, utm_source, utm_medium, utm_campaign, utm_term, utm_content } = req.body;
+        const { funnel_id, page_id, email, name, custom_fields, utm_source, utm_medium, utm_campaign, utm_term, utm_content, consent_offer, consent_marketing } = req.body;
 
         if (!funnel_id || !email) {
             return res.status(400).json({ error: 'funnel_id and email required' });
@@ -50,11 +50,11 @@ router.post('/lead', trackingLimiter, async (req, res) => {
 
         // Upsert lead (don't duplicate same email per funnel)
         const result = await query(
-            `INSERT INTO leads (funnel_id, page_id, email, name, custom_fields, utm_source, utm_medium, utm_campaign, utm_term, utm_content, ip_address, user_agent, referrer)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            `INSERT INTO leads (funnel_id, page_id, email, name, custom_fields, utm_source, utm_medium, utm_campaign, utm_term, utm_content, ip_address, user_agent, referrer, consent_offer, consent_marketing, consent_timestamp)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
        ON CONFLICT DO NOTHING
        RETURNING *`,
-            [funnel_id, page_id || null, email.toLowerCase(), name || '', JSON.stringify(custom_fields || {}), utm_source || null, utm_medium || null, utm_campaign || null, utm_term || null, utm_content || null, ip, req.headers['user-agent'] || '', req.headers['referer'] || '']
+            [funnel_id, page_id || null, email.toLowerCase(), name || '', JSON.stringify(custom_fields || {}), utm_source || null, utm_medium || null, utm_campaign || null, utm_term || null, utm_content || null, ip, req.headers['user-agent'] || '', req.headers['referer'] || '', consent_offer || false, consent_marketing || false]
         );
 
         // Track conversion event

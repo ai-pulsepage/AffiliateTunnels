@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Funnels from './pages/Funnels';
 import FunnelDetail from './pages/FunnelDetail';
 import PageBuilder from './pages/PageBuilder';
+import TemplateEditor from './pages/TemplateEditor';
 import EmailBuilder from './pages/EmailBuilder';
 import DripBuilder from './pages/DripBuilder';
 import Leads from './pages/Leads';
@@ -76,6 +77,7 @@ export default function App() {
 
             {/* Full-screen page builder (outside layout) */}
             <Route path="/builder/:funnelId/:pageId" element={<ProtectedRoute><PageBuilder /></ProtectedRoute>} />
+            <Route path="/editor/:funnelId/:pageId" element={<ProtectedRoute><TemplateEditor /></ProtectedRoute>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

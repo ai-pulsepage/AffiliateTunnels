@@ -133,18 +133,27 @@ export const analyticsApi = {
 
 // Media
 export const mediaApi = {
-    list: (page = 1) => api(`/media?page=${page}`),
-    upload: (file) => {
+    list: ({ page = 1, folder_id, funnel_id } = {}) => {
+        const params = new URLSearchParams({ page });
+        if (folder_id) params.set('folder_id', folder_id);
+        if (funnel_id) params.set('funnel_id', funnel_id);
+        return api(`/media?${params}`);
+    },
+    upload: (file, folder_id) => {
         const form = new FormData();
         form.append('file', file);
+        if (folder_id) form.append('folder_id', folder_id);
         return api('/media/upload', { body: form, method: 'POST' });
     },
     delete: (id) => api(`/media/${id}`, { method: 'DELETE' }),
+    listFolders: () => api('/media/folders'),
+    createFolder: (name, funnel_id) => api('/media/folders', { method: 'POST', body: JSON.stringify({ name, funnel_id }), headers: { 'Content-Type': 'application/json' } }),
+    deleteFolder: (id) => api(`/media/folders/${id}`, { method: 'DELETE' }),
 };
 
 // Email
 export const emailApi = {
-    listTemplates: () => api('/emails/templates'),
+    listTemplates: (funnel_id) => api(`/emails/templates${funnel_id ? `?funnel_id=${funnel_id}` : ''}`),
     createTemplate: (data) => api('/emails/templates', { body: data }),
     updateTemplate: (id, data) => api(`/emails/templates/${id}`, { body: data, method: 'PUT' }),
     deleteTemplate: (id) => api(`/emails/templates/${id}`, { method: 'DELETE' }),
@@ -152,6 +161,8 @@ export const emailApi = {
     createDrip: (funnelId, data) => api(`/emails/drips/${funnelId}`, { body: data }),
     activateDrip: (id, active) => api(`/emails/drips/${id}/activate`, { body: { is_active: active }, method: 'PUT' }),
     addDripEmail: (id, data) => api(`/emails/drips/${id}/emails`, { body: data }),
+    updateDripEmail: (dripId, emailId, data) => api(`/emails/drips/${dripId}/emails/${emailId}`, { body: data, method: 'PUT' }),
+    deleteDripEmail: (dripId, emailId) => api(`/emails/drips/${dripId}/emails/${emailId}`, { method: 'DELETE' }),
     getMetrics: (funnelId) => api(`/emails/metrics/${funnelId}`),
     getLeads: (funnelId, page = 1) => api(`/emails/leads/${funnelId}?page=${page}`),
 };

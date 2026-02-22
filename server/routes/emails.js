@@ -10,10 +10,15 @@ router.use(authenticate);
 // GET /api/emails/templates
 router.get('/templates', async (req, res) => {
     try {
-        const result = await query(
-            'SELECT * FROM email_templates WHERE user_id = $1 ORDER BY updated_at DESC',
-            [req.user.id]
-        );
+        const { funnel_id } = req.query;
+        let sql = 'SELECT * FROM email_templates WHERE user_id = $1';
+        const params = [req.user.id];
+        if (funnel_id) {
+            params.push(funnel_id);
+            sql += ` AND funnel_id = $${params.length}`;
+        }
+        sql += ' ORDER BY updated_at DESC';
+        const result = await query(sql, params);
         res.json({ templates: result.rows });
     } catch (err) {
         res.status(500).json({ error: 'Failed to list templates' });
@@ -23,15 +28,15 @@ router.get('/templates', async (req, res) => {
 // POST /api/emails/templates
 router.post('/templates', async (req, res) => {
     try {
-        const { name, subject, html_content, text_content, category } = req.body;
+        const { name, subject, html_content, text_content, category, funnel_id } = req.body;
         if (!name || !subject || !html_content) {
             return res.status(400).json({ error: 'Name, subject, and HTML content required' });
         }
 
         const result = await query(
-            `INSERT INTO email_templates (user_id, name, subject, html_content, text_content, category)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [req.user.id, name, subject, html_content, text_content || '', category || null]
+            `INSERT INTO email_templates (user_id, name, subject, html_content, text_content, category, funnel_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [req.user.id, name, subject, html_content, text_content || '', category || null, funnel_id || null]
         );
 
         res.status(201).json({ template: result.rows[0] });
