@@ -1,3 +1,4 @@
+# AffiliateTunnels - Single service (API + static client)
 FROM node:20-alpine AS base
 WORKDIR /app
 
