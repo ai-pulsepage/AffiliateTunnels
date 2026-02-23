@@ -195,7 +195,12 @@ export default function FunnelDetail() {
                                         <span className="text-xs text-gray-600 w-6 text-center">{page.step_order + 1}</span>
                                         <div>
                                             <p className="text-sm font-medium text-white">{page.name}</p>
-                                            <p className="text-xs text-gray-500">{page.page_type} · /{page.slug}</p>
+                                            <p className="text-xs text-gray-500">
+                                                {page.page_type} · /{funnel.slug}/{page.slug}
+                                                {page.is_published && page.published_url && (
+                                                    <a href={page.published_url} target="_blank" rel="noopener noreferrer" className="ml-2 text-brand-400 hover:underline">Live ↗</a>
+                                                )}
+                                            </p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">

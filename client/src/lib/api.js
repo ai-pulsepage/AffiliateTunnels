@@ -222,4 +222,5 @@ export const billingApi = {
 // AI
 export const aiApi = {
     generatePage: (data) => api('/ai/generate-page', { body: data }),
+    scrapeProduct: (url) => api('/ai/scrape-product', { body: { url } }),
 };

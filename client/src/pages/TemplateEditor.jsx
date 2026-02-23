@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { funnelApi, publishApi, aiApi } from '../lib/api';
 import MediaPicker from '../components/MediaPicker';
-import { ArrowLeft, Save, Globe, Eye, Wand2, Image, Film, ToggleLeft, ToggleRight, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Save, Globe, Wand2, ToggleLeft, ToggleRight, Sparkles, Link2, PenLine, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // ─── TEMPLATES ────────────────────────────────────
@@ -11,6 +11,7 @@ const TEMPLATES = {
     advertorial: {
         name: 'Advertorial',
         desc: 'News article style — byline, expert quotes, body text, CTA',
+        emoji: '📰',
         html: (data) => `
 <div style="max-width:720px;margin:0 auto;padding:40px 24px;font-family:Georgia,'Times New Roman',serif;color:#333;line-height:1.8;background:#fff;">
   <div style="border-bottom:3px solid #222;padding-bottom:12px;margin-bottom:24px;">
@@ -49,6 +50,7 @@ const TEMPLATES = {
     video_presell: {
         name: 'Video Presell',
         desc: 'Hero video with headline, body text, and prominent CTA',
+        emoji: '🎬',
         html: (data) => `
 <div style="max-width:680px;margin:0 auto;padding:40px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#333;background:#fff;">
   <h1 style="font-size:28px;font-weight:800;text-align:center;line-height:1.3;color:#111;margin:0 0 8px;" data-editable="headline">${data.headline || 'Watch: The 30-Second Morning Ritual That Changed Everything'}</h1>
@@ -79,6 +81,7 @@ const TEMPLATES = {
     listicle: {
         name: 'Listicle',
         desc: '"7 Reasons Why..." numbered article with CTA at the end',
+        emoji: '📝',
         html: (data) => `
 <div style="max-width:700px;margin:0 auto;padding:40px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#333;background:#fff;">
   <p style="font-size:13px;font-weight:600;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;" data-editable="category">${data.category || 'HEALTH & WELLNESS'}</p>
@@ -120,7 +123,7 @@ const TEMPLATES = {
 function gatePopupHtml(funnelId, pageId) {
     return `
 <!-- Gate Popup -->
-<div id="at-gate-popup" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<div id="at-gate-popup" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="background:#fff;border-radius:16px;padding:40px;max-width:440px;width:90%;text-align:center;position:relative;">
     <h2 style="font-size:24px;font-weight:700;color:#111;margin:0 0 8px;">Get the Full Report Free</h2>
     <p style="font-size:15px;color:#666;margin:0 0 24px;">Enter your email below and we'll send you exclusive content and updates.</p>
@@ -174,9 +177,14 @@ export default function TemplateEditor() {
     const [activeMediaSlot, setActiveMediaSlot] = useState(null);
     const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
+    const [loading, setLoading] = useState(true);
+
+    // AI state
     const [showAi, setShowAi] = useState(false);
+    const [aiTab, setAiTab] = useState('generate'); // generate | improve | fromlink
     const [aiGenerating, setAiGenerating] = useState(false);
-    const [aiForm, setAiForm] = useState({ productName: '', productDescription: '', affiliateLink: '', style: 'advertorial' });
+    const [aiForm, setAiForm] = useState({ productName: '', productDescription: '', affiliateLink: '', style: 'advertorial', productUrl: '', existingContent: '' });
+
     const previewRef = useRef(null);
 
     useEffect(() => { loadPage(); }, [funnelId, pageId]);
@@ -185,14 +193,18 @@ export default function TemplateEditor() {
         try {
             const fData = await funnelApi.get(funnelId);
             setFunnel(fData.funnel);
-            const pg = (fData.funnel.pages || []).find(p => p.id === pageId);
+            const pages = fData.pages || fData.funnel?.pages || [];
+            const pg = pages.find(p => p.id === pageId);
             setPage(pg);
-            if (pg?.html_content) {
-                setHtmlContent(pg.html_content);
+
+            // If page already has content, load it directly into editor (skip template picker)
+            if (pg?.html_output) {
+                setHtmlContent(pg.html_output);
                 setSelectedTemplate('custom');
             }
             setAiForm(f => ({ ...f, affiliateLink: fData.funnel.affiliate_link || '' }));
         } catch (err) { toast.error(err.message); }
+        finally { setLoading(false); }
     }
 
     function selectTemplate(key) {
@@ -264,7 +276,8 @@ export default function TemplateEditor() {
             if (gateEnabled) {
                 finalHtml += gatePopupHtml(funnelId, pageId);
             }
-            await funnelApi.updatePage(funnelId, pageId, { html_content: finalHtml });
+            // Save as html_output — this is what the publisher reads
+            await funnelApi.updatePage(funnelId, pageId, { html_output: finalHtml });
             toast.success('Saved!');
         } catch (err) { toast.error(err.message); }
         finally { setSaving(false); }
@@ -274,20 +287,51 @@ export default function TemplateEditor() {
         await handleSave();
         setPublishing(true);
         try {
-            await publishApi.publish(funnelId);
-            toast.success('Published!');
+            const result = await publishApi.publishPage(funnelId, pageId);
+            toast.success(`Published! ${result.url || ''}`);
         } catch (err) { toast.error(err.message); }
         finally { setPublishing(false); }
     }
 
+    // ─── AI HANDLERS ──────────────────────────
+
     async function handleAiGenerate() {
-        if (!aiForm.productName || !aiForm.productDescription) {
+        if (aiTab === 'generate' && (!aiForm.productName || !aiForm.productDescription)) {
             toast.error('Product name and description required');
             return;
         }
+        if (aiTab === 'fromlink' && !aiForm.productUrl) {
+            toast.error('Paste the product page URL');
+            return;
+        }
+
         setAiGenerating(true);
         try {
-            const result = await aiApi.generatePage(aiForm);
+            let productInfo = aiForm.productDescription;
+            let productName = aiForm.productName;
+
+            // If "From Link" mode, scrape first
+            if (aiTab === 'fromlink') {
+                toast('Scraping product page...');
+                const scraped = await aiApi.scrapeProduct(aiForm.productUrl);
+                productName = scraped.productName || 'Product';
+                productInfo = scraped.description || '';
+                setAiForm(f => ({ ...f, productName: productName, productDescription: productInfo, affiliateLink: f.affiliateLink || aiForm.productUrl }));
+            }
+
+            // If "Improve" mode, send existing content
+            const payload = {
+                productName: productName || aiForm.productName,
+                productDescription: productInfo || aiForm.productDescription,
+                affiliateLink: aiForm.affiliateLink || funnel?.affiliate_link || '#',
+                style: aiForm.style,
+            };
+
+            if (aiTab === 'improve') {
+                payload.existingContent = htmlContent;
+            }
+
+            const result = await aiApi.generatePage(payload);
             if (result.html) {
                 setHtmlContent(result.html);
                 setSelectedTemplate('custom');
@@ -314,78 +358,152 @@ export default function TemplateEditor() {
         }
     }, [htmlContent, handlePreviewClick]);
 
-    // ─── TEMPLATE SELECTION SCREEN ──────────
-    if (!selectedTemplate) {
+    // ─── LOADING ──────────────
+    if (loading) {
         return (
-            <div className="space-y-6">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/5 rounded-lg">
-                        <ArrowLeft className="w-5 h-5 text-gray-400" />
-                    </button>
-                    <div>
-                        <h1 className="text-xl font-bold text-white">Choose a Template</h1>
-                        <p className="text-sm text-gray-500">{funnel?.name || 'Funnel'} — {page?.name || 'Page'}</p>
-                    </div>
+            <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
+                <div className="w-10 h-10 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    // ─── AI MODAL (shared between both screens) ──────
+    const aiModal = showAi && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={() => !aiGenerating && setShowAi(false)}>
+            <div className="bg-[#1a1d27] rounded-2xl w-full max-w-lg border border-white/10 shadow-2xl" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2"><Wand2 className="w-5 h-5 text-purple-400" /> AI Writer</h3>
+                    <button onClick={() => setShowAi(false)} className="p-1.5 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-gray-400" /></button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    {Object.entries(TEMPLATES).map(([key, tpl]) => (
+                {/* Tabs */}
+                <div className="flex border-b border-white/5">
+                    {[
+                        { key: 'generate', label: 'Generate', icon: Sparkles },
+                        { key: 'improve', label: 'Improve Page', icon: PenLine },
+                        { key: 'fromlink', label: 'From Link', icon: Link2 },
+                    ].map(({ key, label, icon: Icon }) => (
                         <button
                             key={key}
-                            onClick={() => selectTemplate(key)}
-                            className="group bg-surface-800 border border-white/5 rounded-xl p-6 text-left hover:border-brand-500/40 hover:bg-surface-800/80 transition-all"
+                            onClick={() => setAiTab(key)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium transition-colors ${aiTab === key ? 'text-purple-400 border-b-2 border-purple-400 bg-purple-500/5' : 'text-gray-500 hover:text-gray-300'}`}
                         >
-                            <div className="w-12 h-12 rounded-xl bg-brand-600/20 flex items-center justify-center mb-4 group-hover:bg-brand-600/30 transition-colors">
-                                <span className="text-2xl">{key === 'advertorial' ? '📰' : key === 'video_presell' ? '🎬' : '📝'}</span>
-                            </div>
-                            <h3 className="text-lg font-bold text-white mb-1">{tpl.name}</h3>
-                            <p className="text-sm text-gray-400">{tpl.desc}</p>
+                            <Icon className="w-3.5 h-3.5" /> {label}
                         </button>
                     ))}
                 </div>
 
-                <div className="text-center">
-                    <button
-                        onClick={() => setShowAi(true)}
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-brand-600 text-white font-medium rounded-xl hover:from-purple-500 hover:to-brand-500 transition-all"
-                    >
-                        <Wand2 className="w-4 h-4" /> Or Let AI Write Your Page
-                    </button>
+                {/* Tab content */}
+                <div className="p-5 space-y-3">
+                    {aiTab === 'generate' && (
+                        <>
+                            <input value={aiForm.productName} onChange={e => setAiForm(f => ({ ...f, productName: e.target.value }))} placeholder="Product name (e.g. Citrus Burn)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                            <textarea value={aiForm.productDescription} onChange={e => setAiForm(f => ({ ...f, productDescription: e.target.value }))} placeholder="What does the product do? Who is it for? You can paste the whole product page text here." rows={4} className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your ClickBank hop link" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                            <select value={aiForm.style} onChange={e => setAiForm(f => ({ ...f, style: e.target.value }))} className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm">
+                                <option value="advertorial">Advertorial (news article)</option>
+                                <option value="listicle">Listicle (numbered reasons)</option>
+                                <option value="health_review">Health Review</option>
+                            </select>
+                        </>
+                    )}
+
+                    {aiTab === 'improve' && (
+                        <>
+                            <div className="bg-[#13151d] border border-white/10 rounded-lg p-3">
+                                <p className="text-xs text-gray-400 mb-2">AI will read your current page and rewrite it to be more persuasive and professional.</p>
+                                {htmlContent ? (
+                                    <p className="text-xs text-green-400">✓ Current page content loaded ({Math.round(htmlContent.length / 100) / 10}KB)</p>
+                                ) : (
+                                    <p className="text-xs text-yellow-400">⚠ No content on page yet. Choose a template first or use Generate.</p>
+                                )}
+                            </div>
+                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your ClickBank hop link (for CTA buttons)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                        </>
+                    )}
+
+                    {aiTab === 'fromlink' && (
+                        <>
+                            <input value={aiForm.productUrl} onChange={e => setAiForm(f => ({ ...f, productUrl: e.target.value }))} placeholder="Product page URL (e.g. https://www.clickbank.com/...)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                            <p className="text-xs text-gray-500">AI will visit this URL, learn about the product, and write an article for you.</p>
+                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your affiliate hop link (different from product page)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                            <select value={aiForm.style} onChange={e => setAiForm(f => ({ ...f, style: e.target.value }))} className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm">
+                                <option value="advertorial">Advertorial (news article)</option>
+                                <option value="listicle">Listicle (numbered reasons)</option>
+                                <option value="health_review">Health Review</option>
+                            </select>
+                        </>
+                    )}
                 </div>
 
-                {/* AI Modal */}
-                {showAi && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => !aiGenerating && setShowAi(false)}>
-                        <div className="bg-surface-850 rounded-2xl w-full max-w-lg border border-white/10 shadow-2xl p-6" onClick={e => e.stopPropagation()}>
-                            <h3 className="text-lg font-bold text-white mb-4">AI Page Writer</h3>
-                            <div className="space-y-3">
-                                <input value={aiForm.productName} onChange={e => setAiForm(f => ({ ...f, productName: e.target.value }))} placeholder="Product name (e.g. Citrus Burn)" className="w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm" />
-                                <textarea value={aiForm.productDescription} onChange={e => setAiForm(f => ({ ...f, productDescription: e.target.value }))} placeholder="What does the product do? Who is it for?" rows={3} className="w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm" />
-                                <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="ClickBank hop link" className="w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm" />
-                                <select value={aiForm.style} onChange={e => setAiForm(f => ({ ...f, style: e.target.value }))} className="w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm">
-                                    <option value="advertorial">Advertorial</option>
-                                    <option value="video_presell">Video Presell</option>
-                                    <option value="listicle">Listicle</option>
-                                </select>
-                            </div>
-                            <div className="flex gap-3 mt-5">
-                                <button onClick={() => setShowAi(false)} disabled={aiGenerating} className="flex-1 px-4 py-2.5 bg-surface-700 text-gray-300 rounded-lg text-sm">Cancel</button>
-                                <button onClick={handleAiGenerate} disabled={aiGenerating} className="flex-1 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">
-                                    {aiGenerating ? 'Generating...' : 'Generate Page'}
-                                </button>
-                            </div>
+                {/* Actions */}
+                <div className="flex gap-3 px-5 pb-5">
+                    <button onClick={() => setShowAi(false)} disabled={aiGenerating} className="flex-1 px-4 py-2.5 bg-white/5 text-gray-300 rounded-lg text-sm hover:bg-white/10">Cancel</button>
+                    <button
+                        onClick={handleAiGenerate}
+                        disabled={aiGenerating || (aiTab === 'improve' && !htmlContent)}
+                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-40 hover:from-purple-500 hover:to-indigo-500"
+                    >
+                        {aiGenerating ? 'Working...' : aiTab === 'improve' ? 'Improve My Page' : aiTab === 'fromlink' ? 'Scrape & Write' : 'Generate Article'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
+    // ─── TEMPLATE SELECTION SCREEN ──────────
+    if (!selectedTemplate) {
+        return (
+            <div className="min-h-screen bg-[#0f1117] text-white">
+                <div className="max-w-4xl mx-auto px-6 py-10 space-y-8">
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/5 rounded-lg">
+                            <ArrowLeft className="w-5 h-5 text-gray-400" />
+                        </button>
+                        <div>
+                            <h1 className="text-2xl font-bold">Choose a Template</h1>
+                            <p className="text-sm text-gray-500">{funnel?.name || 'Funnel'} — {page?.name || 'Page'}</p>
                         </div>
                     </div>
-                )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        {Object.entries(TEMPLATES).map(([key, tpl]) => (
+                            <button
+                                key={key}
+                                onClick={() => selectTemplate(key)}
+                                className="group bg-[#1a1d27] border border-white/5 rounded-xl p-6 text-left hover:border-purple-500/40 hover:ring-1 hover:ring-purple-500/20 transition-all"
+                            >
+                                <div className="w-14 h-14 rounded-xl bg-purple-600/15 flex items-center justify-center mb-4 group-hover:bg-purple-600/25 transition-colors">
+                                    <span className="text-3xl">{tpl.emoji}</span>
+                                </div>
+                                <h3 className="text-lg font-bold text-white mb-1">{tpl.name}</h3>
+                                <p className="text-sm text-gray-400 leading-relaxed">{tpl.desc}</p>
+                                <p className="text-xs text-purple-400 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">Click to start editing →</p>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="text-center pt-2">
+                        <p className="text-sm text-gray-600 mb-3">Or skip templates entirely:</p>
+                        <button
+                            onClick={() => setShowAi(true)}
+                            className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-purple-500 hover:to-indigo-500 transition-all shadow-lg shadow-purple-500/20"
+                        >
+                            <Wand2 className="w-5 h-5" /> Let AI Write Your Page
+                        </button>
+                    </div>
+                </div>
+                {aiModal}
             </div>
         );
     }
 
     // ─── EDITOR SCREEN ──────────
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)]">
+        <div className="flex flex-col h-screen bg-[#0f1117]">
             {/* Toolbar */}
-            <div className="flex items-center justify-between bg-surface-800 border-b border-white/5 px-4 py-2.5 rounded-t-xl">
+            <div className="flex items-center justify-between bg-[#1a1d27] border-b border-white/5 px-4 py-2.5 shrink-0">
                 <div className="flex items-center gap-3">
                     <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-white/5 rounded-lg">
                         <ArrowLeft className="w-4 h-4 text-gray-400" />
@@ -394,42 +512,38 @@ export default function TemplateEditor() {
                     <span className="text-xs text-gray-500">— {funnel?.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    {/* Gate toggle */}
                     <button
                         onClick={() => setGateEnabled(!gateEnabled)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${gateEnabled ? 'bg-green-600/20 text-green-400' : 'bg-surface-700 text-gray-400'}`}
-                        title="Email gate popup"
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${gateEnabled ? 'bg-green-600/20 text-green-400' : 'bg-white/5 text-gray-400'}`}
+                        title="Email gate popup — captures leads"
                     >
                         {gateEnabled ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
                         Gate
                     </button>
 
-                    {/* AI */}
-                    <button onClick={() => setShowAi(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600/20 text-purple-400 text-xs font-medium rounded-lg hover:bg-purple-600/30">
-                        <Wand2 className="w-3.5 h-3.5" /> AI Write
+                    <button onClick={() => { setAiTab(htmlContent ? 'improve' : 'generate'); setShowAi(true); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600/20 text-purple-400 text-xs font-medium rounded-lg hover:bg-purple-600/30">
+                        <Wand2 className="w-3.5 h-3.5" /> AI
                     </button>
 
-                    {/* Save */}
-                    <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-700 text-white text-xs font-medium rounded-lg hover:bg-surface-600 disabled:opacity-50">
+                    <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 text-white text-xs font-medium rounded-lg hover:bg-white/10 disabled:opacity-50">
                         <Save className="w-3.5 h-3.5" /> {saving ? 'Saving...' : 'Save'}
                     </button>
 
-                    {/* Publish */}
-                    <button onClick={handlePublish} disabled={publishing} className="flex items-center gap-1.5 px-4 py-1.5 bg-brand-600 text-white text-xs font-medium rounded-lg hover:bg-brand-500 disabled:opacity-50">
+                    <button onClick={handlePublish} disabled={publishing} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-500 disabled:opacity-50">
                         <Globe className="w-3.5 h-3.5" /> {publishing ? 'Publishing...' : 'Publish'}
                     </button>
                 </div>
             </div>
 
-            {/* Instructions */}
-            <div className="bg-surface-800/50 border-b border-white/5 px-4 py-2 flex items-center gap-4 text-xs text-gray-500">
+            {/* Hint bar */}
+            <div className="bg-[#1a1d27]/50 border-b border-white/5 px-4 py-2 flex items-center gap-4 text-xs text-gray-500 shrink-0">
                 <span>📝 Click any text to edit</span>
                 <span>🖼️ Click image areas to add media</span>
                 <span>🔗 CTA button links to your hop link</span>
             </div>
 
             {/* Preview */}
-            <div className="flex-1 bg-gray-100 overflow-hidden">
+            <div className="flex-1 overflow-hidden">
                 <iframe
                     ref={previewRef}
                     title="Page Preview"
@@ -438,32 +552,8 @@ export default function TemplateEditor() {
                 />
             </div>
 
-            {/* Media Picker */}
-            <MediaPicker
-                isOpen={showMediaPicker}
-                onClose={() => setShowMediaPicker(false)}
-                onSelect={insertMedia}
-            />
-
-            {/* AI Modal (when in editor) */}
-            {showAi && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => !aiGenerating && setShowAi(false)}>
-                    <div className="bg-surface-850 rounded-2xl w-full max-w-lg border border-white/10 shadow-2xl p-6" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-lg font-bold text-white mb-4">AI Page Writer</h3>
-                        <div className="space-y-3">
-                            <input value={aiForm.productName} onChange={e => setAiForm(f => ({ ...f, productName: e.target.value }))} placeholder="Product name" className="w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm" />
-                            <textarea value={aiForm.productDescription} onChange={e => setAiForm(f => ({ ...f, productDescription: e.target.value }))} placeholder="Product description" rows={3} className="w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm" />
-                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Hop link" className="w-full bg-surface-800 border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm" />
-                        </div>
-                        <div className="flex gap-3 mt-5">
-                            <button onClick={() => setShowAi(false)} disabled={aiGenerating} className="flex-1 px-4 py-2.5 bg-surface-700 text-gray-300 rounded-lg text-sm">Cancel</button>
-                            <button onClick={handleAiGenerate} disabled={aiGenerating} className="flex-1 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">
-                                {aiGenerating ? 'Generating...' : 'Rewrite with AI'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <MediaPicker isOpen={showMediaPicker} onClose={() => setShowMediaPicker(false)} onSelect={insertMedia} />
+            {aiModal}
         </div>
     );
 }

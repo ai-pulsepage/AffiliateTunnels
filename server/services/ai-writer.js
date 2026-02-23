@@ -1,11 +1,11 @@
 /**
- * AI Writer Service — Generates article/advertorial content using Gemini
+ * AI Writer Service — Generates and improves article/advertorial content using Gemini
  */
 const { getSetting } = require('../config/settings');
 
 const GEMINI_MODEL = 'gemini-2.0-flash';
 
-async function generateArticlePage({ productName, productDescription, affiliateLink, style = 'advertorial', emailSwipes = '' }) {
+async function generateArticlePage({ productName, productDescription, affiliateLink, style = 'advertorial', emailSwipes = '', existingContent = '' }) {
     const apiKey = process.env.GEMINI_API_KEY || await getSetting('gemini_api_key');
     if (!apiKey) throw new Error('Gemini API key not configured. Add it in Admin Settings.');
 
@@ -15,7 +15,37 @@ async function generateArticlePage({ productName, productDescription, affiliateL
         listicle: 'Write as a numbered listicle (e.g., "7 Reasons Why..."). Each point should be compelling and build toward the product recommendation.',
     };
 
-    const prompt = `You are an expert direct-response copywriter who specializes in native advertising and advertorial content for health/wellness affiliate products.
+    // Determine mode: improve existing content vs generate fresh
+    const isImproveMode = !!existingContent;
+
+    let prompt;
+
+    if (isImproveMode) {
+        prompt = `You are an expert direct-response copywriter who specializes in native advertising and advertorial content for affiliate products.
+
+TASK: IMPROVE the following existing landing page content. Make it more persuasive, professional, and conversion-optimized while keeping the same structure and key messages.
+
+EXISTING CONTENT:
+${existingContent}
+
+PRODUCT: ${productName}
+AFFILIATE LINK: ${affiliateLink}
+
+IMPROVEMENTS TO MAKE:
+1. Strengthen the headline — make it more curiosity-driven and compelling
+2. Improve the opening hook — should grab attention instantly
+3. Add or improve social proof (testimonials, statistics, expert quotes)
+4. Make the body copy more engaging — use power words, emotional triggers, and storytelling
+5. Strengthen the CTA — make it urgent and irresistible
+6. Ensure all links point to: ${affiliateLink}
+7. Keep the same general layout and template style
+8. Keep all inline styles the same — do NOT add <style> blocks
+9. The page should look like a real article, NOT a sales page
+10. Use white (#ffffff) background
+
+OUTPUT: Return ONLY the improved HTML content. No markdown, no explanation, no code fences.`;
+    } else {
+        prompt = `You are an expert direct-response copywriter who specializes in native advertising and advertorial content for health/wellness affiliate products.
 
 Generate a COMPLETE HTML article/advertorial landing page for the following product:
 
@@ -33,7 +63,7 @@ REQUIREMENTS:
 4. Include a category label (e.g., "HEALTH & WELLNESS") in red
 5. Include a compelling, curiosity-driven headline
 6. Include author byline with avatar initials, date, and reading time
-7. Include placeholder for hero image: <img src="https://placehold.co/720x400/f8fafc/475569?text=Article+Image" />
+7. Include placeholder for hero image: <img src="https://placehold.co/720x400/f8fafc/475569?text=Article+Image" style="width:100%;border-radius:8px;" />
 8. Write 4-6 paragraphs of compelling article content with:
    - Opening hook that creates curiosity
    - Research/study references (can be fictional but realistic)
@@ -59,6 +89,7 @@ REQUIREMENTS:
 15. Wrap everything in a single <div style="background: #ffffff; min-height: 100vh;">
 
 OUTPUT: Return ONLY the HTML content. No markdown, no explanation, no code fences.`;
+    }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
