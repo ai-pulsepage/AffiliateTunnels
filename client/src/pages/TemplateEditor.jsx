@@ -175,7 +175,7 @@ export default function TemplateEditor() {
     const [showAi, setShowAi] = useState(false);
     const [aiTab, setAiTab] = useState('generate');
     const [aiGenerating, setAiGenerating] = useState(false);
-    const [aiForm, setAiForm] = useState({ productName: '', productDescription: '', affiliateLink: '', style: 'advertorial', productUrl: '' });
+    const [aiForm, setAiForm] = useState({ productName: '', productDescription: '', affiliateLink: '', style: 'review_article', productUrl: '' });
 
     // Active block for formatting toolbar
     const [activeBlockIdx, setActiveBlockIdx] = useState(null);
@@ -488,20 +488,27 @@ export default function TemplateEditor() {
 
             let productInfo = aiForm.productDescription;
             let productName = aiForm.productName;
+            let productIntel = null;
 
             if (aiTab === 'fromlink') {
-                toast('Scraping product page...');
+                toast('Analyzing product page with AI...');
                 const scraped = await aiApi.scrapeProduct(aiForm.productUrl);
                 productName = scraped.productName || 'Product';
                 productInfo = scraped.description || '';
+                productIntel = scraped.productIntel || null;
                 setAiForm(f => ({ ...f, productName, productDescription: productInfo, affiliateLink: f.affiliateLink || aiForm.productUrl }));
+                if (productIntel) {
+                    toast.success(`Extracted ${productIntel.ingredients?.length || 0} ingredients, ${productIntel.testimonials?.length || 0} testimonials`);
+                }
             }
 
+            toast('Writing full review article...');
             const payload = {
                 productName: productName || aiForm.productName,
                 productDescription: productInfo || aiForm.productDescription,
                 affiliateLink: ctaLink || '#',
                 style: aiForm.style,
+                productIntel,
             };
 
             if (aiTab === 'improve') {
@@ -512,7 +519,7 @@ export default function TemplateEditor() {
             if (result.html) {
                 parseHtmlToBlocks(result.html);
                 setShowAi(false);
-                toast.success('AI content generated!');
+                toast.success('Review article generated!');
             }
         } catch (err) { toast.error(err.message); }
         finally { setAiGenerating(false); }

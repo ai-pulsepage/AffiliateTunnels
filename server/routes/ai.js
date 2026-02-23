@@ -4,7 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { generateArticlePage } = require('../services/ai-writer');
+const { generateArticlePage, extractProductIntelligence } = require('../services/ai-writer');
 
 // Generate article/advertorial landing page content
 router.post('/generate-page', authenticate, async (req, res) => {
@@ -24,9 +24,10 @@ router.post('/generate-page', authenticate, async (req, res) => {
             productName: productName || 'Product',
             productDescription: productDescription || '',
             affiliateLink,
-            style: style || 'advertorial',
+            style: style || 'review_article',
             emailSwipes: emailSwipes || '',
             existingContent: existingContent || '',
+            productIntel: req.body.productIntel || null,
         });
 
         res.json({ html });
@@ -84,8 +85,8 @@ router.post('/scrape-product', authenticate, async (req, res) => {
             .replace(/\s+/g, ' ')
             .trim();
 
-        // Limit text to avoid token overload
-        if (text.length > 5000) text = text.substring(0, 5000);
+        // Limit text — generous for Gemini extraction
+        if (text.length > 15000) text = text.substring(0, 15000);
 
         // Extract title
         const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
@@ -102,10 +103,23 @@ router.post('/scrape-product', authenticate, async (req, res) => {
         const productName = title || ogTitleMatch?.[1] || 'Unknown Product';
         const description = metaDesc || ogDescMatch?.[1] || '';
 
+        // Run Gemini extraction to get structured product intelligence
+        let productIntel = null;
+        try {
+            const apiKey = process.env.GEMINI_API_KEY;
+            if (apiKey) {
+                const fullText = description ? description + '\n\n' + text : text;
+                productIntel = await extractProductIntelligence(fullText, apiKey);
+            }
+        } catch (err) {
+            console.warn('Product intelligence extraction failed (non-fatal):', err.message);
+        }
+
         res.json({
-            productName,
+            productName: productIntel?.productName || productName,
             description: description ? description + '\n\n' + text : text,
             sourceUrl: url,
+            productIntel,
         });
     } catch (err) {
         console.error('Scrape error:', err);
