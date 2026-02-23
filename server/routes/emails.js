@@ -3,8 +3,33 @@ const { query } = require('../config/db');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
-router.use(authenticate);
 
+// === Unsubscribe (Public, no auth required) ===
+// GET /api/emails/unsubscribe — CAN-SPAM unsubscribe endpoint
+router.get('/unsubscribe', async (req, res) => {
+    try {
+        const { email, funnel_id } = req.query;
+        if (!email) return res.status(400).send('Missing email parameter');
+
+        await query(
+            `UPDATE leads SET is_unsubscribed = true WHERE email = $1 ${funnel_id ? 'AND funnel_id = $2' : ''}`,
+            funnel_id ? [email, funnel_id] : [email]
+        );
+
+        res.send(`<!DOCTYPE html><html><head><title>Unsubscribed</title></head>
+<body style="font-family:sans-serif;text-align:center;padding:60px 20px;">
+<h1 style="font-size:24px;color:#333;">You've been unsubscribed</h1>
+<p style="color:#666;font-size:16px;">You will no longer receive emails from us.</p>
+<p style="color:#999;font-size:14px;margin-top:20px;">If this was a mistake, please contact us.</p>
+</body></html>`);
+    } catch (err) {
+        console.error('Unsubscribe error:', err);
+        res.status(500).send('Something went wrong. Please try again.');
+    }
+});
+
+// All routes below require authentication
+router.use(authenticate);
 // === Email Templates ===
 
 // GET /api/emails/templates

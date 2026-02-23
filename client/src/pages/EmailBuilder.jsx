@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { emailApi } from '../lib/api';
-import { Plus, Trash2, Mail, Pencil, Copy, Eye, X, Code2, FileText, Wand2 } from 'lucide-react';
+import { emailApi, funnelApi } from '../lib/api';
+import { Link } from 'react-router-dom';
+import { Plus, Trash2, Mail, Pencil, Copy, Eye, X, Code2, FileText, Wand2, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const CATEGORIES = ['affiliate', 'welcome', 'followup', 'promo', 'newsletter'];
@@ -14,6 +15,7 @@ const MERGE_TAGS = [
 
 export default function EmailBuilder() {
     const [templates, setTemplates] = useState([]);
+    const [funnels, setFunnels] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(null);
     const [preview, setPreview] = useState(null);
@@ -26,12 +28,17 @@ export default function EmailBuilder() {
     const [quickCtaText, setQuickCtaText] = useState('');
     const [quickCtaLink, setQuickCtaLink] = useState('');
 
-    useEffect(() => { loadTemplates(); }, []);
+    useEffect(() => { loadTemplates(); loadFunnels(); }, []);
 
     async function loadTemplates() {
         try { const d = await emailApi.listTemplates(); setTemplates(d.templates || []); }
         catch (err) { toast.error(err.message); }
         finally { setLoading(false); }
+    }
+
+    async function loadFunnels() {
+        try { const d = await funnelApi.list(); setFunnels(d.funnels || []); }
+        catch (err) { console.error(err); }
     }
 
     function startCreate() {
@@ -156,13 +163,31 @@ export default function EmailBuilder() {
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-white">Email Templates</h1>
+                        <h1 className="text-2xl font-bold text-white">Emails</h1>
                         <p className="text-sm text-gray-500 mt-1">{templates.length} templates</p>
                     </div>
                     <button onClick={startCreate} className="btn-primary flex items-center gap-2">
                         <Plus className="w-4 h-4" /> Quick Create
                     </button>
                 </div>
+
+                {/* Drip Campaigns section */}
+                {funnels.length > 0 && (
+                    <div className="card">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Send className="w-4 h-4 text-brand-400" />
+                            <h2 className="text-sm font-semibold text-white">Drip Campaigns</h2>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-3">Set up automated email sequences for your funnels. Each funnel can have its own drip campaign.</p>
+                        <div className="flex flex-wrap gap-2">
+                            {funnels.map(f => (
+                                <Link key={f.id} to={`/drip/${f.id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-700 text-gray-300 text-xs font-medium rounded-lg hover:bg-brand-600/20 hover:text-brand-400 transition-colors">
+                                    <Mail className="w-3 h-3" /> {f.name}
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Category filter */}
                 <div className="flex gap-2 flex-wrap">

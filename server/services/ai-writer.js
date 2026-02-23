@@ -3,7 +3,7 @@
  */
 const { getSetting } = require('../config/settings');
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.0-flash-001';
 
 async function generateArticlePage({ productName, productDescription, affiliateLink, style = 'advertorial', emailSwipes = '', existingContent = '' }) {
     const apiKey = process.env.GEMINI_API_KEY || await getSetting('gemini_api_key');
