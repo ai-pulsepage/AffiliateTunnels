@@ -8,7 +8,7 @@ const ALLOWED_TYPES = [
     'text/plain', 'text/csv', 'text/html',
 ];
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (supports video uploads)
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB (limited by Railway memory — multer uses memoryStorage)
 
 const storage = multer.memoryStorage();
 

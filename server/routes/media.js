@@ -78,7 +78,17 @@ router.delete('/folders/:id', async (req, res) => {
 // ─── FILE UPLOAD ────────────────────────────────
 
 // POST /api/media/upload
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post('/upload', (req, res, next) => {
+    upload.single('file')(req, res, (err) => {
+        if (err) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(413).json({ error: 'File too large. Maximum upload size is 25MB.' });
+            }
+            return res.status(400).json({ error: err.message || 'Upload failed' });
+        }
+        next();
+    });
+}, async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'No file provided' });
 

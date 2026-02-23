@@ -30,6 +30,10 @@ async function uploadFile(buffer, originalName, mimetype, folder = 'media') {
 
     const bucket = getSettingSync('r2_bucket_name');
     const publicUrl = getSettingSync('r2_public_url');
+    if (!publicUrl) {
+        throw new Error('R2 Public URL is not set. Go to Cloudflare → R2 → your bucket → Settings → Public Access, enable it, copy the public URL (e.g. https://pub-xxx.r2.dev), and paste it in Admin Settings → R2 Public URL.');
+    }
+
     const ext = path.extname(originalName);
     const key = `${folder}/${uuidv4()}${ext}`;
 
@@ -42,7 +46,7 @@ async function uploadFile(buffer, originalName, mimetype, folder = 'media') {
 
     return {
         key,
-        url: `${publicUrl}/${key}`,
+        url: `${publicUrl.replace(/\/+$/, '')}/${key}`,
         size: buffer.length,
         mimetype,
     };
