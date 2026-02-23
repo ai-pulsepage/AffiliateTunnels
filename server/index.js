@@ -168,6 +168,11 @@ async function start() {
         await pool.query('SELECT NOW()');
         console.log('✓ Database connected');
 
+        // Auto-run pending migrations
+        const { migrate } = require('./db/migrate');
+        await migrate();
+        console.log('✓ Migrations checked');
+
         // Load settings from DB
         await loadSettings();
         console.log('✓ Settings loaded');

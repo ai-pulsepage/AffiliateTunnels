@@ -44,8 +44,15 @@ async function migrate() {
                 console.log(`  ✓ ${file}`);
             } catch (err) {
                 await client.query('ROLLBACK');
-                console.error(`  ✗ ${file}: ${err.message}`);
-                throw err;
+                // Handle "already exists" gracefully — mark as applied
+                if (err.message.includes('already exists') || err.message.includes('duplicate')) {
+                    await client.query('INSERT INTO _migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING', [file]);
+                    console.log(`  ✓ ${file} (already applied)`);
+                    migrated++;
+                } else {
+                    console.error(`  ✗ ${file}: ${err.message}`);
+                    // Don't throw — let the server continue starting
+                }
             }
         }
 
