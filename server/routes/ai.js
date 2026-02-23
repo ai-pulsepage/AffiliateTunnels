@@ -42,21 +42,31 @@ router.post('/scrape-product', authenticate, async (req, res) => {
         const { url } = req.body;
         if (!url) return res.status(400).json({ error: 'URL is required' });
 
-        // Fetch the page
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10000);
+        // Validate URL format
+        let parsedUrl;
+        try { parsedUrl = new URL(url); }
+        catch { return res.status(400).json({ error: 'Invalid URL format' }); }
 
-        const response = await fetch(url, {
+        // Fetch the page with generous timeout and redirect following
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+
+        const response = await fetch(parsedUrl.href, {
+            method: 'GET',
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'identity',
+                'Cache-Control': 'no-cache',
             },
             signal: controller.signal,
+            redirect: 'follow',
         });
         clearTimeout(timeout);
 
         if (!response.ok) {
-            return res.status(400).json({ error: `Failed to fetch URL: ${response.status}` });
+            return res.status(400).json({ error: `Page returned ${response.status} — the site may block scraping. Try entering the product info manually.` });
         }
 
         const html = await response.text();
@@ -85,17 +95,24 @@ router.post('/scrape-product', authenticate, async (req, res) => {
         const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)/i);
         const metaDesc = metaMatch ? metaMatch[1].trim() : '';
 
+        // Extract OG title/description as fallback
+        const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']*)/i);
+        const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)/i);
+
+        const productName = title || ogTitleMatch?.[1] || 'Unknown Product';
+        const description = metaDesc || ogDescMatch?.[1] || '';
+
         res.json({
-            productName: title || 'Unknown Product',
-            description: metaDesc ? metaDesc + '\n\n' + text : text,
+            productName,
+            description: description ? description + '\n\n' + text : text,
             sourceUrl: url,
         });
     } catch (err) {
         console.error('Scrape error:', err);
         if (err.name === 'AbortError') {
-            return res.status(408).json({ error: 'Request timed out — the page took too long to load' });
+            return res.status(408).json({ error: 'Request timed out — the page took too long to load. Try entering product info manually.' });
         }
-        res.status(500).json({ error: err.message || 'Failed to scrape product page' });
+        res.status(500).json({ error: `Scrape failed: ${err.message}. Try entering the product info manually.` });
     }
 });
 

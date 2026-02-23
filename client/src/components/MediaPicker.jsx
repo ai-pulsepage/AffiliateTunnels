@@ -12,8 +12,9 @@ import toast from 'react-hot-toast';
  *   onSelect:  (url, media) => void  — called when user picks a file
  *   accept:    'image' | 'video' | 'all' (default 'all')
  */
-export default function MediaPicker({ isOpen, onClose, onSelect, accept = 'all' }) {
-    const { selectedFunnelId } = useFunnel();
+export default function MediaPicker({ isOpen, onClose, onSelect, accept = 'all', funnelId: propFunnelId }) {
+    const { selectedFunnelId: ctxFunnelId } = useFunnel();
+    const selectedFunnelId = propFunnelId || ctxFunnelId;
     const [folders, setFolders] = useState([]);
     const [selectedFolder, setSelectedFolder] = useState(null);
     const [media, setMedia] = useState([]);
