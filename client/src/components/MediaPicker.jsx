@@ -144,10 +144,10 @@ export default function MediaPicker({ isOpen, onClose, onSelect, accept = 'all',
                                         {m.mime_type?.startsWith('image/') ? (
                                             <img src={m.file_url} alt={m.filename} className="w-full h-28 object-cover" loading="lazy" />
                                         ) : m.mime_type?.startsWith('video/') ? (
-                                            <div className="relative w-full h-28 bg-surface-700">
-                                                <video src={m.file_url} className="w-full h-full object-cover" muted preload="metadata" />
-                                                <div className="absolute inset-0 flex items-center justify-center">
-                                                    <Film className="w-6 h-6 text-white/70 drop-shadow-lg" />
+                                            <div className="relative w-full h-28 bg-black">
+                                                <video src={`${m.file_url}#t=0.5`} className="w-full h-full object-contain" muted preload="metadata" />
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                    <Film className="w-6 h-6 text-white/80 drop-shadow-lg" />
                                                 </div>
                                             </div>
                                         ) : (
