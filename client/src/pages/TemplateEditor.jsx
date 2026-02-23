@@ -6,7 +6,8 @@ import {
     ArrowLeft, Save, Globe, Sparkles, ToggleLeft, ToggleRight,
     Link2, X, Copy, ExternalLink, Loader2, Type, AlignLeft, Image, Video,
     MousePointerClick, Quote, List, Minus, LayoutTemplate, Mail, Package,
-    ChevronUp, ChevronDown, Trash2, Plus, GripVertical
+    ChevronUp, ChevronDown, Trash2, Plus, GripVertical,
+    Bold, Italic, Underline, Strikethrough, AlignCenter, AlignRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -175,6 +176,9 @@ export default function TemplateEditor() {
     const [aiTab, setAiTab] = useState('generate');
     const [aiGenerating, setAiGenerating] = useState(false);
     const [aiForm, setAiForm] = useState({ productName: '', productDescription: '', affiliateLink: '', style: 'advertorial', productUrl: '' });
+
+    // Active block for formatting toolbar
+    const [activeBlockIdx, setActiveBlockIdx] = useState(null);
 
     // Drag state
     const [dragIdx, setDragIdx] = useState(null);
@@ -386,13 +390,28 @@ export default function TemplateEditor() {
     function insertMedia(url, mediaInfo) {
         if (mediaBlockIdx === null) return;
         const block = blocks[mediaBlockIdx];
-        let newHtml;
+        let mediaTag;
         if (mediaInfo?.mime_type?.startsWith('video/')) {
-            newHtml = `<video src="${url}" controls style="width:100%;border-radius:8px;"></video>`;
+            mediaTag = `<video src="${url}" controls style="width:100%;border-radius:8px;"></video>`;
         } else {
-            newHtml = `<img src="${url}" style="width:100%;display:block;border-radius:8px;" alt="">`;
+            mediaTag = `<img src="${url}" style="width:100%;display:block;border-radius:8px;" alt="">`;
         }
-        updateBlockHtml(mediaBlockIdx, newHtml);
+
+        // Try to replace only the data-media-slot element within the block,
+        // preserving all surrounding content (important for AI-generated blocks)
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(`<div>${block.html}</div>`, 'text/html');
+        const slot = doc.querySelector('[data-media-slot]');
+        if (slot) {
+            // Replace just the placeholder slot with the media element
+            const wrapper = doc.createElement('div');
+            wrapper.innerHTML = mediaTag;
+            slot.replaceWith(wrapper.firstChild);
+            updateBlockHtml(mediaBlockIdx, doc.body.firstChild.innerHTML);
+        } else {
+            // No slot found — standalone image/video block, replace entirely
+            updateBlockHtml(mediaBlockIdx, mediaTag);
+        }
         setShowMediaPicker(false);
         setMediaBlockIdx(null);
     }
@@ -571,13 +590,30 @@ export default function TemplateEditor() {
                                     </button>
                                 </div>
 
+                                {/* Formatting toolbar — appears when editing this block */}
+                                {activeBlockIdx === idx && ['heading', 'text', 'quote', 'list'].includes(block.type) && (
+                                    <div className="absolute -top-9 left-0 z-20 flex items-center gap-0.5 bg-[#1e2030] border border-white/10 rounded-lg px-1.5 py-1 shadow-xl" onMouseDown={e => e.preventDefault()}>
+                                        <button onClick={() => document.execCommand('bold')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Bold"><Bold className="w-3.5 h-3.5" /></button>
+                                        <button onClick={() => document.execCommand('italic')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Italic"><Italic className="w-3.5 h-3.5" /></button>
+                                        <button onClick={() => document.execCommand('underline')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Underline"><Underline className="w-3.5 h-3.5" /></button>
+                                        <button onClick={() => document.execCommand('strikethrough')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Strikethrough"><Strikethrough className="w-3.5 h-3.5" /></button>
+                                        <div className="w-px h-4 bg-white/10 mx-0.5" />
+                                        <button onClick={() => { const u = prompt('Enter URL:'); if (u) document.execCommand('createLink', false, u); }} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Add Link"><Link2 className="w-3.5 h-3.5" /></button>
+                                        <div className="w-px h-4 bg-white/10 mx-0.5" />
+                                        <button onClick={() => document.execCommand('justifyLeft')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Align Left"><AlignLeft className="w-3.5 h-3.5" /></button>
+                                        <button onClick={() => document.execCommand('justifyCenter')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Align Center"><AlignCenter className="w-3.5 h-3.5" /></button>
+                                        <button onClick={() => document.execCommand('justifyRight')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Align Right"><AlignRight className="w-3.5 h-3.5" /></button>
+                                    </div>
+                                )}
+
                                 {/* Block content */}
                                 <div
                                     className="outline-none rounded transition-shadow group-hover:ring-2 group-hover:ring-blue-200"
                                     contentEditable
                                     suppressContentEditableWarning
                                     dangerouslySetInnerHTML={{ __html: block.html }}
-                                    onBlur={(e) => updateBlockHtml(idx, e.currentTarget.innerHTML)}
+                                    onFocus={() => setActiveBlockIdx(idx)}
+                                    onBlur={(e) => { updateBlockHtml(idx, e.currentTarget.innerHTML); setTimeout(() => setActiveBlockIdx(prev => prev === idx ? null : prev), 150); }}
                                     onClick={(e) => {
                                         // Media slot click
                                         const slot = e.target.closest('[data-media-slot]');
