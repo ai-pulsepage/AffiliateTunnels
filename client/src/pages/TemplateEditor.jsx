@@ -240,30 +240,57 @@ export default function TemplateEditor() {
         const div = document.createElement('div');
         div.innerHTML = html;
         const parsed = [];
-        for (const child of div.children) {
-            if (child.id === 'at-gate-popup' || child.tagName === 'SCRIPT') {
-                setGateEnabled(true);
-                continue;
-            }
-            const type = child.getAttribute('data-block-type') || guessBlockType(child);
-            parsed.push({
-                id: child.getAttribute('data-block-id') || genId(),
-                type,
-                html: child.getAttribute('data-block-type') ? child.innerHTML : child.outerHTML,
-            });
+
+        function isWrapper(el) {
+            // A wrapper div is a generic container that wraps the whole page
+            // (e.g. the AI's <div style="background:#fff; min-height:100vh">)
+            // Criteria: it's a div, has multiple child elements, and isn't a media slot / form / CTA
+            if (el.tagName !== 'DIV') return false;
+            if (el.hasAttribute('data-media-slot')) return false;
+            if (el.hasAttribute('data-block-type')) return false;
+            if (el.querySelector(':scope > input, :scope > form, :scope > button')) return false;
+            // If it has many child elements and looks like a page wrapper, unwrap it
+            const kids = el.children.length;
+            if (kids >= 3) return true;
+            // Single-child wrapper divs
+            if (kids === 1 && el.children[0].tagName === 'DIV' && el.children[0].children.length >= 3) return true;
+            return false;
         }
+
+        function walk(elements) {
+            for (const child of elements) {
+                if (child.id === 'at-gate-popup' || child.tagName === 'SCRIPT') {
+                    setGateEnabled(true);
+                    continue;
+                }
+                // If it has a data-block-type, use it directly
+                if (child.getAttribute('data-block-type')) {
+                    parsed.push({ id: child.getAttribute('data-block-id') || genId(), type: child.getAttribute('data-block-type'), html: child.innerHTML });
+                    continue;
+                }
+                // Unwrap container/wrapper divs to pull out individual blocks
+                if (isWrapper(child)) {
+                    walk(child.children);
+                    continue;
+                }
+                const type = guessBlockType(child);
+                parsed.push({ id: genId(), type, html: child.outerHTML });
+            }
+        }
+
+        walk(div.children);
         if (parsed.length > 0) setBlocks(parsed);
     }
 
     function guessBlockType(el) {
         const tag = el.tagName.toLowerCase();
-        if (tag === 'h1' || tag === 'h2' || tag === 'h3') return 'heading';
+        if (tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'h4') return 'heading';
         if (tag === 'blockquote') return 'quote';
         if (tag === 'ul' || tag === 'ol') return 'list';
         if (tag === 'hr') return 'divider';
-        if (el.querySelector('[data-media-slot]')) return 'image';
-        if (el.querySelector('a[style*="background"]')) return 'button';
-        if (el.querySelector('input[type="email"]')) return 'optin';
+        if (el.hasAttribute('data-media-slot') || el.querySelector('[data-media-slot]')) return 'image';
+        if (el.querySelector('input[type="email"]') || el.querySelector('[data-at-form]') || el.querySelector('form[data-at-form]')) return 'optin';
+        if (el.querySelector('a[style*="background"]') || (tag === 'div' && el.querySelector('a') && el.textContent.length < 80)) return 'button';
         return 'text';
     }
 
@@ -574,25 +601,42 @@ export default function TemplateEditor() {
                                     <div className="absolute -top-1 left-0 right-0 h-0.5 bg-blue-500 rounded-full z-10" />
                                 )}
 
-                                {/* Block toolbar — inside the group area */}
-                                <div className="absolute -left-12 top-0 flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity hidden group-hover:flex z-10">
+                                {/* Block toolbar — always accessible on hover, top-right corner */}
+                                <div className="absolute -right-11 top-0 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-30 bg-white/90 rounded-lg shadow-md border border-gray-200 p-0.5">
                                     <div className="p-1 cursor-grab active:cursor-grabbing" title="Drag to reorder">
                                         <GripVertical className="w-3.5 h-3.5 text-gray-400" />
                                     </div>
-                                    <button onClick={() => moveBlock(idx, -1)} className="p-1 hover:bg-gray-200 rounded" title="Move up">
-                                        <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
+                                    <button onClick={() => moveBlock(idx, -1)} className="p-1 hover:bg-gray-100 rounded" title="Move up">
+                                        <ChevronUp className="w-3.5 h-3.5 text-gray-500" />
                                     </button>
-                                    <button onClick={() => moveBlock(idx, 1)} className="p-1 hover:bg-gray-200 rounded" title="Move down">
-                                        <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                                    <button onClick={() => moveBlock(idx, 1)} className="p-1 hover:bg-gray-100 rounded" title="Move down">
+                                        <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
                                     </button>
-                                    <button onClick={() => deleteBlock(idx)} className="p-1 hover:bg-red-100 rounded" title="Delete">
+                                    <button onClick={() => deleteBlock(idx)} className="p-1 hover:bg-red-50 rounded" title="Delete">
                                         <Trash2 className="w-3.5 h-3.5 text-red-400" />
                                     </button>
                                 </div>
 
                                 {/* Formatting toolbar — appears when editing this block */}
                                 {activeBlockIdx === idx && ['heading', 'text', 'quote', 'list'].includes(block.type) && (
-                                    <div className="absolute -top-9 left-0 z-20 flex items-center gap-0.5 bg-[#1e2030] border border-white/10 rounded-lg px-1.5 py-1 shadow-xl" onMouseDown={e => e.preventDefault()}>
+                                    <div className="absolute -top-10 left-0 z-40 flex items-center gap-0.5 bg-[#1a1d2e] border border-white/10 rounded-lg px-1.5 py-1 shadow-2xl" onMouseDown={e => e.preventDefault()}>
+                                        <select
+                                            onChange={(e) => { document.execCommand('fontSize', false, '7'); const fontElements = document.querySelectorAll('font[size="7"]'); fontElements.forEach(el => { el.removeAttribute('size'); el.style.fontSize = e.target.value; }); }}
+                                            className="bg-white/10 text-gray-200 text-xs rounded px-1 py-1 border-none outline-none cursor-pointer"
+                                            defaultValue=""
+                                        >
+                                            <option value="" disabled>Size</option>
+                                            <option value="12px">12</option>
+                                            <option value="14px">14</option>
+                                            <option value="16px">16</option>
+                                            <option value="18px">18</option>
+                                            <option value="20px">20</option>
+                                            <option value="24px">24</option>
+                                            <option value="28px">28</option>
+                                            <option value="32px">32</option>
+                                            <option value="36px">36</option>
+                                        </select>
+                                        <div className="w-px h-4 bg-white/10 mx-0.5" />
                                         <button onClick={() => document.execCommand('bold')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Bold"><Bold className="w-3.5 h-3.5" /></button>
                                         <button onClick={() => document.execCommand('italic')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Italic"><Italic className="w-3.5 h-3.5" /></button>
                                         <button onClick={() => document.execCommand('underline')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Underline"><Underline className="w-3.5 h-3.5" /></button>
