@@ -8,7 +8,7 @@ const ALLOWED_TYPES = [
     'text/plain', 'text/csv', 'text/html',
 ];
 
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB (limited by Railway memory — multer uses memoryStorage)
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB — server has 32GB RAM, memoryStorage is fine
 
 const storage = multer.memoryStorage();
 

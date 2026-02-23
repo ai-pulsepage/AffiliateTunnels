@@ -140,9 +140,7 @@ export const mediaApi = {
         return api(`/media?${params}`);
     },
     /**
-     * Upload a file directly to R2 via presigned URL.
-     * Flow: server presign → browser PUT to R2 → server confirm.
-     * The file never touches the server.
+     * Upload a file. Tries presigned (direct to R2) first, falls back to server-side.
      */
     upload: async (file, folder_id) => {
         // If passed a FormData, extract the file from it
@@ -153,35 +151,45 @@ export const mediaApi = {
             actualFolderId = file.get('folder_id') || folder_id;
         }
 
-        // Step 1: Get presigned URL from server
-        const presign = await api('/media/presign', {
-            method: 'POST',
-            body: {
-                filename: actualFile.name,
-                mimetype: actualFile.type,
-                folder_id: actualFolderId,
-            },
-        });
+        // Try presigned URL first (direct to R2, no server RAM used)
+        try {
+            const presign = await api('/media/presign', {
+                method: 'POST',
+                body: {
+                    filename: actualFile.name,
+                    mimetype: actualFile.type,
+                    folder_id: actualFolderId,
+                },
+            });
 
-        // Step 2: Upload directly to R2
-        await fetch(presign.presignedUrl, {
-            method: 'PUT',
-            body: actualFile,
-            headers: { 'Content-Type': actualFile.type },
-        });
+            const r2Res = await fetch(presign.presignedUrl, {
+                method: 'PUT',
+                body: actualFile,
+                headers: { 'Content-Type': actualFile.type },
+            });
 
-        // Step 3: Confirm with server to create DB record
-        return api('/media/confirm', {
-            method: 'POST',
-            body: {
-                filename: actualFile.name,
-                key: presign.key,
-                publicUrl: presign.publicUrl,
-                fileSize: actualFile.size,
-                mimetype: actualFile.type,
-                folder_id: actualFolderId,
-            },
-        });
+            if (!r2Res.ok) throw new Error('R2 PUT failed');
+
+            return api('/media/confirm', {
+                method: 'POST',
+                body: {
+                    filename: actualFile.name,
+                    key: presign.key,
+                    publicUrl: presign.publicUrl,
+                    fileSize: actualFile.size,
+                    mimetype: actualFile.type,
+                    folder_id: actualFolderId,
+                },
+            });
+        } catch (e) {
+            console.warn('Presigned upload failed, falling back to server upload:', e.message);
+        }
+
+        // Fallback: upload through server (uses server RAM but reliable)
+        const form = new FormData();
+        form.append('file', actualFile);
+        if (actualFolderId) form.append('folder_id', actualFolderId);
+        return api('/media/upload', { body: form, method: 'POST' });
     },
     delete: (id) => api(`/media/${id}`, { method: 'DELETE' }),
     listFolders: () => api('/media/folders'),

@@ -142,13 +142,16 @@ export default function MediaPicker({ isOpen, onClose, onSelect, accept = 'all',
                                         className="group relative rounded-lg overflow-hidden border border-white/5 hover:border-brand-500/50 hover:ring-1 hover:ring-brand-500/30 transition-all"
                                     >
                                         {m.mime_type?.startsWith('image/') ? (
-                                            <img src={m.file_url} alt={m.filename} className="w-full h-24 object-cover" loading="lazy" />
+                                            <img src={m.file_url} alt={m.filename} className="w-full h-28 object-cover" loading="lazy" />
                                         ) : m.mime_type?.startsWith('video/') ? (
-                                            <div className="w-full h-24 bg-surface-700 flex items-center justify-center">
-                                                <Film className="w-6 h-6 text-purple-400" />
+                                            <div className="relative w-full h-28 bg-surface-700">
+                                                <video src={m.file_url} className="w-full h-full object-cover" muted preload="metadata" />
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <Film className="w-6 h-6 text-white/70 drop-shadow-lg" />
+                                                </div>
                                             </div>
                                         ) : (
-                                            <div className="w-full h-24 bg-surface-700 flex items-center justify-center">
+                                            <div className="w-full h-28 bg-surface-700 flex items-center justify-center">
                                                 <FileText className="w-6 h-6 text-blue-400" />
                                             </div>
                                         )}
