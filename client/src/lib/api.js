@@ -139,15 +139,49 @@ export const mediaApi = {
         if (funnel_id) params.set('funnel_id', funnel_id);
         return api(`/media?${params}`);
     },
-    upload: (fileOrForm, folder_id) => {
-        // Accept either a FormData directly or a File object
-        const form = fileOrForm instanceof FormData ? fileOrForm : (() => {
-            const fd = new FormData();
-            fd.append('file', fileOrForm);
-            if (folder_id) fd.append('folder_id', folder_id);
-            return fd;
-        })();
-        return api('/media/upload', { body: form, method: 'POST' });
+    /**
+     * Upload a file directly to R2 via presigned URL.
+     * Flow: server presign → browser PUT to R2 → server confirm.
+     * The file never touches the server.
+     */
+    upload: async (file, folder_id) => {
+        // If passed a FormData, extract the file from it
+        let actualFile = file;
+        let actualFolderId = folder_id;
+        if (file instanceof FormData) {
+            actualFile = file.get('file');
+            actualFolderId = file.get('folder_id') || folder_id;
+        }
+
+        // Step 1: Get presigned URL from server
+        const presign = await api('/media/presign', {
+            method: 'POST',
+            body: {
+                filename: actualFile.name,
+                mimetype: actualFile.type,
+                folder_id: actualFolderId,
+            },
+        });
+
+        // Step 2: Upload directly to R2
+        await fetch(presign.presignedUrl, {
+            method: 'PUT',
+            body: actualFile,
+            headers: { 'Content-Type': actualFile.type },
+        });
+
+        // Step 3: Confirm with server to create DB record
+        return api('/media/confirm', {
+            method: 'POST',
+            body: {
+                filename: actualFile.name,
+                key: presign.key,
+                publicUrl: presign.publicUrl,
+                fileSize: actualFile.size,
+                mimetype: actualFile.type,
+                folder_id: actualFolderId,
+            },
+        });
     },
     delete: (id) => api(`/media/${id}`, { method: 'DELETE' }),
     listFolders: () => api('/media/folders'),

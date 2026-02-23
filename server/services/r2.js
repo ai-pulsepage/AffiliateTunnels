@@ -1,4 +1,5 @@
 const { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { getSettingSync } = require('../config/settings');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
@@ -111,4 +112,38 @@ async function uploadBlogPost(html, slug) {
     };
 }
 
-module.exports = { uploadFile, deleteFile, uploadPublishedPage, uploadBlogPost };
+/**
+ * Generate a presigned PUT URL for direct browser-to-R2 upload.
+ * The browser uploads directly to R2 — the file never touches the server.
+ */
+async function getPresignedUploadUrl(originalName, mimetype, folder = 'media') {
+    const client = getR2Client();
+    if (!client) {
+        throw new Error('R2 storage not configured. Please add R2 credentials in Admin Settings.');
+    }
+
+    const bucket = getSettingSync('r2_bucket_name');
+    const publicUrl = getSettingSync('r2_public_url');
+    if (!publicUrl) {
+        throw new Error('R2 Public URL is not set. Configure it in Admin Settings.');
+    }
+
+    const ext = path.extname(originalName);
+    const key = `${folder}/${uuidv4()}${ext}`;
+
+    const command = new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ContentType: mimetype,
+    });
+
+    const presignedUrl = await getSignedUrl(client, command, { expiresIn: 600 }); // 10 min
+
+    return {
+        presignedUrl,
+        key,
+        publicUrl: `${publicUrl.replace(/\/+$/, '')}/${key}`,
+    };
+}
+
+module.exports = { uploadFile, deleteFile, uploadPublishedPage, uploadBlogPost, getPresignedUploadUrl, getR2Client };

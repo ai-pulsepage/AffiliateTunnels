@@ -77,12 +77,51 @@ router.delete('/folders/:id', async (req, res) => {
 
 // ─── FILE UPLOAD ────────────────────────────────
 
-// POST /api/media/upload
+// POST /api/media/presign — get a presigned URL for direct browser-to-R2 upload
+router.post('/presign', async (req, res) => {
+    try {
+        const { filename, mimetype, folder_id } = req.body;
+        if (!filename || !mimetype) return res.status(400).json({ error: 'filename and mimetype required' });
+
+        const { getPresignedUploadUrl } = require('../services/r2');
+        const result = await getPresignedUploadUrl(filename, mimetype);
+
+        res.json({
+            presignedUrl: result.presignedUrl,
+            key: result.key,
+            publicUrl: result.publicUrl,
+        });
+    } catch (err) {
+        console.error('Presign error:', err);
+        res.status(500).json({ error: err.message || 'Failed to generate upload URL' });
+    }
+});
+
+// POST /api/media/confirm — create DB record after direct-to-R2 upload completes
+router.post('/confirm', async (req, res) => {
+    try {
+        const { filename, key, publicUrl, fileSize, mimetype, folder_id } = req.body;
+        if (!filename || !key || !publicUrl) return res.status(400).json({ error: 'filename, key, and publicUrl required' });
+
+        const result = await query(
+            `INSERT INTO media (user_id, filename, file_url, file_key, file_size, mime_type, folder_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [req.user.id, filename, publicUrl, key, fileSize || 0, mimetype || 'application/octet-stream', folder_id || null]
+        );
+
+        res.status(201).json({ media: result.rows[0] });
+    } catch (err) {
+        console.error('Confirm upload error:', err);
+        res.status(500).json({ error: err.message || 'Failed to confirm upload' });
+    }
+});
+
+// POST /api/media/upload — legacy server-side upload (fallback, 25MB limit)
 router.post('/upload', (req, res, next) => {
     upload.single('file')(req, res, (err) => {
         if (err) {
             if (err.code === 'LIMIT_FILE_SIZE') {
-                return res.status(413).json({ error: 'File too large. Maximum upload size is 25MB.' });
+                return res.status(413).json({ error: 'File too large. Maximum upload size is 25MB. Use presigned upload for larger files.' });
             }
             return res.status(400).json({ error: err.message || 'Upload failed' });
         }
