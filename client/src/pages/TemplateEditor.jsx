@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { funnelApi, publishApi, aiApi } from '../lib/api';
 import MediaPicker from '../components/MediaPicker';
@@ -154,6 +154,7 @@ export default function TemplateEditor() {
     const navigate = useNavigate();
     const [funnel, setFunnel] = useState(null);
     const [page, setPage] = useState(null);
+    const [funnelPages, setFunnelPages] = useState([]);
     const [blocks, setBlocks] = useState([]);
     const [gateEnabled, setGateEnabled] = useState(false);
     const [showMediaPicker, setShowMediaPicker] = useState(false);
@@ -162,6 +163,11 @@ export default function TemplateEditor() {
     const [publishing, setPublishing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [showTemplates, setShowTemplates] = useState(false);
+
+    // Link editor state
+    const [showLinkEditor, setShowLinkEditor] = useState(false);
+    const [linkBlockIdx, setLinkBlockIdx] = useState(null);
+    const [linkUrl, setLinkUrl] = useState('');
 
     // AI state
     const [showAi, setShowAi] = useState(false);
@@ -183,7 +189,8 @@ export default function TemplateEditor() {
         try {
             const fData = await funnelApi.get(funnelId);
             setFunnel(fData.funnel);
-            const pages = fData.pages || fData.funnel?.pages || [];
+            const pages = (fData.pages || fData.funnel?.pages || []).sort((a, b) => a.step_order - b.step_order);
+            setFunnelPages(pages);
             const pg = pages.find(p => p.id === pageId);
             setPage(pg);
 
@@ -196,6 +203,33 @@ export default function TemplateEditor() {
         } catch (err) { toast.error(err.message); }
         finally { setLoading(false); }
     }
+
+    // ─── SMART CTA LINK RESOLUTION ────────────
+    // Non-final pages link to the next page. Final/offer pages link to the hoplink.
+    const ctaLink = useMemo(() => {
+        if (!page || !funnelPages.length || !funnel) return '#';
+        const sorted = [...funnelPages].sort((a, b) => a.step_order - b.step_order);
+        const currentIdx = sorted.findIndex(p => p.id === pageId);
+        const isLastPage = currentIdx >= sorted.length - 1;
+        const isOfferPage = page.page_type === 'offer';
+
+        if (isLastPage || isOfferPage) {
+            return funnel.affiliate_link || '#';
+        }
+        // Link to next page in funnel
+        const nextPage = sorted[currentIdx + 1];
+        return `/p/${funnel.slug}/${nextPage.slug}`;
+    }, [page, funnelPages, funnel, pageId]);
+
+    const ctaLinkLabel = useMemo(() => {
+        if (!ctaLink || ctaLink === '#') return 'Not set';
+        if (ctaLink.startsWith('/p/')) {
+            const slug = ctaLink.split('/').pop();
+            const nextPg = funnelPages.find(p => p.slug === slug);
+            return `→ Next: ${nextPg?.name || slug}`;
+        }
+        return '→ Affiliate link';
+    }, [ctaLink, funnelPages]);
 
     function parseHtmlToBlocks(html) {
         const div = document.createElement('div');
@@ -230,8 +264,7 @@ export default function TemplateEditor() {
 
     function selectTemplate(key) {
         const tpl = PAGE_TEMPLATES[key];
-        const hoplink = funnel?.affiliate_link || '#';
-        const newBlocks = tpl.blocks(hoplink).map(b => ({ ...b, id: genId() }));
+        const newBlocks = tpl.blocks(ctaLink).map(b => ({ ...b, id: genId() }));
         setBlocks(newBlocks);
         setShowTemplates(false);
     }
@@ -305,6 +338,29 @@ export default function TemplateEditor() {
             return next;
         });
         handleDragEnd();
+    }
+
+    // Link editor for CTA blocks
+    function handleLinkClick(idx) {
+        const block = blocks[idx];
+        const tmp = document.createElement('div');
+        tmp.innerHTML = block.html;
+        const link = tmp.querySelector('a');
+        setLinkUrl(link?.getAttribute('href') || ctaLink);
+        setLinkBlockIdx(idx);
+        setShowLinkEditor(true);
+    }
+
+    function applyLinkEdit() {
+        if (linkBlockIdx === null) return;
+        const block = blocks[linkBlockIdx];
+        const tmp = document.createElement('div');
+        tmp.innerHTML = block.html;
+        const links = tmp.querySelectorAll('a');
+        links.forEach(a => a.setAttribute('href', linkUrl));
+        updateBlockHtml(linkBlockIdx, tmp.innerHTML);
+        setShowLinkEditor(false);
+        setLinkBlockIdx(null);
     }
 
     // Media insertion
@@ -384,7 +440,7 @@ export default function TemplateEditor() {
             const payload = {
                 productName: productName || aiForm.productName,
                 productDescription: productInfo || aiForm.productDescription,
-                affiliateLink: aiForm.affiliateLink || funnel?.affiliate_link || '#',
+                affiliateLink: ctaLink || '#',
                 style: aiForm.style,
             };
 
@@ -509,14 +565,31 @@ export default function TemplateEditor() {
                                     dangerouslySetInnerHTML={{ __html: block.html }}
                                     onBlur={(e) => updateBlockHtml(idx, e.currentTarget.innerHTML)}
                                     onClick={(e) => {
+                                        // Media slot click
                                         const slot = e.target.closest('[data-media-slot]');
                                         if (slot || e.target.tagName === 'IMG') {
                                             e.preventDefault();
                                             handleMediaClick(idx);
+                                            return;
+                                        }
+                                        // CTA link click — open link editor
+                                        const link = e.target.closest('a');
+                                        if (link) {
+                                            e.preventDefault();
+                                            handleLinkClick(idx);
+                                            return;
                                         }
                                     }}
                                     style={{ minHeight: block.type === 'divider' ? '10px' : '20px' }}
                                 />
+
+                                {/* CTA link indicator */}
+                                {(block.type === 'button' || block.type === 'product' || block.type === 'banner') && (
+                                    <div className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Link2 className="w-3 h-3" />
+                                        <button onClick={() => handleLinkClick(idx)} className="hover:text-blue-500 hover:underline">{ctaLinkLabel}</button>
+                                    </div>
+                                )}
 
                                 {/* Insert between blocks */}
                                 <div className="flex items-center justify-center h-6 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -619,14 +692,53 @@ export default function TemplateEditor() {
                                     <input type="text" value={aiForm.productUrl} onChange={e => setAiForm(f => ({ ...f, productUrl: e.target.value }))} className="input-field text-sm" placeholder="https://..." />
                                 </div>
                             )}
-                            <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1">Affiliate Link (hoplink)</label>
-                                <input type="text" value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} className="input-field text-sm" placeholder="https://..." />
+                            <div className="bg-white/5 rounded-lg p-3">
+                                <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">CTA Button Links To</p>
+                                <p className="text-sm text-white flex items-center gap-1.5">
+                                    <Link2 className="w-3.5 h-3.5 text-brand-400" />
+                                    {ctaLinkLabel}
+                                </p>
+                                <p className="text-[10px] text-gray-600 mt-1">Set in Funnel Settings. You can override per-block in the editor.</p>
                             </div>
                             <button onClick={handleAiGenerate} disabled={aiGenerating} className="btn-primary w-full flex items-center justify-center gap-2">
                                 {aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                                 {aiGenerating ? 'Generating...' : aiTab === 'clone' ? 'Clone Page' : aiTab === 'improve' ? 'Improve Content' : 'Generate Content'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Link Editor Popup */}
+            {showLinkEditor && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowLinkEditor(false)}>
+                    <div className="bg-[#1a1d27] rounded-2xl w-full max-w-md border border-white/10 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+                            <h3 className="text-sm font-bold text-white flex items-center gap-2"><Link2 className="w-4 h-4 text-brand-400" /> Edit CTA Link</h3>
+                            <button onClick={() => setShowLinkEditor(false)} className="p-1 hover:bg-white/5 rounded"><X className="w-4 h-4 text-gray-400" /></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-1">Link URL</label>
+                                <input
+                                    type="text"
+                                    value={linkUrl}
+                                    onChange={e => setLinkUrl(e.target.value)}
+                                    className="input-field text-sm"
+                                    placeholder="https://..."
+                                    autoFocus
+                                    onKeyDown={e => e.key === 'Enter' && applyLinkEdit()}
+                                />
+                            </div>
+                            <div className="bg-white/5 rounded-lg p-3">
+                                <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Auto-Resolved Link</p>
+                                <p className="text-xs text-gray-400">{ctaLinkLabel}</p>
+                                <button onClick={() => setLinkUrl(ctaLink)} className="text-[10px] text-brand-400 hover:text-brand-300 mt-1">← Use auto-resolved link</button>
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={() => setShowLinkEditor(false)} className="btn-secondary flex-1">Cancel</button>
+                                <button onClick={applyLinkEdit} className="btn-primary flex-1">Apply</button>
+                            </div>
                         </div>
                     </div>
                 </div>
