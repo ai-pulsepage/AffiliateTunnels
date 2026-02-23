@@ -20,8 +20,15 @@ async function generateArticlePage({ productName, productDescription, affiliateL
 
     let prompt;
 
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const year = today.getFullYear();
+
     if (isImproveMode) {
         prompt = `You are an expert direct-response copywriter who specializes in native advertising and advertorial content for affiliate products.
+
+TODAY'S DATE: ${dateStr}
+CURRENT YEAR: ${year}
 
 TASK: IMPROVE the following existing landing page content. Make it more persuasive, professional, and conversion-optimized while keeping the same structure and key messages.
 
@@ -42,10 +49,16 @@ IMPROVEMENTS TO MAKE:
 8. Keep all inline styles the same — do NOT add <style> blocks
 9. The page should look like a real article, NOT a sales page
 10. Use white (#ffffff) background
+11. Use today's date (${dateStr}) for any date references. NEVER use a past year.
+12. Add data-editable attributes to key editable elements (headlines, paragraphs, blockquotes, CTA text)
+13. Add data-media-slot attributes to image placeholder areas
 
 OUTPUT: Return ONLY the improved HTML content. No markdown, no explanation, no code fences.`;
     } else {
         prompt = `You are an expert direct-response copywriter who specializes in native advertising and advertorial content for health/wellness affiliate products.
+
+TODAY'S DATE: ${dateStr}
+CURRENT YEAR: ${year}
 
 Generate a COMPLETE HTML article/advertorial landing page for the following product:
 
@@ -61,14 +74,15 @@ REQUIREMENTS:
 2. Use Georgia/serif font for body text
 3. Include an "ADVERTISEMENT" disclaimer bar at the top
 4. Include a category label (e.g., "HEALTH & WELLNESS") in red
-5. Include a compelling, curiosity-driven headline
-6. Include author byline with avatar initials, date, and reading time
-7. Include placeholder for hero image: <img src="https://placehold.co/720x400/f8fafc/475569?text=Article+Image" style="width:100%;border-radius:8px;" />
+5. Include a compelling, curiosity-driven headline — add data-editable="headline" attribute
+6. Include author byline with date ${dateStr} and reading time. ALWAYS use today's date. NEVER use a past year.
+7. Include placeholder for hero image with data-media-slot="hero": <div data-media-slot="hero" style="margin:24px 0;border-radius:8px;overflow:hidden;background:#f0f0f0;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add hero image</span></div>
 8. Write 4-6 paragraphs of compelling article content with:
    - Opening hook that creates curiosity
    - Research/study references (can be fictional but realistic)
    - Expert quote in a blockquote
    - Subheadings to break up content
+   - Add data-editable="body" to the main body div
 9. Include a mid-article email opt-in form with this EXACT HTML:
    <div style="max-width: 520px; margin: 48px auto; padding: 36px; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border-radius: 16px; border: 2px solid #86efac; text-align: center;">
      <h3 style="font-size: 22px; font-weight: 700; color: #166534; margin-bottom: 8px;">Want the Full Report?</h3>
@@ -83,10 +97,12 @@ REQUIREMENTS:
 10. After the opt-in, continue with more social proof content
 11. Include a final CTA button linking to: ${affiliateLink}
     Use this style: background: linear-gradient(135deg, #f59e0b, #d97706); with amber/gold color
+    Add data-editable="ctaButton" to the button text span
 12. Include footer with affiliate disclaimer and ClickBank trademark notice
 13. All styles must be INLINE (no <style> blocks) — this goes into a page builder
 14. Use white (#ffffff) background for the article body area, NOT dark theme
 15. Wrap everything in a single <div style="background: #ffffff; min-height: 100vh;">
+16. Add data-media-slot="mid" to any secondary image placeholder areas
 
 OUTPUT: Return ONLY the HTML content. No markdown, no explanation, no code fences.`;
     }

@@ -3,7 +3,7 @@ import { mediaApi, funnelApi } from '../lib/api';
 import {
     Upload, FolderPlus, Trash2, Image, Film, FileText,
     Search, ChevronDown, ChevronRight, X, Pencil, Download,
-    HardDrive, FolderOpen, Layers, Filter
+    HardDrive, FolderOpen, Layers, Filter, ZoomIn, Copy, ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -40,6 +40,7 @@ export default function MediaLibrary() {
     const [newFolderName, setNewFolderName] = useState('');
     const [newFolderFunnelId, setNewFolderFunnelId] = useState('');
     const [editingFolder, setEditingFolder] = useState(null);
+    const [previewMedia, setPreviewMedia] = useState(null);
 
     // Sidebar collapsed funnels
     const [collapsedFunnels, setCollapsedFunnels] = useState({});
@@ -60,10 +61,15 @@ export default function MediaLibrary() {
         finally { setLoading(false); }
     }
 
-    // Group folders by funnel
+    // Group folders by funnel — show ALL funnels even with 0 folders
     const groupedFolders = useMemo(() => {
         const groups = {};
         const general = [];
+
+        // Initialize all funnels so they always appear in sidebar
+        funnels.forEach(fn => {
+            groups[fn.id] = { funnel: fn, folders: [] };
+        });
 
         folders.forEach(f => {
             if (f.funnel_id) {
@@ -218,42 +224,69 @@ export default function MediaLibrary() {
                 <div className="h-px bg-white/5 my-3" />
 
                 {/* Funnel groups */}
-                {Object.entries(groupedFolders.groups).map(([funnelId, group]) => {
-                    const isCollapsed = collapsedFunnels[funnelId];
-                    const isActiveFunnel = selectedFunnelId === funnelId && !selectedFolderId;
+                {Object.entries(groupedFolders.groups).map(([fId, group]) => {
+                    const isCollapsed = collapsedFunnels[fId];
+                    const isActiveFunnel = selectedFunnelId === fId && !selectedFolderId;
                     return (
-                        <div key={funnelId} className="mb-2">
-                            <button
-                                onClick={() => {
-                                    toggleFunnel(funnelId);
-                                    selectSidebarItem(funnelId, null);
-                                }}
-                                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${isActiveFunnel ? 'text-brand-400' : 'text-gray-500 hover:text-gray-300'
-                                    }`}
-                            >
-                                {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                                <span className="truncate">{group.funnel?.name || 'Unknown Funnel'}</span>
-                            </button>
+                        <div key={fId} className="mb-2">
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => {
+                                        toggleFunnel(fId);
+                                        selectSidebarItem(fId, null);
+                                    }}
+                                    className={`flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${isActiveFunnel ? 'text-brand-400' : 'text-gray-500 hover:text-gray-300'}`}
+                                >
+                                    {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                    <span className="truncate">{group.funnel?.name || 'Unknown Funnel'}</span>
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setNewFolderFunnelId(fId);
+                                        setNewFolderName('');
+                                        setShowNewFolder(true);
+                                    }}
+                                    className="p-1 hover:bg-white/10 rounded-lg transition-colors shrink-0"
+                                    title="New folder in this funnel"
+                                >
+                                    <FolderPlus className="w-3 h-3 text-gray-600 hover:text-brand-400" />
+                                </button>
+                            </div>
                             {!isCollapsed && (
                                 <div className="ml-3 mt-0.5 space-y-0.5">
-                                    {group.folders.map(folder => (
+                                    {group.folders.length === 0 ? (
                                         <button
-                                            key={folder.id}
-                                            onClick={() => selectSidebarItem(funnelId, folder.id)}
-                                            className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors group ${selectedFolderId === folder.id
-                                                ? 'bg-brand-600/15 text-white font-medium'
-                                                : 'text-gray-400 hover:text-white hover:bg-white/5'
-                                                }`}
+                                            onClick={() => {
+                                                setNewFolderFunnelId(fId);
+                                                setNewFolderName('');
+                                                setShowNewFolder(true);
+                                            }}
+                                            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-gray-600 hover:text-brand-400 hover:bg-white/5 transition-colors"
                                         >
-                                            <FolderOpen className="w-3.5 h-3.5 shrink-0" />
-                                            <span className="truncate">{folder.name}</span>
-                                            <span className="ml-auto text-xs text-gray-600">{folder.file_count || 0}</span>
-                                            <Pencil
-                                                className="w-3 h-3 text-gray-600 hover:text-brand-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                                                onClick={(e) => { e.stopPropagation(); setEditingFolder({ ...folder }); }}
-                                            />
+                                            <FolderPlus className="w-3 h-3" />
+                                            <span>Create folder...</span>
                                         </button>
-                                    ))}
+                                    ) : (
+                                        group.folders.map(folder => (
+                                            <button
+                                                key={folder.id}
+                                                onClick={() => selectSidebarItem(fId, folder.id)}
+                                                className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors group ${selectedFolderId === folder.id
+                                                    ? 'bg-brand-600/15 text-white font-medium'
+                                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                                    }`}
+                                            >
+                                                <FolderOpen className="w-3.5 h-3.5 shrink-0" />
+                                                <span className="truncate">{folder.name}</span>
+                                                <span className="ml-auto text-xs text-gray-600">{folder.file_count || 0}</span>
+                                                <Pencil
+                                                    className="w-3 h-3 text-gray-600 hover:text-brand-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                                    onClick={(ev) => { ev.stopPropagation(); setEditingFolder({ ...folder }); }}
+                                                />
+                                            </button>
+                                        ))
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -391,9 +424,9 @@ export default function MediaLibrary() {
                                 const isImage = m.mime_type?.startsWith('image/');
                                 const isVideo = m.mime_type?.startsWith('video/');
                                 return (
-                                    <div key={m.id} className="group relative bg-surface-800 border border-white/5 rounded-xl overflow-hidden hover:border-white/15 transition-all">
+                                    <div key={m.id} className="group relative bg-surface-800 border border-white/5 rounded-xl overflow-hidden hover:border-white/15 transition-all cursor-pointer" onClick={() => setPreviewMedia(m)}>
                                         {/* Preview */}
-                                        <div className="aspect-square bg-surface-900 flex items-center justify-center">
+                                        <div className="aspect-square bg-surface-900 flex items-center justify-center relative">
                                             {isImage ? (
                                                 <img src={m.file_url} alt={m.filename} className="w-full h-full object-cover" loading="lazy" />
                                             ) : isVideo ? (
@@ -401,6 +434,10 @@ export default function MediaLibrary() {
                                             ) : (
                                                 <FileText className="w-10 h-10 text-gray-600" />
                                             )}
+                                            {/* Preview overlay */}
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                                <ZoomIn className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            </div>
                                         </div>
 
                                         {/* Info */}
@@ -418,12 +455,13 @@ export default function MediaLibrary() {
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="p-1.5 bg-black/60 backdrop-blur-sm rounded-lg hover:bg-black/80 transition-colors"
-                                                title="Open"
+                                                title="Open in new tab"
+                                                onClick={e => e.stopPropagation()}
                                             >
-                                                <Download className="w-3.5 h-3.5 text-white" />
+                                                <ExternalLink className="w-3.5 h-3.5 text-white" />
                                             </a>
                                             <button
-                                                onClick={() => handleDeleteMedia(m.id)}
+                                                onClick={e => { e.stopPropagation(); handleDeleteMedia(m.id); }}
                                                 className="p-1.5 bg-black/60 backdrop-blur-sm rounded-lg hover:bg-red-600/80 transition-colors"
                                                 title="Delete"
                                             >
@@ -506,6 +544,68 @@ export default function MediaLibrary() {
                                 <button onClick={() => handleDeleteFolder(editingFolder.id)} className="btn-danger flex-1 text-sm">Delete</button>
                                 <button onClick={() => setEditingFolder(null)} className="btn-secondary flex-1">Cancel</button>
                                 <button onClick={handleUpdateFolder} className="btn-primary flex-1">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Preview Lightbox ── */}
+            {previewMedia && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setPreviewMedia(null)}>
+                    <div className="relative max-w-4xl w-full mx-4" onClick={e => e.stopPropagation()}>
+                        {/* Close */}
+                        <button onClick={() => setPreviewMedia(null)} className="absolute -top-10 right-0 p-2 text-gray-400 hover:text-white transition-colors">
+                            <X className="w-6 h-6" />
+                        </button>
+
+                        {/* Media */}
+                        <div className="bg-surface-800 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                            <div className="flex items-center justify-center bg-black min-h-[300px] max-h-[70vh]">
+                                {previewMedia.mime_type?.startsWith('video/') ? (
+                                    <video src={previewMedia.file_url} controls autoPlay className="max-w-full max-h-[70vh] object-contain" />
+                                ) : previewMedia.mime_type?.startsWith('image/') ? (
+                                    <img src={previewMedia.file_url} alt={previewMedia.filename} className="max-w-full max-h-[70vh] object-contain" />
+                                ) : (
+                                    <div className="p-20 text-center">
+                                        <FileText className="w-16 h-16 text-gray-600 mx-auto mb-3" />
+                                        <p className="text-gray-400">No preview available</p>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="p-4 flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-white">{previewMedia.filename}</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                        {previewMedia.file_size ? `${(previewMedia.file_size / 1024).toFixed(0)} KB` : ''}
+                                        {previewMedia.mime_type ? ` · ${previewMedia.mime_type}` : ''}
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(previewMedia.file_url);
+                                            toast.success('URL copied!');
+                                        }}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 text-gray-300 rounded-lg text-xs hover:bg-white/10"
+                                    >
+                                        <Copy className="w-3 h-3" /> Copy URL
+                                    </button>
+                                    <a
+                                        href={previewMedia.file_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 text-gray-300 rounded-lg text-xs hover:bg-white/10"
+                                    >
+                                        <ExternalLink className="w-3 h-3" /> Open
+                                    </a>
+                                    <button
+                                        onClick={() => { handleDeleteMedia(previewMedia.id); setPreviewMedia(null); }}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/15 text-red-400 rounded-lg text-xs hover:bg-red-600/25"
+                                    >
+                                        <Trash2 className="w-3 h-3" /> Delete
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

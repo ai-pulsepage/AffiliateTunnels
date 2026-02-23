@@ -2,11 +2,10 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { funnelApi, publishApi, aiApi } from '../lib/api';
 import MediaPicker from '../components/MediaPicker';
-import { ArrowLeft, Save, Globe, Wand2, ToggleLeft, ToggleRight, Sparkles, Link2, PenLine, X } from 'lucide-react';
+import { ArrowLeft, Save, Globe, Wand2, ToggleLeft, ToggleRight, Sparkles, Link2, PenLine, X, Copy, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-// ─── TEMPLATES ────────────────────────────────────
-
+// ─── TEMPLATES ────────────────────────────────
 const TEMPLATES = {
     advertorial: {
         name: 'Advertorial',
@@ -119,7 +118,6 @@ const TEMPLATES = {
 };
 
 // ─── GATE POPUP HTML ──────────────────────────
-
 function gatePopupHtml(funnelId, pageId) {
     return `
 <!-- Gate Popup -->
@@ -163,25 +161,34 @@ function gatePopupHtml(funnelId, pageId) {
 </script>`;
 }
 
-// ─── EDITOR COMPONENT ─────────────────────────
+// Editable text selectors — any of these elements are click-to-edit
+const EDITABLE_TAGS = 'h1,h2,h3,h4,h5,h6,p,span,li,blockquote,td,th,label,figcaption,small,strong,em,b,i';
 
+// ─── EDITOR COMPONENT ─────────────────────────
 export default function TemplateEditor() {
     const { funnelId, pageId } = useParams();
     const navigate = useNavigate();
     const [funnel, setFunnel] = useState(null);
     const [page, setPage] = useState(null);
+    const [funnelPages, setFunnelPages] = useState([]);
     const [selectedTemplate, setSelectedTemplate] = useState(null);
     const [htmlContent, setHtmlContent] = useState('');
     const [gateEnabled, setGateEnabled] = useState(false);
     const [showMediaPicker, setShowMediaPicker] = useState(false);
-    const [activeMediaSlot, setActiveMediaSlot] = useState(null);
+    const [activeMediaTarget, setActiveMediaTarget] = useState(null); // { type: 'slot'|'img', element }
     const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [loading, setLoading] = useState(true);
 
+    // Link editor state
+    const [showLinkEditor, setShowLinkEditor] = useState(false);
+    const [linkEditorUrl, setLinkEditorUrl] = useState('');
+    const [linkEditorTarget, setLinkEditorTarget] = useState(null);
+    const [linkEditorPos, setLinkEditorPos] = useState({ top: 0, left: 0 });
+
     // AI state
     const [showAi, setShowAi] = useState(false);
-    const [aiTab, setAiTab] = useState('generate'); // generate | improve | fromlink
+    const [aiTab, setAiTab] = useState('generate');
     const [aiGenerating, setAiGenerating] = useState(false);
     const [aiForm, setAiForm] = useState({ productName: '', productDescription: '', affiliateLink: '', style: 'advertorial', productUrl: '', existingContent: '' });
 
@@ -194,10 +201,10 @@ export default function TemplateEditor() {
             const fData = await funnelApi.get(funnelId);
             setFunnel(fData.funnel);
             const pages = fData.pages || fData.funnel?.pages || [];
+            setFunnelPages(pages);
             const pg = pages.find(p => p.id === pageId);
             setPage(pg);
 
-            // If page already has content, load it directly into editor (skip template picker)
             if (pg?.html_output) {
                 setHtmlContent(pg.html_output);
                 setSelectedTemplate('custom');
@@ -215,31 +222,57 @@ export default function TemplateEditor() {
         setHtmlContent(html);
     }
 
-    // Handle clicks inside the preview iframe
+    // Handle clicks inside the preview iframe — universal editing
     const handlePreviewClick = useCallback((e) => {
-        const el = e.target.closest('[data-media-slot]');
-        if (el) {
-            e.preventDefault();
-            setActiveMediaSlot(el.getAttribute('data-media-slot'));
+        e.preventDefault();
+        e.stopPropagation();
+
+        // 1. Media slot (data-media-slot)
+        const slot = e.target.closest('[data-media-slot]');
+        if (slot) {
+            setActiveMediaTarget({ type: 'slot', slotName: slot.getAttribute('data-media-slot') });
             setShowMediaPicker(true);
             return;
         }
-        const editable = e.target.closest('[data-editable]');
-        if (editable) {
-            e.preventDefault();
-            editable.contentEditable = 'true';
-            editable.focus();
-            editable.style.outline = '2px solid #6366f1';
-            editable.style.outlineOffset = '2px';
-            editable.style.borderRadius = '4px';
+
+        // 2. Image click — swap via MediaPicker
+        if (e.target.tagName === 'IMG') {
+            setActiveMediaTarget({ type: 'img', element: e.target });
+            setShowMediaPicker(true);
+            return;
+        }
+
+        // 3. Link / CTA button click — open link editor
+        const link = e.target.closest('a');
+        if (link && !e.target.closest('[data-editable]')) {
+            const rect = link.getBoundingClientRect();
+            const iframeRect = previewRef.current?.getBoundingClientRect() || { top: 0, left: 0 };
+            setLinkEditorUrl(link.getAttribute('href') || '');
+            setLinkEditorTarget(link);
+            setLinkEditorPos({
+                top: iframeRect.top + rect.top + rect.height + 4,
+                left: Math.min(iframeRect.left + rect.left, window.innerWidth - 380),
+            });
+            setShowLinkEditor(true);
+            return;
+        }
+
+        // 4. Text elements — make contentEditable
+        const textEl = e.target.closest(EDITABLE_TAGS) || e.target.closest('[data-editable]');
+        if (textEl && textEl.tagName !== 'A') {
+            textEl.contentEditable = 'true';
+            textEl.focus();
+            textEl.style.outline = '2px solid #6366f1';
+            textEl.style.outlineOffset = '2px';
+            textEl.style.borderRadius = '4px';
             const blur = () => {
-                editable.contentEditable = 'false';
-                editable.style.outline = '';
-                editable.style.outlineOffset = '';
+                textEl.contentEditable = 'false';
+                textEl.style.outline = '';
+                textEl.style.outlineOffset = '';
                 syncFromPreview();
-                editable.removeEventListener('blur', blur);
+                textEl.removeEventListener('blur', blur);
             };
-            editable.addEventListener('blur', blur);
+            textEl.addEventListener('blur', blur);
         }
     }, []);
 
@@ -252,21 +285,42 @@ export default function TemplateEditor() {
         }
     }
 
-    function insertMedia(url, mediaInfo) {
-        if (!previewRef.current || !activeMediaSlot) return;
-        const doc = previewRef.current.contentDocument;
-        const slot = doc.querySelector(`[data-media-slot="${activeMediaSlot}"]`);
-        if (!slot) return;
-
-        if (mediaInfo?.mime_type?.startsWith('video/')) {
-            slot.innerHTML = `<video src="${url}" controls style="width:100%;border-radius:8px;" />`;
-        } else {
-            slot.innerHTML = `<img src="${url}" style="width:100%;display:block;" alt="" />`;
+    function applyLinkEdit() {
+        if (linkEditorTarget && previewRef.current) {
+            linkEditorTarget.setAttribute('href', linkEditorUrl);
+            syncFromPreview();
         }
-        slot.style.minHeight = '';
-        slot.style.background = '';
+        setShowLinkEditor(false);
+        setLinkEditorTarget(null);
+    }
+
+    function insertMedia(url, mediaInfo) {
+        if (!previewRef.current || !activeMediaTarget) return;
+        const doc = previewRef.current.contentDocument;
+
+        if (activeMediaTarget.type === 'slot') {
+            const slot = doc.querySelector(`[data-media-slot="${activeMediaTarget.slotName}"]`);
+            if (!slot) return;
+            if (mediaInfo?.mime_type?.startsWith('video/')) {
+                slot.innerHTML = `<video src="${url}" controls style="width:100%;border-radius:8px;" />`;
+            } else {
+                slot.innerHTML = `<img src="${url}" style="width:100%;display:block;" alt="" />`;
+            }
+            slot.style.minHeight = '';
+            slot.style.background = '';
+        } else if (activeMediaTarget.type === 'img') {
+            // Find the same img in the iframe doc
+            const imgs = doc.querySelectorAll('img');
+            for (const img of imgs) {
+                if (img === activeMediaTarget.element || img.src === activeMediaTarget.element.src) {
+                    img.src = url;
+                    break;
+                }
+            }
+        }
+
         syncFromPreview();
-        setActiveMediaSlot(null);
+        setActiveMediaTarget(null);
     }
 
     async function handleSave() {
@@ -276,7 +330,6 @@ export default function TemplateEditor() {
             if (gateEnabled) {
                 finalHtml += gatePopupHtml(funnelId, pageId);
             }
-            // Save as html_output — this is what the publisher reads
             await funnelApi.updatePage(funnelId, pageId, { html_output: finalHtml });
             toast.success('Saved!');
         } catch (err) { toast.error(err.message); }
@@ -294,7 +347,6 @@ export default function TemplateEditor() {
     }
 
     // ─── AI HANDLERS ──────────────────────────
-
     async function handleAiGenerate() {
         if (aiTab === 'generate' && (!aiForm.productName || !aiForm.productDescription)) {
             toast.error('Product name and description required');
@@ -304,9 +356,29 @@ export default function TemplateEditor() {
             toast.error('Paste the product page URL');
             return;
         }
+        if (aiTab === 'clone' && !aiForm.productUrl) {
+            toast.error('Paste the page URL to clone');
+            return;
+        }
 
         setAiGenerating(true);
         try {
+            // Clone mode — full page clone with images
+            if (aiTab === 'clone') {
+                toast('Cloning page and downloading images...');
+                const result = await aiApi.clonePage({
+                    url: aiForm.productUrl,
+                    hopLink: aiForm.affiliateLink || funnel?.affiliate_link || '',
+                });
+                if (result.html) {
+                    setHtmlContent(result.html);
+                    setSelectedTemplate('custom');
+                    setShowAi(false);
+                    toast.success(`Page cloned! ${result.stats?.imagesCloned || 0} images downloaded.`);
+                }
+                return;
+            }
+
             let productInfo = aiForm.productDescription;
             let productName = aiForm.productName;
 
@@ -351,7 +423,9 @@ export default function TemplateEditor() {
                 * { box-sizing: border-box; }
                 body { margin: 0; background: #f5f5f5; }
                 [data-media-slot]:hover { outline: 2px dashed #6366f1; outline-offset: -2px; cursor: pointer; }
-                [data-editable]:hover { outline: 1px dashed #a855f7; outline-offset: 2px; cursor: text; }
+                img:hover { outline: 2px dashed #22c55e; outline-offset: -2px; cursor: pointer; }
+                a:hover { outline: 2px dashed #f59e0b !important; outline-offset: 2px; cursor: pointer; }
+                ${EDITABLE_TAGS.split(',').map(t => `${t}:hover`).join(',\n')} { outline: 1px dashed #a855f7; outline-offset: 2px; cursor: text; }
             </style></head><body>${htmlContent}</body></html>`);
             doc.close();
             doc.body.addEventListener('click', handlePreviewClick);
@@ -367,9 +441,9 @@ export default function TemplateEditor() {
         );
     }
 
-    // ─── AI MODAL (shared between both screens) ──────
+    // ─── AI MODAL ──────
     const aiModal = showAi && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={() => !aiGenerating && setShowAi(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => !aiGenerating && setShowAi(false)}>
             <div className="bg-[#1a1d27] rounded-2xl w-full max-w-lg border border-white/10 shadow-2xl" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
@@ -381,13 +455,14 @@ export default function TemplateEditor() {
                 <div className="flex border-b border-white/5">
                     {[
                         { key: 'generate', label: 'Generate', icon: Sparkles },
-                        { key: 'improve', label: 'Improve Page', icon: PenLine },
+                        { key: 'improve', label: 'Improve', icon: PenLine },
                         { key: 'fromlink', label: 'From Link', icon: Link2 },
+                        { key: 'clone', label: 'Clone Page', icon: Copy },
                     ].map(({ key, label, icon: Icon }) => (
                         <button
                             key={key}
                             onClick={() => setAiTab(key)}
-                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium transition-colors ${aiTab === key ? 'text-purple-400 border-b-2 border-purple-400 bg-purple-500/5' : 'text-gray-500 hover:text-gray-300'}`}
+                            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-3 text-xs font-medium transition-colors ${aiTab === key ? 'text-purple-400 border-b-2 border-purple-400 bg-purple-500/5' : 'text-gray-500 hover:text-gray-300'}`}
                         >
                             <Icon className="w-3.5 h-3.5" /> {label}
                         </button>
@@ -399,8 +474,8 @@ export default function TemplateEditor() {
                     {aiTab === 'generate' && (
                         <>
                             <input value={aiForm.productName} onChange={e => setAiForm(f => ({ ...f, productName: e.target.value }))} placeholder="Product name (e.g. Citrus Burn)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
-                            <textarea value={aiForm.productDescription} onChange={e => setAiForm(f => ({ ...f, productDescription: e.target.value }))} placeholder="What does the product do? Who is it for? You can paste the whole product page text here." rows={4} className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
-                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your ClickBank hop link" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                            <textarea value={aiForm.productDescription} onChange={e => setAiForm(f => ({ ...f, productDescription: e.target.value }))} placeholder="What does the product do? Who is it for?" rows={4} className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your hop link (or leave blank to set later)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
                             <select value={aiForm.style} onChange={e => setAiForm(f => ({ ...f, style: e.target.value }))} className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm">
                                 <option value="advertorial">Advertorial (news article)</option>
                                 <option value="listicle">Listicle (numbered reasons)</option>
@@ -419,20 +494,32 @@ export default function TemplateEditor() {
                                     <p className="text-xs text-yellow-400">⚠ No content on page yet. Choose a template first or use Generate.</p>
                                 )}
                             </div>
-                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your ClickBank hop link (for CTA buttons)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your hop link (for CTA buttons)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
                         </>
                     )}
 
                     {aiTab === 'fromlink' && (
                         <>
                             <input value={aiForm.productUrl} onChange={e => setAiForm(f => ({ ...f, productUrl: e.target.value }))} placeholder="Product page URL (e.g. https://www.clickbank.com/...)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
-                            <p className="text-xs text-gray-500">AI will visit this URL, learn about the product, and write an article for you.</p>
-                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your affiliate hop link (different from product page)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                            <p className="text-xs text-gray-500">AI will visit this URL, learn about the product, and write an original article for you.</p>
+                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your affiliate hop link" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
                             <select value={aiForm.style} onChange={e => setAiForm(f => ({ ...f, style: e.target.value }))} className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm">
                                 <option value="advertorial">Advertorial (news article)</option>
                                 <option value="listicle">Listicle (numbered reasons)</option>
                                 <option value="health_review">Health Review</option>
                             </select>
+                        </>
+                    )}
+
+                    {aiTab === 'clone' && (
+                        <>
+                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+                                <p className="text-xs text-amber-400 font-medium mb-1">🔗 Full Page Clone</p>
+                                <p className="text-xs text-amber-300/80">Downloads the entire page including all images. Perfect for offer pages where you just need a copy with your links.</p>
+                            </div>
+                            <input value={aiForm.productUrl} onChange={e => setAiForm(f => ({ ...f, productUrl: e.target.value }))} placeholder="Page URL to clone (e.g. the offer page)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your hop link (all links will be rewritten to this)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                            <p className="text-xs text-gray-600">Images will be downloaded and hosted on your storage. All page links will be swapped to your hop link.</p>
                         </>
                     )}
                 </div>
@@ -445,9 +532,50 @@ export default function TemplateEditor() {
                         disabled={aiGenerating || (aiTab === 'improve' && !htmlContent)}
                         className="flex-1 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-40 hover:from-purple-500 hover:to-indigo-500"
                     >
-                        {aiGenerating ? 'Working...' : aiTab === 'improve' ? 'Improve My Page' : aiTab === 'fromlink' ? 'Scrape & Write' : 'Generate Article'}
+                        {aiGenerating ? 'Working...' : aiTab === 'improve' ? 'Improve My Page' : aiTab === 'fromlink' ? 'Scrape & Write' : aiTab === 'clone' ? 'Clone Page' : 'Generate Article'}
                     </button>
                 </div>
+            </div>
+        </div>
+    );
+
+    // ─── LINK EDITOR POPOVER ──────
+    const linkEditor = showLinkEditor && (
+        <div className="fixed z-[60] bg-[#1a1d27] border border-white/10 rounded-xl shadow-2xl p-4 w-[360px]" style={{ top: linkEditorPos.top, left: linkEditorPos.left }}>
+            <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-bold text-white flex items-center gap-1.5"><Link2 className="w-3.5 h-3.5 text-amber-400" /> Edit Link</h4>
+                <button onClick={() => setShowLinkEditor(false)} className="p-1 hover:bg-white/5 rounded"><X className="w-3.5 h-3.5 text-gray-500" /></button>
+            </div>
+            <input
+                type="text"
+                value={linkEditorUrl}
+                onChange={e => setLinkEditorUrl(e.target.value)}
+                placeholder="https://... or your hop link"
+                className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                autoFocus
+            />
+            {/* Quick pick: other funnel pages */}
+            {funnelPages.filter(p => p.id !== pageId).length > 0 && (
+                <div className="mb-2">
+                    <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-1">Or link to a funnel page:</p>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {funnelPages.filter(p => p.id !== pageId).map(p => (
+                            <button
+                                key={p.id}
+                                onClick={() => setLinkEditorUrl(`/p/${funnel?.slug}/${p.slug || p.id}`)}
+                                className="w-full text-left px-2.5 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2"
+                            >
+                                <ExternalLink className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{p.name}</span>
+                                <span className="ml-auto text-[10px] text-gray-600">{p.page_type}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+            <div className="flex gap-2">
+                <button onClick={() => setShowLinkEditor(false)} className="flex-1 px-3 py-2 bg-white/5 text-gray-300 rounded-lg text-xs hover:bg-white/10">Cancel</button>
+                <button onClick={applyLinkEdit} className="flex-1 px-3 py-2 bg-amber-600 text-white rounded-lg text-xs font-medium hover:bg-amber-500">Apply</button>
             </div>
         </div>
     );
@@ -486,12 +614,20 @@ export default function TemplateEditor() {
 
                     <div className="text-center pt-2">
                         <p className="text-sm text-gray-600 mb-3">Or skip templates entirely:</p>
-                        <button
-                            onClick={() => setShowAi(true)}
-                            className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-purple-500 hover:to-indigo-500 transition-all shadow-lg shadow-purple-500/20"
-                        >
-                            <Wand2 className="w-5 h-5" /> Let AI Write Your Page
-                        </button>
+                        <div className="flex items-center justify-center gap-3 flex-wrap">
+                            <button
+                                onClick={() => setShowAi(true)}
+                                className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-purple-500 hover:to-indigo-500 transition-all shadow-lg shadow-purple-500/20"
+                            >
+                                <Wand2 className="w-5 h-5" /> Let AI Write Your Page
+                            </button>
+                            <button
+                                onClick={() => { setAiTab('clone'); setShowAi(true); }}
+                                className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-semibold rounded-xl hover:from-amber-500 hover:to-orange-500 transition-all shadow-lg shadow-amber-500/20"
+                            >
+                                <Copy className="w-5 h-5" /> Clone a Page
+                            </button>
+                        </div>
                     </div>
                 </div>
                 {aiModal}
@@ -538,8 +674,8 @@ export default function TemplateEditor() {
             {/* Hint bar */}
             <div className="bg-[#1a1d27]/50 border-b border-white/5 px-4 py-2 flex items-center gap-4 text-xs text-gray-500 shrink-0">
                 <span>📝 Click any text to edit</span>
-                <span>🖼️ Click image areas to add media</span>
-                <span>🔗 CTA button links to your hop link</span>
+                <span>🖼️ Click any image to swap</span>
+                <span>🔗 Click CTA/buttons to change link</span>
             </div>
 
             {/* Preview */}
@@ -552,8 +688,9 @@ export default function TemplateEditor() {
                 />
             </div>
 
-            <MediaPicker isOpen={showMediaPicker} onClose={() => setShowMediaPicker(false)} onSelect={insertMedia} />
+            <MediaPicker isOpen={showMediaPicker} onClose={() => setShowMediaPicker(false)} onSelect={insertMedia} funnelId={funnelId} />
             {aiModal}
+            {linkEditor}
         </div>
     );
 }
