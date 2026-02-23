@@ -139,16 +139,20 @@ export const mediaApi = {
         if (funnel_id) params.set('funnel_id', funnel_id);
         return api(`/media?${params}`);
     },
-    upload: (file, folder_id) => {
-        const form = new FormData();
-        form.append('file', file);
-        if (folder_id) form.append('folder_id', folder_id);
+    upload: (fileOrForm, folder_id) => {
+        // Accept either a FormData directly or a File object
+        const form = fileOrForm instanceof FormData ? fileOrForm : (() => {
+            const fd = new FormData();
+            fd.append('file', fileOrForm);
+            if (folder_id) fd.append('folder_id', folder_id);
+            return fd;
+        })();
         return api('/media/upload', { body: form, method: 'POST' });
     },
     delete: (id) => api(`/media/${id}`, { method: 'DELETE' }),
     listFolders: () => api('/media/folders'),
-    createFolder: (name, funnel_id) => api('/media/folders', { method: 'POST', body: JSON.stringify({ name, funnel_id }), headers: { 'Content-Type': 'application/json' } }),
-    updateFolder: (id, data) => api(`/media/folders/${id}`, { method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
+    createFolder: (name, funnel_id) => api('/media/folders', { method: 'POST', body: { name, funnel_id } }),
+    updateFolder: (id, data) => api(`/media/folders/${id}`, { method: 'PUT', body: data }),
     deleteFolder: (id) => api(`/media/folders/${id}`, { method: 'DELETE' }),
 };
 

@@ -3,12 +3,12 @@ const path = require('path');
 
 const ALLOWED_TYPES = [
     'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
-    'video/mp4', 'video/webm',
+    'video/mp4', 'video/webm', 'video/quicktime',
     'application/pdf',
     'text/plain', 'text/csv', 'text/html',
 ];
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB (supports video uploads)
 
 const storage = multer.memoryStorage();
 
