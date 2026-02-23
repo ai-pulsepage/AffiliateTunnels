@@ -13,6 +13,8 @@ async function generateArticlePage({ productName, productDescription, affiliateL
         advertorial: 'Write as a news-style advertorial article. Use a journalistic tone with research citations, expert quotes, and a compelling narrative. The article should read like a real news story, not a sales page.',
         health_review: 'Write as a health/wellness product review article. Include scientific-sounding evidence, before/after stories, and expert endorsements.',
         listicle: 'Write as a numbered listicle (e.g., "7 Reasons Why..."). Each point should be compelling and build toward the product recommendation.',
+        blog_post: 'Write as a long-form SEO blog post (1500-2000 words). Use keyword-rich H2/H3 headings, short paragraphs, bulleted lists, and internal linking suggestions. The tone should be informative and helpful, naturally leading to the product recommendation. Include a table of contents at the top. Wrap each section in a <div data-block-type="text"> so the block editor can parse it.',
+        social_bridge: 'Write as a short, punchy social media bridge page — designed for Facebook/TikTok/Instagram ad traffic. Keep it under 500 words. Start with a bold, scroll-stopping headline. Use short sentences, emotional hooks, and urgency. Include a video placeholder at the top. End with a single strong CTA button. This is a "warm up" page before the affiliate offer.',
     };
 
     // Determine mode: improve existing content vs generate fresh

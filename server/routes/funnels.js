@@ -28,9 +28,21 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/funnels
+// Auto-page definitions per traffic source
+const TRAFFIC_SOURCE_PAGES = {
+    native: [{ name: 'Advertorial', slug: 'advertorial', page_type: 'landing', step_order: 0 }, { name: 'Offer Page', slug: 'offer', page_type: 'offer', step_order: 1 }],
+    facebook: [{ name: 'Video Pre-sell', slug: 'bridge', page_type: 'bridge', step_order: 0 }],
+    youtube: [{ name: 'Video Pre-sell', slug: 'bridge', page_type: 'bridge', step_order: 0 }],
+    tiktok: [{ name: 'Social Bridge', slug: 'bridge', page_type: 'bridge', step_order: 0 }],
+    instagram: [{ name: 'Social Bridge', slug: 'bridge', page_type: 'bridge', step_order: 0 }],
+    seo: [],
+    pinterest: [],
+    custom: [],
+};
+
 router.post('/', tierGate('funnels'), async (req, res) => {
     try {
-        const { name, slug } = req.body;
+        const { name, slug, traffic_source = 'custom' } = req.body;
         if (!name) return res.status(400).json({ error: 'Funnel name is required' });
 
         const funnelSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -42,18 +54,31 @@ router.post('/', tierGate('funnels'), async (req, res) => {
         }
 
         const result = await query(
-            `INSERT INTO funnels (user_id, name, slug) VALUES ($1, $2, $3) RETURNING *`,
-            [req.user.id, name, funnelSlug]
+            `INSERT INTO funnels (user_id, name, slug, traffic_source) VALUES ($1, $2, $3, $4) RETURNING *`,
+            [req.user.id, name, funnelSlug, traffic_source]
         );
 
-        // Auto-create default media folders for this funnel
         const funnelId = result.rows[0].id;
+
+        // Auto-create default media folders for this funnel
         await query(
             `INSERT INTO media_folders (user_id, name, funnel_id) VALUES ($1, 'Images', $2), ($1, 'Videos', $2)`,
             [req.user.id, funnelId]
         );
 
-        res.status(201).json({ funnel: result.rows[0] });
+        // Auto-create starter pages based on traffic source
+        const autoPages = TRAFFIC_SOURCE_PAGES[traffic_source] || [];
+        for (const pg of autoPages) {
+            await query(
+                `INSERT INTO pages (funnel_id, name, slug, page_type, step_order) VALUES ($1, $2, $3, $4, $5)`,
+                [funnelId, pg.name, pg.slug, pg.page_type, pg.step_order]
+            );
+        }
+
+        // Return funnel with any auto-created pages
+        const pages = await query('SELECT * FROM pages WHERE funnel_id = $1 ORDER BY step_order', [funnelId]);
+
+        res.status(201).json({ funnel: result.rows[0], pages: pages.rows });
     } catch (err) {
         console.error('Create funnel error:', err);
         res.status(500).json({ error: 'Failed to create funnel' });
@@ -105,7 +130,7 @@ router.get('/:id', async (req, res) => {
 // PUT /api/funnels/:id
 router.put('/:id', async (req, res) => {
     try {
-        const { name, slug, status, brand_colors, brand_fonts, seo_title, seo_description, og_image_url, ga4_id, fb_pixel_id } = req.body;
+        const { name, slug, status, brand_colors, brand_fonts, seo_title, seo_description, og_image_url, ga4_id, fb_pixel_id, traffic_source } = req.body;
 
         const result = await query(
             `UPDATE funnels SET
@@ -119,9 +144,10 @@ router.put('/:id', async (req, res) => {
         og_image_url = COALESCE($8, og_image_url),
         ga4_id = COALESCE($9, ga4_id),
         fb_pixel_id = COALESCE($10, fb_pixel_id),
+        traffic_source = COALESCE($11, traffic_source),
         updated_at = NOW()
-       WHERE id = $11 AND user_id = $12 RETURNING *`,
-            [name, slug, status, JSON.stringify(brand_colors), JSON.stringify(brand_fonts), seo_title, seo_description, og_image_url, ga4_id, fb_pixel_id, req.params.id, req.user.id]
+       WHERE id = $12 AND user_id = $13 RETURNING *`,
+            [name, slug, status, JSON.stringify(brand_colors), JSON.stringify(brand_fonts), seo_title, seo_description, og_image_url, ga4_id, fb_pixel_id, traffic_source, req.params.id, req.user.id]
         );
 
         if (result.rows.length === 0) {

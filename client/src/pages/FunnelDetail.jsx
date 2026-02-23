@@ -1,15 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { funnelApi, publishApi } from '../lib/api';
+import { funnelApi, publishApi, blogApi } from '../lib/api';
 import FunnelFlow from '../components/funnel/FunnelFlow';
 import FunnelSettings from '../components/funnel/FunnelSettings';
 import {
     ArrowLeft, Plus, Globe, GlobeLock, Pencil, Trash2, BarChart3,
-    Layers, Settings2, Copy, Eye, Mail, Users
+    Layers, Copy, Eye, Mail, Users, Settings2, FileText, ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const PAGE_TYPES = ['landing', 'bridge', 'offer', 'optin', 'thankyou', 'bonus'];
+
+const TRAFFIC_SOURCE_LABELS = {
+    native: { emoji: '📰', label: 'Native Ads', color: 'text-amber-400' },
+    facebook: { emoji: '📘', label: 'Facebook', color: 'text-blue-400' },
+    youtube: { emoji: '▶️', label: 'YouTube', color: 'text-red-400' },
+    tiktok: { emoji: '🎵', label: 'TikTok', color: 'text-pink-400' },
+    instagram: { emoji: '📷', label: 'Instagram', color: 'text-purple-400' },
+    seo: { emoji: '🔍', label: 'SEO', color: 'text-green-400' },
+    pinterest: { emoji: '📌', label: 'Pinterest', color: 'text-red-300' },
+    custom: { emoji: '⚡', label: 'Custom', color: 'text-gray-400' },
+};
 
 export default function FunnelDetail() {
     const { id } = useParams();
@@ -20,6 +31,7 @@ export default function FunnelDetail() {
     const [showAddPage, setShowAddPage] = useState(false);
     const [newPage, setNewPage] = useState({ name: '', page_type: 'landing' });
     const [tab, setTab] = useState('flow');
+    const [blogPosts, setBlogPosts] = useState([]);
 
     useEffect(() => { loadFunnel(); }, [id]);
 
@@ -33,6 +45,14 @@ export default function FunnelDetail() {
             navigate('/funnels');
         } finally { setLoading(false); }
     }
+
+    // Load linked blog posts
+    useEffect(() => {
+        if (!id) return;
+        blogApi.list({ funnel_id: id }).then(data => {
+            setBlogPosts(data.posts || []);
+        }).catch(() => { });
+    }, [id]);
 
     async function handleAddPage() {
         if (!newPage.name.trim()) return;
@@ -96,7 +116,17 @@ export default function FunnelDetail() {
                         <ArrowLeft className="w-4 h-4 text-gray-400" />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-bold text-white">{funnel.name}</h1>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-2xl font-bold text-white">{funnel.name}</h1>
+                            {(() => {
+                                const src = TRAFFIC_SOURCE_LABELS[funnel.traffic_source] || TRAFFIC_SOURCE_LABELS.custom;
+                                return (
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 text-xs font-medium ${src.color}`}>
+                                        <span>{src.emoji}</span> {src.label}
+                                    </span>
+                                );
+                            })()}
+                        </div>
                         <p className="text-sm text-gray-500 mt-0.5">
                             {pages.length} pages · {publishedCount} published · /p/{funnel.slug}
                         </p>
@@ -137,6 +167,43 @@ export default function FunnelDetail() {
                     <p className="stat-label">Leads</p>
                 </div>
             </div>
+
+            {/* Linked Blog Posts */}
+            {blogPosts.length > 0 && (
+                <div className="card">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-brand-400" /> Linked Blog Posts
+                        </h3>
+                        <Link to="/blog" className="text-xs text-brand-400 hover:text-brand-300">View All →</Link>
+                    </div>
+                    <div className="space-y-2">
+                        {blogPosts.map(post => (
+                            <div key={post.id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-white/2 hover:bg-white/5 transition-colors">
+                                <div>
+                                    <p className="text-sm text-white font-medium">{post.title}</p>
+                                    <p className="text-xs text-gray-500">{post.category || 'Uncategorized'} · /blog/{post.slug}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {post.status === 'published' ? (
+                                        <span className="badge badge-success text-[10px]">Published</span>
+                                    ) : (
+                                        <span className="badge text-[10px]">Draft</span>
+                                    )}
+                                    <Link to={`/blog/${post.id}/edit`} className="p-1.5 hover:bg-white/5 rounded-lg" title="Edit">
+                                        <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                                    </Link>
+                                    {post.published_url && (
+                                        <a href={post.published_url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-white/5 rounded-lg" title="View live">
+                                            <ExternalLink className="w-3.5 h-3.5 text-green-400" />
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="flex gap-1 bg-surface-800 rounded-xl p-1">
@@ -213,9 +280,7 @@ export default function FunnelDetail() {
                                         <Link to={`/editor/${id}/${page.id}`} className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 rounded-lg text-xs text-gray-400 hover:text-white transition-colors" title="Quick page editor">
                                             <Pencil className="w-3.5 h-3.5" /> Edit
                                         </Link>
-                                        <Link to={`/builder/${id}/${page.id}`} className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 rounded-lg text-xs text-gray-500 hover:text-white transition-colors" title="Advanced drag-and-drop builder (GrapeJS)">
-                                            <Settings2 className="w-3.5 h-3.5" /> Advanced
-                                        </Link>
+
                                         <button onClick={() => handlePublishPage(page.id)} className="p-1.5 hover:bg-white/5 rounded-lg">
                                             <Globe className="w-3.5 h-3.5 text-gray-400" />
                                         </button>

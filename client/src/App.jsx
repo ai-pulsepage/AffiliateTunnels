@@ -7,7 +7,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import Funnels from './pages/Funnels';
 import FunnelDetail from './pages/FunnelDetail';
-import PageBuilder from './pages/PageBuilder';
+
 import TemplateEditor from './pages/TemplateEditor';
 import EmailBuilder from './pages/EmailBuilder';
 import DripBuilder from './pages/DripBuilder';
@@ -17,6 +17,8 @@ import MediaLibrary from './pages/MediaLibrary';
 import AffiliateTools from './pages/AffiliateTools';
 import Templates from './pages/Templates';
 import Settings from './pages/Settings';
+import BlogPosts from './pages/BlogPosts';
+import BlogEditor from './pages/BlogEditor';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminStats from './pages/admin/AdminStats';
@@ -67,6 +69,7 @@ export default function App() {
                 <Route path="media" element={<MediaLibrary />} />
                 <Route path="affiliate" element={<AffiliateTools />} />
                 <Route path="templates" element={<Templates />} />
+                <Route path="blog" element={<BlogPosts />} />
                 <Route path="settings" element={<Settings />} />
 
                 {/* Admin routes */}
@@ -76,8 +79,9 @@ export default function App() {
             </Route>
 
             {/* Full-screen page builder (outside layout) */}
-            <Route path="/builder/:funnelId/:pageId" element={<ProtectedRoute><PageBuilder /></ProtectedRoute>} />
+
             <Route path="/editor/:funnelId/:pageId" element={<ProtectedRoute><TemplateEditor /></ProtectedRoute>} />
+            <Route path="/blog/:id/edit" element={<ProtectedRoute><BlogEditor /></ProtectedRoute>} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

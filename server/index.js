@@ -29,13 +29,14 @@ const clickbankRoutes = require('./routes/clickbank');
 const templateRoutes = require('./routes/templates');
 const affiliateRoutes = require('./routes/affiliate');
 const aiRoutes = require('./routes/ai');
+const blogRoutes = require('./routes/blog');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Security
 app.use(helmet({
-    contentSecurityPolicy: false, // Disabled for GrapeJS editor
+    contentSecurityPolicy: false, // Flexible for embedded content
     crossOriginEmbedderPolicy: false,
 }));
 
@@ -68,6 +69,7 @@ app.use('/api/clickbank', clickbankRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/affiliate', affiliateRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/blog', blogRoutes);
 
 // === Public Routes ===
 

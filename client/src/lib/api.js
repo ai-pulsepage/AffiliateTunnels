@@ -226,3 +226,15 @@ export const aiApi = {
     scrapeProduct: (url) => api('/ai/scrape-product', { body: { url } }),
     clonePage: (data) => api('/ai/clone-page', { body: data }),
 };
+
+// Blog
+export const blogApi = {
+    list: (params = {}) => { const qs = new URLSearchParams(params).toString(); return api(`/blog${qs ? '?' + qs : ''}`); },
+    get: (id) => api(`/blog/${id}`),
+    create: (data) => api('/blog', { body: data }),
+    update: (id, data) => api(`/blog/${id}`, { method: 'PUT', body: data }),
+    delete: (id) => api(`/blog/${id}`, { method: 'DELETE' }),
+    publish: (id) => api(`/blog/${id}/publish`, { body: {} }),
+    unpublish: (id) => api(`/blog/${id}/unpublish`, { method: 'PUT' }),
+    categories: () => api('/blog/categories'),
+};

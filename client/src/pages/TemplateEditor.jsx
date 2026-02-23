@@ -2,119 +2,106 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { funnelApi, publishApi, aiApi } from '../lib/api';
 import MediaPicker from '../components/MediaPicker';
-import { ArrowLeft, Save, Globe, Wand2, ToggleLeft, ToggleRight, Sparkles, Link2, PenLine, X, Copy, ExternalLink } from 'lucide-react';
+import {
+    ArrowLeft, Save, Globe, Sparkles, ToggleLeft, ToggleRight,
+    Link2, X, Copy, ExternalLink, Loader2, Type, AlignLeft, Image, Video,
+    MousePointerClick, Quote, List, Minus, LayoutTemplate, Mail, Package,
+    ChevronUp, ChevronDown, Trash2, Plus, GripVertical
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 
-// ─── TEMPLATES ────────────────────────────────
-const TEMPLATES = {
+// ─── BLOCK DEFINITIONS ────────────────────────
+const BLOCK_TYPES = [
+    { type: 'heading', label: 'Heading', icon: Type, html: '<h2 style="font-size:28px;font-weight:700;color:#111;margin:0 0 12px;">Section Heading</h2>' },
+    { type: 'text', label: 'Text', icon: AlignLeft, html: '<p style="font-size:17px;color:#444;line-height:1.7;margin:0 0 16px;">Write your content here. This paragraph supports <strong>bold</strong>, <em>italic</em>, and <a href="#">links</a>.</p>' },
+    { type: 'image', label: 'Image', icon: Image, html: '<div data-media-slot="img" style="text-align:center;padding:20px;background:#f5f5f5;border-radius:8px;margin:16px 0;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add image</span></div>' },
+    { type: 'video', label: 'Video', icon: Video, html: '<div data-media-slot="video" style="text-align:center;padding:40px;background:#000;border-radius:8px;margin:16px 0;min-height:300px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#666;font-size:16px;">▶ Click to add video</span></div>' },
+    { type: 'button', label: 'CTA Button', icon: MousePointerClick, html: '<div style="text-align:center;padding:20px;"><a href="#" style="display:inline-block;padding:16px 48px;background:linear-gradient(135deg,#e63946,#d62828);color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:18px;">Get Instant Access →</a></div>' },
+    { type: 'quote', label: 'Quote', icon: Quote, html: '<blockquote style="border-left:4px solid #e63946;padding:16px 20px;margin:20px 0;background:#fdf0f0;font-style:italic;border-radius:0 8px 8px 0;"><p style="margin:0;font-size:16px;color:#555;">"This product changed my life! I cannot believe the results."</p><p style="margin:8px 0 0;font-size:13px;color:#888;">— Happy Customer</p></blockquote>' },
+    { type: 'list', label: 'List', icon: List, html: '<ul style="padding-left:24px;font-size:17px;color:#444;line-height:1.7;"><li style="margin-bottom:8px;">First key benefit</li><li style="margin-bottom:8px;">Second key benefit</li><li style="margin-bottom:8px;">Third key benefit</li></ul>' },
+    { type: 'divider', label: 'Divider', icon: Minus, html: '<hr style="border:none;border-top:2px solid #eee;margin:32px 0;">' },
+    { type: 'banner', label: 'Banner', icon: LayoutTemplate, html: '<div style="text-align:center;padding:20px;"><a href="#"><img src="" alt="Affiliate Banner" style="max-width:100%;border-radius:8px;border:1px solid #eee;"></a><p style="color:#999;font-size:11px;margin-top:8px;">Click to set banner image + affiliate link</p></div>' },
+    { type: 'optin', label: 'Opt-in Form', icon: Mail, html: '<div style="text-align:center;padding:32px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:12px;color:#fff;margin:24px 0;"><h3 style="margin-bottom:8px;">Get Our Free Guide</h3><p style="margin-bottom:16px;opacity:0.9;font-size:14px;">Enter your email to receive exclusive tips.</p><div style="max-width:320px;margin:0 auto;"><input type="email" placeholder="Your email" style="width:100%;padding:12px;border:none;border-radius:6px;margin-bottom:8px;font-size:14px;"><button style="width:100%;padding:12px;background:#e63946;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">Send Me The Guide</button></div></div>' },
+    { type: 'product', label: 'Product Card', icon: Package, html: '<div style="display:flex;gap:20px;padding:20px;border:2px solid #e63946;border-radius:12px;align-items:center;margin:24px 0;"><img src="" alt="Product" style="width:120px;height:120px;object-fit:cover;border-radius:8px;background:#f5f5f5;"><div><h3 style="margin-bottom:4px;">Product Name</h3><p style="color:#666;font-size:14px;margin-bottom:12px;">Brief description of what this product does.</p><a href="#" style="display:inline-block;padding:10px 24px;background:#e63946;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:14px;">Learn More →</a></div></div>' },
+];
+
+// ─── PAGE TEMPLATES (pre-built block arrangements) ────────────
+const PAGE_TEMPLATES = {
     advertorial: {
         name: 'Advertorial',
-        desc: 'News article style — byline, expert quotes, body text, CTA',
+        desc: 'News article — byline, expert quotes, body text, CTA',
         emoji: '📰',
-        html: (data) => `
-<div style="max-width:720px;margin:0 auto;padding:40px 24px;font-family:Georgia,'Times New Roman',serif;color:#333;line-height:1.8;background:#fff;">
-  <div style="border-bottom:3px solid #222;padding-bottom:12px;margin-bottom:24px;">
-    <h1 style="font-size:32px;font-weight:700;line-height:1.2;color:#111;margin:0 0 8px 0;" data-editable="headline">${data.headline || 'Breakthrough Discovery Shocks Health Experts'}</h1>
-    <p style="font-size:14px;color:#888;margin:0;">By <span data-editable="author">${data.author || 'Health Desk'}</span> · Updated ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-  </div>
-  <div data-media-slot="hero" style="margin-bottom:24px;border-radius:8px;overflow:hidden;background:#f0f0f0;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-    <span style="color:#999;font-size:14px;">Click to add hero image or video</span>
-  </div>
-  <p style="font-size:18px;color:#444;" data-editable="intro">${data.intro || 'Scientists have uncovered a remarkable natural compound that is changing the way millions of people approach their daily health routine. The results have been nothing short of extraordinary.'}</p>
-  <blockquote style="border-left:4px solid #e63946;padding:16px 20px;margin:28px 0;background:#fdf0f0;font-style:italic;border-radius:0 8px 8px 0;">
-    <p style="margin:0;font-size:16px;color:#555;" data-editable="quote">"${data.quote || 'The results we are seeing are truly remarkable. This could change everything we know about natural health solutions.'}"</p>
-    <p style="margin:8px 0 0;font-size:13px;color:#888;" data-editable="quoteAuthor">— ${data.quoteAuthor || 'Dr. Sarah Mitchell, Research Director'}</p>
-  </blockquote>
-  <div data-editable="body" style="font-size:17px;color:#444;">
-    ${data.body || `<p>For years, researchers have been searching for a natural solution that could support overall wellness without the harsh side effects of traditional approaches.</p>
-    <p>Now, a small team of scientists has developed a formula that combines ancient botanical wisdom with modern scientific research. The preliminary results have caught the attention of health professionals worldwide.</p>
-    <p>In a recent study, participants who incorporated this solution into their daily routine reported significant improvements within just the first few weeks.</p>
-    <h2 style="font-size:22px;color:#222;margin:32px 0 16px;">How Does It Work?</h2>
-    <p>The formula works by targeting the root cause rather than just masking symptoms. By addressing the underlying mechanisms, users experience more sustainable and lasting results.</p>
-    <p>Unlike other solutions on the market, this approach uses only natural, clinically-studied ingredients that work in harmony with your body's own processes.</p>`}
-  </div>
-  <div data-media-slot="mid" style="margin:28px 0;border-radius:8px;overflow:hidden;background:#f0f0f0;min-height:150px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-    <span style="color:#999;font-size:14px;">Click to add image or video</span>
-  </div>
-  <div style="background:linear-gradient(135deg,#e63946,#d62828);border-radius:12px;padding:32px;text-align:center;margin:32px 0;">
-    <p style="font-size:20px;color:#fff;font-weight:700;margin:0 0 8px;" data-editable="ctaHeadline">${data.ctaHeadline || 'Ready to Experience the Difference?'}</p>
-    <p style="font-size:15px;color:rgba(255,255,255,0.85);margin:0 0 20px;" data-editable="ctaSubtext">${data.ctaSubtext || 'Join thousands who have already transformed their health naturally.'}</p>
-    <a href="${data.hoplink || '#'}" data-editable-link="cta" style="display:inline-block;padding:16px 48px;background:#fff;color:#d62828;font-size:18px;font-weight:700;border-radius:8px;text-decoration:none;">
-      <span data-editable="ctaButton">${data.ctaButton || 'Learn More →'}</span>
-    </a>
-  </div>
-  <p style="font-size:12px;color:#bbb;text-align:center;margin-top:40px;border-top:1px solid #eee;padding-top:16px;" data-editable="disclaimer">${data.disclaimer || 'This is an advertisement. Individual results may vary. This product is not intended to diagnose, treat, cure, or prevent any disease.'}</p>
-</div>`
+        traffic: ['native'],
+        blocks: (hoplink) => [
+            { type: 'text', html: '<div style="background:#f0f0f0;padding:8px;text-align:center;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;">Advertisement</div>' },
+            { type: 'heading', html: '<h1 style="font-size:32px;font-weight:700;line-height:1.2;color:#111;margin:0 0 8px;">Breakthrough Discovery Shocks Health Experts</h1>' },
+            { type: 'text', html: `<p style="font-size:14px;color:#888;">By Health Desk · Updated ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>` },
+            { type: 'image', html: '<div data-media-slot="hero" style="text-align:center;padding:20px;background:#f5f5f5;border-radius:8px;margin:16px 0;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add hero image</span></div>' },
+            { type: 'text', html: '<p style="font-size:18px;color:#444;line-height:1.8;">Scientists have uncovered a remarkable natural compound that is changing the way millions of people approach their daily health routine. The results have been nothing short of extraordinary.</p>' },
+            { type: 'quote', html: '<blockquote style="border-left:4px solid #e63946;padding:16px 20px;margin:28px 0;background:#fdf0f0;font-style:italic;border-radius:0 8px 8px 0;"><p style="margin:0;font-size:16px;color:#555;">"The results we are seeing are truly remarkable. This could change everything."</p><p style="margin:8px 0 0;font-size:13px;color:#888;">— Dr. Sarah Mitchell, Research Director</p></blockquote>' },
+            { type: 'text', html: '<div style="font-size:17px;color:#444;line-height:1.8;"><p>For years, researchers have been searching for a natural solution that could support overall wellness without harsh side effects.</p><p style="margin-top:16px;">Now, a small team of scientists has developed a formula that combines ancient botanical wisdom with modern scientific research.</p><h2 style="font-size:22px;color:#222;margin:32px 0 16px;">How Does It Work?</h2><p>The formula works by targeting the root cause rather than just masking symptoms, producing more sustainable results.</p></div>' },
+            { type: 'image', html: '<div data-media-slot="mid" style="text-align:center;padding:20px;background:#f5f5f5;border-radius:8px;margin:16px 0;min-height:150px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add image</span></div>' },
+            { type: 'button', html: `<div style="background:linear-gradient(135deg,#e63946,#d62828);border-radius:12px;padding:32px;text-align:center;margin:32px 0;"><p style="font-size:20px;color:#fff;font-weight:700;margin:0 0 8px;">Ready to Experience the Difference?</p><p style="font-size:15px;color:rgba(255,255,255,0.85);margin:0 0 20px;">Join thousands who have already transformed their health.</p><a href="${hoplink}" style="display:inline-block;padding:16px 48px;background:#fff;color:#d62828;font-size:18px;font-weight:700;border-radius:8px;text-decoration:none;">Learn More →</a></div>` },
+            { type: 'text', html: '<p style="font-size:12px;color:#bbb;text-align:center;margin-top:40px;border-top:1px solid #eee;padding-top:16px;">This is an advertisement. Individual results may vary.</p>' },
+        ],
     },
     video_presell: {
         name: 'Video Presell',
-        desc: 'Hero video with headline, body text, and prominent CTA',
+        desc: 'Hero video with headline, body text, and CTA',
         emoji: '🎬',
-        html: (data) => `
-<div style="max-width:680px;margin:0 auto;padding:40px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#333;background:#fff;">
-  <h1 style="font-size:28px;font-weight:800;text-align:center;line-height:1.3;color:#111;margin:0 0 8px;" data-editable="headline">${data.headline || 'Watch: The 30-Second Morning Ritual That Changed Everything'}</h1>
-  <p style="text-align:center;font-size:16px;color:#666;margin:0 0 24px;" data-editable="subheadline">${data.subheadline || 'Over 2 million people have already seen this video. Here\'s why it matters.'}</p>
-  <div data-media-slot="hero" style="margin-bottom:28px;border-radius:12px;overflow:hidden;background:#000;min-height:380px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-    <span style="color:#666;font-size:16px;">▶ Click to add video</span>
-  </div>
-  <div data-editable="body" style="font-size:17px;line-height:1.7;color:#444;">
-    ${data.body || `<p>This short video reveals a surprisingly simple technique that leading health researchers say could be the key to unlocking your body's natural potential.</p>
-    <p>What makes this different from everything else you've tried? It works with your body's own biology — not against it.</p>
-    <p><strong>Here's what people are saying:</strong></p>
-    <ul style="padding-left:20px;">
-      <li style="margin-bottom:8px;">"I noticed a difference within the first week" — Maria T.</li>
-      <li style="margin-bottom:8px;">"My energy levels are through the roof" — James K.</li>
-      <li style="margin-bottom:8px;">"I wish I had found this sooner" — Linda S.</li>
-    </ul>`}
-  </div>
-  <div style="background:#111;border-radius:12px;padding:36px;text-align:center;margin:32px 0;">
-    <p style="font-size:22px;color:#fff;font-weight:700;margin:0 0 12px;" data-editable="ctaHeadline">${data.ctaHeadline || 'Get Instant Access Now'}</p>
-    <p style="font-size:14px;color:rgba(255,255,255,0.6);margin:0 0 20px;" data-editable="ctaSubtext">${data.ctaSubtext || 'Limited time offer. 60-day money-back guarantee.'}</p>
-    <a href="${data.hoplink || '#'}" data-editable-link="cta" style="display:inline-block;padding:18px 56px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:20px;font-weight:700;border-radius:10px;text-decoration:none;">
-      <span data-editable="ctaButton">${data.ctaButton || 'Yes, I Want This! →'}</span>
-    </a>
-  </div>
-  <p style="font-size:12px;color:#bbb;text-align:center;margin-top:32px;" data-editable="disclaimer">${data.disclaimer || 'This is an advertisement. Individual results may vary.'}</p>
-</div>`
+        traffic: ['facebook', 'youtube'],
+        blocks: (hoplink) => [
+            { type: 'heading', html: '<h1 style="font-size:28px;font-weight:800;text-align:center;line-height:1.3;color:#111;margin:0 0 8px;">Watch: The 30-Second Morning Ritual That Changed Everything</h1>' },
+            { type: 'text', html: '<p style="text-align:center;font-size:16px;color:#666;margin:0 0 24px;">Over 2 million people have already seen this video. Here\'s why it matters.</p>' },
+            { type: 'video', html: '<div data-media-slot="hero" style="text-align:center;padding:40px;background:#000;border-radius:12px;min-height:380px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#666;font-size:16px;">▶ Click to add video</span></div>' },
+            { type: 'text', html: '<div style="font-size:17px;line-height:1.7;color:#444;"><p>This short video reveals a surprisingly simple technique that leading health researchers say could be the key to unlocking your body\'s natural potential.</p><p style="margin-top:16px;"><strong>Here\'s what people are saying:</strong></p><ul style="padding-left:20px;"><li style="margin-bottom:8px;">"I noticed a difference within the first week" — Maria T.</li><li style="margin-bottom:8px;">"My energy levels are through the roof" — James K.</li><li style="margin-bottom:8px;">"I wish I had found this sooner" — Linda S.</li></ul></div>' },
+            { type: 'button', html: `<div style="background:#111;border-radius:12px;padding:36px;text-align:center;margin:32px 0;"><p style="font-size:22px;color:#fff;font-weight:700;margin:0 0 12px;">Get Instant Access Now</p><p style="font-size:14px;color:rgba(255,255,255,0.6);margin:0 0 20px;">Limited time offer. 60-day money-back guarantee.</p><a href="${hoplink}" style="display:inline-block;padding:18px 56px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:20px;font-weight:700;border-radius:10px;text-decoration:none;">Yes, I Want This! →</a></div>` },
+            { type: 'text', html: '<p style="font-size:12px;color:#bbb;text-align:center;margin-top:32px;">This is an advertisement. Individual results may vary.</p>' },
+        ],
     },
     listicle: {
         name: 'Listicle',
-        desc: '"7 Reasons Why..." numbered article with CTA at the end',
+        desc: '"7 Reasons Why..." numbered article with CTA',
         emoji: '📝',
-        html: (data) => `
-<div style="max-width:700px;margin:0 auto;padding:40px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#333;background:#fff;">
-  <p style="font-size:13px;font-weight:600;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;" data-editable="category">${data.category || 'HEALTH & WELLNESS'}</p>
-  <h1 style="font-size:30px;font-weight:800;line-height:1.25;color:#111;margin:0 0 16px;" data-editable="headline">${data.headline || '7 Reasons Why Thousands Are Switching to This Natural Solution'}</h1>
-  <p style="font-size:17px;color:#666;margin:0 0 28px;line-height:1.6;" data-editable="intro">${data.intro || 'Experts say this little-known natural compound could be the most significant discovery in years. Here\'s what you need to know.'}</p>
-  <div data-media-slot="hero" style="margin-bottom:28px;border-radius:10px;overflow:hidden;background:#f0f0f0;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-    <span style="color:#999;font-size:14px;">Click to add hero image</span>
-  </div>
-  <div data-editable="body" style="font-size:17px;line-height:1.7;color:#444;">
-    ${data.body || `<h2 style="font-size:20px;color:#111;margin:28px 0 12px;">1. It's Backed by Clinical Research</h2>
-    <p>Multiple peer-reviewed studies have confirmed the effectiveness of the key ingredients used in this formula.</p>
-    <h2 style="font-size:20px;color:#111;margin:28px 0 12px;">2. No Harsh Side Effects</h2>
-    <p>Unlike pharmaceutical alternatives, users report virtually zero negative side effects.</p>
-    <h2 style="font-size:20px;color:#111;margin:28px 0 12px;">3. Results in as Little as 2 Weeks</h2>
-    <p>Clinical trial participants reported noticeable improvements within the first 14 days of use.</p>
-    <h2 style="font-size:20px;color:#111;margin:28px 0 12px;">4. 100% Natural Ingredients</h2>
-    <p>Every ingredient is sourced from nature and tested for purity and potency.</p>
-    <h2 style="font-size:20px;color:#111;margin:28px 0 12px;">5. Easy to Use</h2>
-    <p>Just take it once a day — no complicated routines or special equipment needed.</p>
-    <h2 style="font-size:20px;color:#111;margin:28px 0 12px;">6. Affordable</h2>
-    <p>Compared to alternatives, this solution costs a fraction of the price with better results.</p>
-    <h2 style="font-size:20px;color:#111;margin:28px 0 12px;">7. 60-Day Money-Back Guarantee</h2>
-    <p>Try it completely risk-free. If you're not satisfied, get a full refund — no questions asked.</p>`}
-  </div>
-  <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);border-radius:12px;padding:36px;text-align:center;margin:36px 0;">
-    <p style="font-size:22px;color:#fff;font-weight:700;margin:0 0 10px;" data-editable="ctaHeadline">${data.ctaHeadline || 'Ready to Try It Risk-Free?'}</p>
-    <p style="font-size:15px;color:rgba(255,255,255,0.8);margin:0 0 20px;" data-editable="ctaSubtext">${data.ctaSubtext || 'Click below to see today\'s exclusive pricing.'}</p>
-    <a href="${data.hoplink || '#'}" data-editable-link="cta" style="display:inline-block;padding:16px 52px;background:#fff;color:#6d28d9;font-size:18px;font-weight:700;border-radius:8px;text-decoration:none;">
-      <span data-editable="ctaButton">${data.ctaButton || 'See Special Pricing →'}</span>
-    </a>
-  </div>
-  <p style="font-size:12px;color:#bbb;text-align:center;margin-top:32px;" data-editable="disclaimer">${data.disclaimer || 'This is an advertisement. Individual results may vary.'}</p>
-</div>`
-    }
+        traffic: ['native', 'seo'],
+        blocks: (hoplink) => [
+            { type: 'text', html: '<p style="font-size:13px;font-weight:600;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">HEALTH & WELLNESS</p>' },
+            { type: 'heading', html: '<h1 style="font-size:30px;font-weight:800;line-height:1.25;color:#111;margin:0 0 16px;">7 Reasons Why Thousands Are Switching to This Natural Solution</h1>' },
+            { type: 'text', html: '<p style="font-size:17px;color:#666;margin:0 0 28px;line-height:1.6;">Experts say this little-known natural compound could be the most significant discovery in years.</p>' },
+            { type: 'image', html: '<div data-media-slot="hero" style="text-align:center;padding:20px;background:#f5f5f5;border-radius:10px;margin:0 0 28px;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add hero image</span></div>' },
+            { type: 'text', html: '<div style="font-size:17px;line-height:1.7;color:#444;"><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">1. It\'s Backed by Clinical Research</h2><p>Multiple peer-reviewed studies have confirmed the effectiveness of the key ingredients.</p><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">2. No Harsh Side Effects</h2><p>Users report virtually zero negative side effects.</p><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">3. Results in as Little as 2 Weeks</h2><p>Participants reported noticeable improvements within the first 14 days.</p><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">4. 100% Natural Ingredients</h2><p>Every ingredient is sourced from nature and tested for purity.</p><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">5. Easy to Use</h2><p>Just take it once a day — no complicated routines needed.</p><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">6. Affordable</h2><p>Costs a fraction of the price of alternatives with better results.</p><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">7. 60-Day Money-Back Guarantee</h2><p>Try it risk-free. If not satisfied, get a full refund.</p></div>' },
+            { type: 'button', html: `<div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);border-radius:12px;padding:36px;text-align:center;margin:36px 0;"><p style="font-size:22px;color:#fff;font-weight:700;margin:0 0 10px;">Ready to Try It Risk-Free?</p><p style="font-size:15px;color:rgba(255,255,255,0.8);margin:0 0 20px;">Click below to see today's exclusive pricing.</p><a href="${hoplink}" style="display:inline-block;padding:16px 52px;background:#fff;color:#6d28d9;font-size:18px;font-weight:700;border-radius:8px;text-decoration:none;">See Special Pricing →</a></div>` },
+            { type: 'text', html: '<p style="font-size:12px;color:#bbb;text-align:center;margin-top:32px;">This is an advertisement. Individual results may vary.</p>' },
+        ],
+    },
+    social_bridge: {
+        name: 'Social Bridge',
+        desc: 'Short punchy presell for Facebook/TikTok/Instagram traffic',
+        emoji: '📱',
+        traffic: ['facebook', 'tiktok', 'instagram'],
+        blocks: (hoplink) => [
+            { type: 'heading', html: '<h1 style="font-size:32px;font-weight:800;text-align:center;color:#111;line-height:1.2;margin:0 0 16px;">🔥 This Changed EVERYTHING For Me</h1>' },
+            { type: 'text', html: '<p style="text-align:center;font-size:18px;color:#555;margin:0 0 24px;">I was skeptical too. Then I tried it for myself...</p>' },
+            { type: 'video', html: '<div data-media-slot="hero" style="text-align:center;padding:60px;background:#000;border-radius:16px;min-height:380px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#666;font-size:16px;">▶ Click to add video</span></div>' },
+            { type: 'list', html: '<ul style="padding:24px;font-size:18px;line-height:2;list-style:none;"><li>✅ Works in as little as 7 days</li><li>✅ 100% natural — no side effects</li><li>✅ Over 50,000 happy customers</li><li>✅ 60-day money-back guarantee</li></ul>' },
+            { type: 'text', html: '<p style="text-align:center;font-size:17px;color:#444;margin:0 0 8px;"><strong>Don\'t just take my word for it.</strong> See the results for yourself 👇</p>' },
+            { type: 'button', html: `<div style="text-align:center;padding:24px;"><a href="${hoplink}" style="display:inline-block;padding:20px 60px;background:linear-gradient(135deg,#e63946,#d62828);color:#fff;font-size:22px;font-weight:800;border-radius:12px;text-decoration:none;box-shadow:0 4px 20px rgba(230,57,70,0.3);">👉 YES, Show Me! →</a></div>` },
+            { type: 'text', html: '<p style="text-align:center;font-size:12px;color:#bbb;">Results may vary. This is an advertisement.</p>' },
+        ],
+    },
+    lead_magnet: {
+        name: 'Lead Magnet',
+        desc: 'Email capture page with value prop and opt-in form',
+        emoji: '🎁',
+        traffic: ['tiktok', 'instagram', 'facebook'],
+        blocks: (hoplink) => [
+            { type: 'heading', html: '<h1 style="font-size:30px;font-weight:800;text-align:center;color:#111;line-height:1.3;margin:0 0 12px;">FREE: The Ultimate Guide to [Your Niche]</h1>' },
+            { type: 'text', html: '<p style="text-align:center;font-size:17px;color:#666;max-width:540px;margin:0 auto 24px;">Download our step-by-step guide and discover the secrets that experts don\'t want you to know.</p>' },
+            { type: 'image', html: '<div data-media-slot="hero" style="text-align:center;padding:30px;background:#f5f5f5;border-radius:12px;margin:0 0 24px;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add lead magnet cover image</span></div>' },
+            { type: 'list', html: '<ul style="padding-left:24px;font-size:16px;line-height:1.8;max-width:480px;margin:0 auto 24px;color:#444;"><li style="margin-bottom:8px;">The #1 mistake 90% of people make</li><li style="margin-bottom:8px;">3 proven strategies that actually work</li><li style="margin-bottom:8px;">Expert tips from industry leaders</li><li style="margin-bottom:8px;">Action plan you can start today</li></ul>' },
+            { type: 'optin', html: '<div style="text-align:center;padding:36px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:12px;color:#fff;margin:24px 0;"><h3 style="font-size:22px;margin-bottom:8px;">Get Your Free Copy Now</h3><p style="margin-bottom:20px;opacity:0.9;font-size:15px;">Enter your email and we\'ll send it right over.</p><div style="max-width:360px;margin:0 auto;"><input type="text" placeholder="Your name" style="width:100%;padding:14px;border:none;border-radius:8px;margin-bottom:10px;font-size:15px;"><input type="email" placeholder="Your email address" style="width:100%;padding:14px;border:none;border-radius:8px;margin-bottom:10px;font-size:15px;"><button style="width:100%;padding:16px;background:#e63946;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:16px;cursor:pointer;">Send Me The Guide →</button></div><p style="font-size:11px;margin-top:12px;opacity:0.7;">We respect your privacy. Unsubscribe anytime.</p></div>' },
+        ],
+    },
 };
 
 // ─── GATE POPUP HTML ──────────────────────────
@@ -161,176 +148,189 @@ function gatePopupHtml(funnelId, pageId) {
 </script>`;
 }
 
-// Editable text selectors — any of these elements are click-to-edit
-const EDITABLE_TAGS = 'h1,h2,h3,h4,h5,h6,p,span,li,blockquote,td,th,label,figcaption,small,strong,em,b,i';
-
 // ─── EDITOR COMPONENT ─────────────────────────
 export default function TemplateEditor() {
     const { funnelId, pageId } = useParams();
     const navigate = useNavigate();
     const [funnel, setFunnel] = useState(null);
     const [page, setPage] = useState(null);
-    const [funnelPages, setFunnelPages] = useState([]);
-    const [selectedTemplate, setSelectedTemplate] = useState(null);
-    const [htmlContent, setHtmlContent] = useState('');
+    const [blocks, setBlocks] = useState([]);
     const [gateEnabled, setGateEnabled] = useState(false);
     const [showMediaPicker, setShowMediaPicker] = useState(false);
-    const [activeMediaTarget, setActiveMediaTarget] = useState(null); // { type: 'slot'|'img', element }
+    const [mediaBlockIdx, setMediaBlockIdx] = useState(null);
     const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [loading, setLoading] = useState(true);
-
-    // Link editor state
-    const [showLinkEditor, setShowLinkEditor] = useState(false);
-    const [linkEditorUrl, setLinkEditorUrl] = useState('');
-    const [linkEditorTarget, setLinkEditorTarget] = useState(null);
-    const [linkEditorPos, setLinkEditorPos] = useState({ top: 0, left: 0 });
+    const [showTemplates, setShowTemplates] = useState(false);
 
     // AI state
     const [showAi, setShowAi] = useState(false);
     const [aiTab, setAiTab] = useState('generate');
     const [aiGenerating, setAiGenerating] = useState(false);
-    const [aiForm, setAiForm] = useState({ productName: '', productDescription: '', affiliateLink: '', style: 'advertorial', productUrl: '', existingContent: '' });
+    const [aiForm, setAiForm] = useState({ productName: '', productDescription: '', affiliateLink: '', style: 'advertorial', productUrl: '' });
 
-    const previewRef = useRef(null);
+    // Drag state
+    const [dragIdx, setDragIdx] = useState(null);
+    const [dropIdx, setDropIdx] = useState(null);
 
     useEffect(() => { loadPage(); }, [funnelId, pageId]);
+
+    function genId() {
+        return 'blk_' + Math.random().toString(36).substr(2, 9);
+    }
 
     async function loadPage() {
         try {
             const fData = await funnelApi.get(funnelId);
             setFunnel(fData.funnel);
             const pages = fData.pages || fData.funnel?.pages || [];
-            setFunnelPages(pages);
             const pg = pages.find(p => p.id === pageId);
             setPage(pg);
 
             if (pg?.html_output) {
-                setHtmlContent(pg.html_output);
-                setSelectedTemplate('custom');
+                parseHtmlToBlocks(pg.html_output);
+            } else {
+                setShowTemplates(true);
             }
             setAiForm(f => ({ ...f, affiliateLink: fData.funnel.affiliate_link || '' }));
         } catch (err) { toast.error(err.message); }
         finally { setLoading(false); }
     }
 
-    function selectTemplate(key) {
-        const tpl = TEMPLATES[key];
-        const hoplink = funnel?.affiliate_link || '#';
-        const html = tpl.html({ hoplink });
-        setSelectedTemplate(key);
-        setHtmlContent(html);
-    }
-
-    // Handle clicks inside the preview iframe — universal editing
-    const handlePreviewClick = useCallback((e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // 1. Media slot (data-media-slot)
-        const slot = e.target.closest('[data-media-slot]');
-        if (slot) {
-            setActiveMediaTarget({ type: 'slot', slotName: slot.getAttribute('data-media-slot') });
-            setShowMediaPicker(true);
-            return;
-        }
-
-        // 2. Image click — swap via MediaPicker
-        if (e.target.tagName === 'IMG') {
-            setActiveMediaTarget({ type: 'img', element: e.target });
-            setShowMediaPicker(true);
-            return;
-        }
-
-        // 3. Link / CTA button click — open link editor
-        const link = e.target.closest('a');
-        if (link && !e.target.closest('[data-editable]')) {
-            const rect = link.getBoundingClientRect();
-            const iframeRect = previewRef.current?.getBoundingClientRect() || { top: 0, left: 0 };
-            setLinkEditorUrl(link.getAttribute('href') || '');
-            setLinkEditorTarget(link);
-            setLinkEditorPos({
-                top: iframeRect.top + rect.top + rect.height + 4,
-                left: Math.min(iframeRect.left + rect.left, window.innerWidth - 380),
-            });
-            setShowLinkEditor(true);
-            return;
-        }
-
-        // 4. Text elements — make contentEditable
-        const textEl = e.target.closest(EDITABLE_TAGS) || e.target.closest('[data-editable]');
-        if (textEl && textEl.tagName !== 'A') {
-            textEl.contentEditable = 'true';
-            textEl.focus();
-            textEl.style.outline = '2px solid #6366f1';
-            textEl.style.outlineOffset = '2px';
-            textEl.style.borderRadius = '4px';
-            const blur = () => {
-                textEl.contentEditable = 'false';
-                textEl.style.outline = '';
-                textEl.style.outlineOffset = '';
-                syncFromPreview();
-                textEl.removeEventListener('blur', blur);
-            };
-            textEl.addEventListener('blur', blur);
-        }
-    }, []);
-
-    function syncFromPreview() {
-        if (previewRef.current) {
-            const doc = previewRef.current.contentDocument;
-            if (doc?.body) {
-                setHtmlContent(doc.body.innerHTML);
+    function parseHtmlToBlocks(html) {
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        const parsed = [];
+        for (const child of div.children) {
+            if (child.id === 'at-gate-popup' || child.tagName === 'SCRIPT') {
+                setGateEnabled(true);
+                continue;
             }
+            const type = child.getAttribute('data-block-type') || guessBlockType(child);
+            parsed.push({
+                id: child.getAttribute('data-block-id') || genId(),
+                type,
+                html: child.getAttribute('data-block-type') ? child.innerHTML : child.outerHTML,
+            });
         }
+        if (parsed.length > 0) setBlocks(parsed);
     }
 
-    function applyLinkEdit() {
-        if (linkEditorTarget && previewRef.current) {
-            linkEditorTarget.setAttribute('href', linkEditorUrl);
-            syncFromPreview();
+    function guessBlockType(el) {
+        const tag = el.tagName.toLowerCase();
+        if (tag === 'h1' || tag === 'h2' || tag === 'h3') return 'heading';
+        if (tag === 'blockquote') return 'quote';
+        if (tag === 'ul' || tag === 'ol') return 'list';
+        if (tag === 'hr') return 'divider';
+        if (el.querySelector('[data-media-slot]')) return 'image';
+        if (el.querySelector('a[style*="background"]')) return 'button';
+        if (el.querySelector('input[type="email"]')) return 'optin';
+        return 'text';
+    }
+
+    function selectTemplate(key) {
+        const tpl = PAGE_TEMPLATES[key];
+        const hoplink = funnel?.affiliate_link || '#';
+        const newBlocks = tpl.blocks(hoplink).map(b => ({ ...b, id: genId() }));
+        setBlocks(newBlocks);
+        setShowTemplates(false);
+    }
+
+    function blocksToHtml() {
+        let html = blocks.map(b =>
+            `<div data-block-type="${b.type}" data-block-id="${b.id}">${b.html}</div>`
+        ).join('\n');
+        if (gateEnabled) {
+            html += gatePopupHtml(funnelId, pageId);
         }
-        setShowLinkEditor(false);
-        setLinkEditorTarget(null);
+        return html;
+    }
+
+    function addBlock(type, afterIndex = -1) {
+        const template = BLOCK_TYPES.find(b => b.type === type);
+        if (!template) return;
+        const newBlock = { id: genId(), type, html: template.html };
+        setBlocks(prev => {
+            const next = [...prev];
+            if (afterIndex >= 0) {
+                next.splice(afterIndex + 1, 0, newBlock);
+            } else {
+                next.push(newBlock);
+            }
+            return next;
+        });
+    }
+
+    function moveBlock(idx, dir) {
+        setBlocks(prev => {
+            const next = [...prev];
+            const newIdx = idx + dir;
+            if (newIdx < 0 || newIdx >= next.length) return prev;
+            [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
+            return next;
+        });
+    }
+
+    function deleteBlock(idx) {
+        setBlocks(prev => prev.filter((_, i) => i !== idx));
+    }
+
+    function updateBlockHtml(idx, html) {
+        setBlocks(prev => prev.map((b, i) => i === idx ? { ...b, html } : b));
+    }
+
+    // Drag handlers
+    function handleDragStart(e, idx) {
+        setDragIdx(idx);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', idx.toString());
+    }
+    function handleDragOver(e, idx) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDropIdx(idx);
+    }
+    function handleDragEnd() {
+        setDragIdx(null);
+        setDropIdx(null);
+    }
+    function handleDrop(e, targetIdx) {
+        e.preventDefault();
+        const fromIdx = dragIdx;
+        if (fromIdx === null || fromIdx === targetIdx) { handleDragEnd(); return; }
+        setBlocks(prev => {
+            const next = [...prev];
+            const [moved] = next.splice(fromIdx, 1);
+            next.splice(targetIdx > fromIdx ? targetIdx - 1 : targetIdx, 0, moved);
+            return next;
+        });
+        handleDragEnd();
+    }
+
+    // Media insertion
+    function handleMediaClick(idx) {
+        setMediaBlockIdx(idx);
+        setShowMediaPicker(true);
     }
 
     function insertMedia(url, mediaInfo) {
-        if (!previewRef.current || !activeMediaTarget) return;
-        const doc = previewRef.current.contentDocument;
-
-        if (activeMediaTarget.type === 'slot') {
-            const slot = doc.querySelector(`[data-media-slot="${activeMediaTarget.slotName}"]`);
-            if (!slot) return;
-            if (mediaInfo?.mime_type?.startsWith('video/')) {
-                slot.innerHTML = `<video src="${url}" controls style="width:100%;border-radius:8px;" />`;
-            } else {
-                slot.innerHTML = `<img src="${url}" style="width:100%;display:block;" alt="" />`;
-            }
-            slot.style.minHeight = '';
-            slot.style.background = '';
-        } else if (activeMediaTarget.type === 'img') {
-            // Find the same img in the iframe doc
-            const imgs = doc.querySelectorAll('img');
-            for (const img of imgs) {
-                if (img === activeMediaTarget.element || img.src === activeMediaTarget.element.src) {
-                    img.src = url;
-                    break;
-                }
-            }
+        if (mediaBlockIdx === null) return;
+        const block = blocks[mediaBlockIdx];
+        let newHtml;
+        if (mediaInfo?.mime_type?.startsWith('video/')) {
+            newHtml = `<video src="${url}" controls style="width:100%;border-radius:8px;"></video>`;
+        } else {
+            newHtml = `<img src="${url}" style="width:100%;display:block;border-radius:8px;" alt="">`;
         }
-
-        syncFromPreview();
-        setActiveMediaTarget(null);
+        updateBlockHtml(mediaBlockIdx, newHtml);
+        setShowMediaPicker(false);
+        setMediaBlockIdx(null);
     }
 
     async function handleSave() {
         setSaving(true);
         try {
-            let finalHtml = htmlContent;
-            if (gateEnabled) {
-                finalHtml += gatePopupHtml(funnelId, pageId);
-            }
-            await funnelApi.updatePage(funnelId, pageId, { html_output: finalHtml });
+            await funnelApi.updatePage(funnelId, pageId, { html_output: blocksToHtml() });
             toast.success('Saved!');
         } catch (err) { toast.error(err.message); }
         finally { setSaving(false); }
@@ -352,27 +352,18 @@ export default function TemplateEditor() {
             toast.error('Product name and description required');
             return;
         }
-        if (aiTab === 'fromlink' && !aiForm.productUrl) {
-            toast.error('Paste the product page URL');
-            return;
-        }
-        if (aiTab === 'clone' && !aiForm.productUrl) {
-            toast.error('Paste the page URL to clone');
+        if ((aiTab === 'fromlink' || aiTab === 'clone') && !aiForm.productUrl) {
+            toast.error('Paste the URL');
             return;
         }
 
         setAiGenerating(true);
         try {
-            // Clone mode — full page clone with images
             if (aiTab === 'clone') {
                 toast('Cloning page and downloading images...');
-                const result = await aiApi.clonePage({
-                    url: aiForm.productUrl,
-                    hopLink: aiForm.affiliateLink || funnel?.affiliate_link || '',
-                });
+                const result = await aiApi.clonePage({ url: aiForm.productUrl, hopLink: aiForm.affiliateLink || funnel?.affiliate_link || '' });
                 if (result.html) {
-                    setHtmlContent(result.html);
-                    setSelectedTemplate('custom');
+                    parseHtmlToBlocks(result.html);
                     setShowAi(false);
                     toast.success(`Page cloned! ${result.stats?.imagesCloned || 0} images downloaded.`);
                 }
@@ -382,16 +373,14 @@ export default function TemplateEditor() {
             let productInfo = aiForm.productDescription;
             let productName = aiForm.productName;
 
-            // If "From Link" mode, scrape first
             if (aiTab === 'fromlink') {
                 toast('Scraping product page...');
                 const scraped = await aiApi.scrapeProduct(aiForm.productUrl);
                 productName = scraped.productName || 'Product';
                 productInfo = scraped.description || '';
-                setAiForm(f => ({ ...f, productName: productName, productDescription: productInfo, affiliateLink: f.affiliateLink || aiForm.productUrl }));
+                setAiForm(f => ({ ...f, productName, productDescription: productInfo, affiliateLink: f.affiliateLink || aiForm.productUrl }));
             }
 
-            // If "Improve" mode, send existing content
             const payload = {
                 productName: productName || aiForm.productName,
                 productDescription: productInfo || aiForm.productDescription,
@@ -400,13 +389,12 @@ export default function TemplateEditor() {
             };
 
             if (aiTab === 'improve') {
-                payload.existingContent = htmlContent;
+                payload.existingContent = blocksToHtml();
             }
 
             const result = await aiApi.generatePage(payload);
             if (result.html) {
-                setHtmlContent(result.html);
-                setSelectedTemplate('custom');
+                parseHtmlToBlocks(result.html);
                 setShowAi(false);
                 toast.success('AI content generated!');
             }
@@ -414,283 +402,244 @@ export default function TemplateEditor() {
         finally { setAiGenerating(false); }
     }
 
-    // Update preview iframe when content changes
-    useEffect(() => {
-        if (previewRef.current && htmlContent) {
-            const doc = previewRef.current.contentDocument;
-            doc.open();
-            doc.write(`<!DOCTYPE html><html><head><style>
-                * { box-sizing: border-box; }
-                body { margin: 0; background: #f5f5f5; }
-                [data-media-slot]:hover { outline: 2px dashed #6366f1; outline-offset: -2px; cursor: pointer; }
-                img:hover { outline: 2px dashed #22c55e; outline-offset: -2px; cursor: pointer; }
-                a:hover { outline: 2px dashed #f59e0b !important; outline-offset: 2px; cursor: pointer; }
-                ${EDITABLE_TAGS.split(',').map(t => `${t}:hover`).join(',\n')} { outline: 1px dashed #a855f7; outline-offset: 2px; cursor: text; }
-            </style></head><body>${htmlContent}</body></html>`);
-            doc.close();
-            doc.body.addEventListener('click', handlePreviewClick);
-        }
-    }, [htmlContent, handlePreviewClick]);
-
-    // ─── LOADING ──────────────
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
-                <div className="w-10 h-10 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            <div className="flex items-center justify-center h-screen bg-[#0f1117]">
+                <Loader2 className="w-6 h-6 text-brand-400 animate-spin" />
             </div>
         );
     }
 
-    // ─── AI MODAL ──────
-    const aiModal = showAi && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => !aiGenerating && setShowAi(false)}>
-            <div className="bg-[#1a1d27] rounded-2xl w-full max-w-lg border border-white/10 shadow-2xl" onClick={e => e.stopPropagation()}>
-                {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2"><Wand2 className="w-5 h-5 text-purple-400" /> AI Writer</h3>
-                    <button onClick={() => setShowAi(false)} className="p-1.5 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-gray-400" /></button>
-                </div>
+    // Font family based on page type
+    const isSerif = page?.page_type === 'landing' || page?.page_type === 'bridge';
+    const fontStyle = isSerif
+        ? { fontFamily: "Georgia, 'Times New Roman', serif", color: '#333', lineHeight: '1.8' }
+        : { fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", color: '#333', lineHeight: '1.7' };
 
-                {/* Tabs */}
-                <div className="flex border-b border-white/5">
-                    {[
-                        { key: 'generate', label: 'Generate', icon: Sparkles },
-                        { key: 'improve', label: 'Improve', icon: PenLine },
-                        { key: 'fromlink', label: 'From Link', icon: Link2 },
-                        { key: 'clone', label: 'Clone Page', icon: Copy },
-                    ].map(({ key, label, icon: Icon }) => (
-                        <button
-                            key={key}
-                            onClick={() => setAiTab(key)}
-                            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-3 text-xs font-medium transition-colors ${aiTab === key ? 'text-purple-400 border-b-2 border-purple-400 bg-purple-500/5' : 'text-gray-500 hover:text-gray-300'}`}
-                        >
-                            <Icon className="w-3.5 h-3.5" /> {label}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Tab content */}
-                <div className="p-5 space-y-3">
-                    {aiTab === 'generate' && (
-                        <>
-                            <input value={aiForm.productName} onChange={e => setAiForm(f => ({ ...f, productName: e.target.value }))} placeholder="Product name (e.g. Citrus Burn)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
-                            <textarea value={aiForm.productDescription} onChange={e => setAiForm(f => ({ ...f, productDescription: e.target.value }))} placeholder="What does the product do? Who is it for?" rows={4} className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
-                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your hop link (or leave blank to set later)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
-                            <select value={aiForm.style} onChange={e => setAiForm(f => ({ ...f, style: e.target.value }))} className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm">
-                                <option value="advertorial">Advertorial (news article)</option>
-                                <option value="listicle">Listicle (numbered reasons)</option>
-                                <option value="health_review">Health Review</option>
-                            </select>
-                        </>
-                    )}
-
-                    {aiTab === 'improve' && (
-                        <>
-                            <div className="bg-[#13151d] border border-white/10 rounded-lg p-3">
-                                <p className="text-xs text-gray-400 mb-2">AI will read your current page and rewrite it to be more persuasive and professional.</p>
-                                {htmlContent ? (
-                                    <p className="text-xs text-green-400">✓ Current page content loaded ({Math.round(htmlContent.length / 100) / 10}KB)</p>
-                                ) : (
-                                    <p className="text-xs text-yellow-400">⚠ No content on page yet. Choose a template first or use Generate.</p>
-                                )}
-                            </div>
-                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your hop link (for CTA buttons)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
-                        </>
-                    )}
-
-                    {aiTab === 'fromlink' && (
-                        <>
-                            <input value={aiForm.productUrl} onChange={e => setAiForm(f => ({ ...f, productUrl: e.target.value }))} placeholder="Product page URL (e.g. https://www.clickbank.com/...)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
-                            <p className="text-xs text-gray-500">AI will visit this URL, learn about the product, and write an original article for you.</p>
-                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your affiliate hop link" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
-                            <select value={aiForm.style} onChange={e => setAiForm(f => ({ ...f, style: e.target.value }))} className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm">
-                                <option value="advertorial">Advertorial (news article)</option>
-                                <option value="listicle">Listicle (numbered reasons)</option>
-                                <option value="health_review">Health Review</option>
-                            </select>
-                        </>
-                    )}
-
-                    {aiTab === 'clone' && (
-                        <>
-                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
-                                <p className="text-xs text-amber-400 font-medium mb-1">🔗 Full Page Clone</p>
-                                <p className="text-xs text-amber-300/80">Downloads the entire page including all images. Perfect for offer pages where you just need a copy with your links.</p>
-                            </div>
-                            <input value={aiForm.productUrl} onChange={e => setAiForm(f => ({ ...f, productUrl: e.target.value }))} placeholder="Page URL to clone (e.g. the offer page)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
-                            <input value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} placeholder="Your hop link (all links will be rewritten to this)" className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500" />
-                            <p className="text-xs text-gray-600">Images will be downloaded and hosted on your storage. All page links will be swapped to your hop link.</p>
-                        </>
-                    )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-3 px-5 pb-5">
-                    <button onClick={() => setShowAi(false)} disabled={aiGenerating} className="flex-1 px-4 py-2.5 bg-white/5 text-gray-300 rounded-lg text-sm hover:bg-white/10">Cancel</button>
-                    <button
-                        onClick={handleAiGenerate}
-                        disabled={aiGenerating || (aiTab === 'improve' && !htmlContent)}
-                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-40 hover:from-purple-500 hover:to-indigo-500"
-                    >
-                        {aiGenerating ? 'Working...' : aiTab === 'improve' ? 'Improve My Page' : aiTab === 'fromlink' ? 'Scrape & Write' : aiTab === 'clone' ? 'Clone Page' : 'Generate Article'}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-
-    // ─── LINK EDITOR POPOVER ──────
-    const linkEditor = showLinkEditor && (
-        <div className="fixed z-[60] bg-[#1a1d27] border border-white/10 rounded-xl shadow-2xl p-4 w-[360px]" style={{ top: linkEditorPos.top, left: linkEditorPos.left }}>
-            <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-bold text-white flex items-center gap-1.5"><Link2 className="w-3.5 h-3.5 text-amber-400" /> Edit Link</h4>
-                <button onClick={() => setShowLinkEditor(false)} className="p-1 hover:bg-white/5 rounded"><X className="w-3.5 h-3.5 text-gray-500" /></button>
-            </div>
-            <input
-                type="text"
-                value={linkEditorUrl}
-                onChange={e => setLinkEditorUrl(e.target.value)}
-                placeholder="https://... or your hop link"
-                className="w-full bg-[#13151d] border border-white/10 text-white rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                autoFocus
-            />
-            {/* Quick pick: other funnel pages */}
-            {funnelPages.filter(p => p.id !== pageId).length > 0 && (
-                <div className="mb-2">
-                    <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-1">Or link to a funnel page:</p>
-                    <div className="space-y-1 max-h-32 overflow-y-auto">
-                        {funnelPages.filter(p => p.id !== pageId).map(p => (
-                            <button
-                                key={p.id}
-                                onClick={() => setLinkEditorUrl(`/p/${funnel?.slug}/${p.slug || p.id}`)}
-                                className="w-full text-left px-2.5 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2"
-                            >
-                                <ExternalLink className="w-3 h-3 shrink-0" />
-                                <span className="truncate">{p.name}</span>
-                                <span className="ml-auto text-[10px] text-gray-600">{p.page_type}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-            <div className="flex gap-2">
-                <button onClick={() => setShowLinkEditor(false)} className="flex-1 px-3 py-2 bg-white/5 text-gray-300 rounded-lg text-xs hover:bg-white/10">Cancel</button>
-                <button onClick={applyLinkEdit} className="flex-1 px-3 py-2 bg-amber-600 text-white rounded-lg text-xs font-medium hover:bg-amber-500">Apply</button>
-            </div>
-        </div>
-    );
-
-    // ─── TEMPLATE SELECTION SCREEN ──────────
-    if (!selectedTemplate) {
-        return (
-            <div className="min-h-screen bg-[#0f1117] text-white">
-                <div className="max-w-4xl mx-auto px-6 py-10 space-y-8">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/5 rounded-lg">
-                            <ArrowLeft className="w-5 h-5 text-gray-400" />
-                        </button>
-                        <div>
-                            <h1 className="text-2xl font-bold">Choose a Template</h1>
-                            <p className="text-sm text-gray-500">{funnel?.name || 'Funnel'} — {page?.name || 'Page'}</p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        {Object.entries(TEMPLATES).map(([key, tpl]) => (
-                            <button
-                                key={key}
-                                onClick={() => selectTemplate(key)}
-                                className="group bg-[#1a1d27] border border-white/5 rounded-xl p-6 text-left hover:border-purple-500/40 hover:ring-1 hover:ring-purple-500/20 transition-all"
-                            >
-                                <div className="w-14 h-14 rounded-xl bg-purple-600/15 flex items-center justify-center mb-4 group-hover:bg-purple-600/25 transition-colors">
-                                    <span className="text-3xl">{tpl.emoji}</span>
-                                </div>
-                                <h3 className="text-lg font-bold text-white mb-1">{tpl.name}</h3>
-                                <p className="text-sm text-gray-400 leading-relaxed">{tpl.desc}</p>
-                                <p className="text-xs text-purple-400 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">Click to start editing →</p>
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="text-center pt-2">
-                        <p className="text-sm text-gray-600 mb-3">Or skip templates entirely:</p>
-                        <div className="flex items-center justify-center gap-3 flex-wrap">
-                            <button
-                                onClick={() => setShowAi(true)}
-                                className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-purple-500 hover:to-indigo-500 transition-all shadow-lg shadow-purple-500/20"
-                            >
-                                <Wand2 className="w-5 h-5" /> Let AI Write Your Page
-                            </button>
-                            <button
-                                onClick={() => { setAiTab('clone'); setShowAi(true); }}
-                                className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-semibold rounded-xl hover:from-amber-500 hover:to-orange-500 transition-all shadow-lg shadow-amber-500/20"
-                            >
-                                <Copy className="w-5 h-5" /> Clone a Page
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                {aiModal}
-            </div>
-        );
-    }
-
-    // ─── EDITOR SCREEN ──────────
     return (
-        <div className="flex flex-col h-screen bg-[#0f1117]">
-            {/* Toolbar */}
-            <div className="flex items-center justify-between bg-[#1a1d27] border-b border-white/5 px-4 py-2.5 shrink-0">
+        <div className="h-screen flex flex-col bg-[#0f1117]">
+            {/* Top bar */}
+            <div className="flex items-center justify-between px-4 py-2.5 bg-[#1a1d27] border-b border-white/5">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-white/5 rounded-lg">
+                    <button onClick={() => navigate(`/funnels/${funnelId}`)} className="p-2 hover:bg-white/5 rounded-lg">
                         <ArrowLeft className="w-4 h-4 text-gray-400" />
                     </button>
-                    <span className="text-sm font-medium text-white">{page?.name || 'Page Editor'}</span>
-                    <span className="text-xs text-gray-500">— {funnel?.name}</span>
+                    <div>
+                        <p className="text-sm font-bold text-white">{page?.name || 'Page'}</p>
+                        <p className="text-[10px] text-gray-500">{funnel?.name} · {page?.page_type}</p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button onClick={() => setShowTemplates(true)} className="btn-secondary text-sm flex items-center gap-1.5">
+                        <LayoutTemplate className="w-3.5 h-3.5" /> Templates
+                    </button>
+                    <button onClick={() => setShowAi(true)} className="btn-secondary text-sm flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" /> AI Generate
+                    </button>
                     <button
                         onClick={() => setGateEnabled(!gateEnabled)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${gateEnabled ? 'bg-green-600/20 text-green-400' : 'bg-white/5 text-gray-400'}`}
-                        title="Email gate popup — captures leads"
+                        className={`btn-secondary text-sm flex items-center gap-1.5 ${gateEnabled ? 'text-green-400' : ''}`}
                     >
-                        {gateEnabled ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                        {gateEnabled ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
                         Gate
                     </button>
-
-                    <button onClick={() => { setAiTab(htmlContent ? 'improve' : 'generate'); setShowAi(true); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600/20 text-purple-400 text-xs font-medium rounded-lg hover:bg-purple-600/30">
-                        <Wand2 className="w-3.5 h-3.5" /> AI
-                    </button>
-
-                    <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 text-white text-xs font-medium rounded-lg hover:bg-white/10 disabled:opacity-50">
+                    <button onClick={handleSave} disabled={saving} className="btn-secondary text-sm flex items-center gap-1.5">
                         <Save className="w-3.5 h-3.5" /> {saving ? 'Saving...' : 'Save'}
                     </button>
-
-                    <button onClick={handlePublish} disabled={publishing} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-500 disabled:opacity-50">
+                    <button onClick={handlePublish} disabled={publishing} className="btn-primary text-sm flex items-center gap-1.5">
                         <Globe className="w-3.5 h-3.5" /> {publishing ? 'Publishing...' : 'Publish'}
                     </button>
                 </div>
             </div>
 
-            {/* Hint bar */}
-            <div className="bg-[#1a1d27]/50 border-b border-white/5 px-4 py-2 flex items-center gap-4 text-xs text-gray-500 shrink-0">
-                <span>📝 Click any text to edit</span>
-                <span>🖼️ Click any image to swap</span>
-                <span>🔗 Click CTA/buttons to change link</span>
+            <div className="flex flex-1 overflow-hidden">
+                {/* Block palette (left) */}
+                <div className="w-48 bg-[#1a1d27] border-r border-white/5 overflow-y-auto py-3 px-2 flex-shrink-0">
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider px-2 mb-2">+ Blocks</p>
+                    {BLOCK_TYPES.map(bt => (
+                        <button
+                            key={bt.type}
+                            onClick={() => addBlock(bt.type)}
+                            className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                        >
+                            <bt.icon className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>{bt.label}</span>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Content preview (center) */}
+                <div className="flex-1 overflow-y-auto bg-white">
+                    <div className="max-w-3xl mx-auto py-10 px-8" style={fontStyle}>
+                        {blocks.map((block, idx) => (
+                            <div
+                                key={block.id}
+                                className={`group relative ${dragIdx === idx ? 'opacity-40' : ''}`}
+                                draggable
+                                onDragStart={e => handleDragStart(e, idx)}
+                                onDragOver={e => handleDragOver(e, idx)}
+                                onDragEnd={handleDragEnd}
+                                onDrop={e => handleDrop(e, idx)}
+                            >
+                                {dropIdx === idx && dragIdx !== idx && (
+                                    <div className="absolute -top-1 left-0 right-0 h-0.5 bg-blue-500 rounded-full z-10" />
+                                )}
+
+                                {/* Block toolbar */}
+                                <div className="absolute -left-10 top-0 flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity hidden group-hover:flex">
+                                    <div className="p-1 cursor-grab active:cursor-grabbing" title="Drag to reorder">
+                                        <GripVertical className="w-3.5 h-3.5 text-gray-400" />
+                                    </div>
+                                    <button onClick={() => moveBlock(idx, -1)} className="p-1 hover:bg-gray-200 rounded" title="Move up">
+                                        <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
+                                    </button>
+                                    <button onClick={() => moveBlock(idx, 1)} className="p-1 hover:bg-gray-200 rounded" title="Move down">
+                                        <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                                    </button>
+                                    <button onClick={() => deleteBlock(idx)} className="p-1 hover:bg-red-100 rounded" title="Delete">
+                                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                                    </button>
+                                </div>
+
+                                {/* Block content */}
+                                <div
+                                    className="outline-none rounded transition-shadow group-hover:ring-2 group-hover:ring-blue-200"
+                                    contentEditable
+                                    suppressContentEditableWarning
+                                    dangerouslySetInnerHTML={{ __html: block.html }}
+                                    onBlur={(e) => updateBlockHtml(idx, e.currentTarget.innerHTML)}
+                                    onClick={(e) => {
+                                        const slot = e.target.closest('[data-media-slot]');
+                                        if (slot || e.target.tagName === 'IMG') {
+                                            e.preventDefault();
+                                            handleMediaClick(idx);
+                                        }
+                                    }}
+                                    style={{ minHeight: block.type === 'divider' ? '10px' : '20px' }}
+                                />
+
+                                {/* Insert between blocks */}
+                                <div className="flex items-center justify-center h-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={() => addBlock('text', idx)}
+                                        className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm hover:bg-blue-600"
+                                        title="Insert block below"
+                                    >
+                                        <Plus className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+
+                        {blocks.length === 0 && (
+                            <div className="text-center py-20 text-gray-400">
+                                <p className="text-lg mb-2">Choose a template to get started</p>
+                                <p className="text-sm mb-6">Or add blocks manually from the left panel</p>
+                                <button onClick={() => setShowTemplates(true)} className="btn-primary">
+                                    <LayoutTemplate className="w-4 h-4 mr-2 inline" /> Choose Template
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
-            {/* Preview */}
-            <div className="flex-1 overflow-hidden">
-                <iframe
-                    ref={previewRef}
-                    title="Page Preview"
-                    className="w-full h-full border-0"
-                    sandbox="allow-same-origin allow-scripts"
+            {/* Template Picker Modal */}
+            {showTemplates && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowTemplates(false)}>
+                    <div className="bg-[#1a1d27] rounded-2xl w-full max-w-2xl border border-white/10 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+                            <h2 className="text-lg font-bold text-white">Choose Template</h2>
+                            <button onClick={() => setShowTemplates(false)} className="p-1 hover:bg-white/5 rounded"><X className="w-4 h-4 text-gray-400" /></button>
+                        </div>
+                        <div className="p-6 grid grid-cols-2 gap-3">
+                            {Object.entries(PAGE_TEMPLATES).map(([key, tpl]) => (
+                                <button
+                                    key={key}
+                                    onClick={() => selectTemplate(key)}
+                                    className="text-left p-4 rounded-xl border border-white/5 hover:border-brand-500/50 hover:bg-white/5 transition-all"
+                                >
+                                    <div className="flex items-center gap-2.5 mb-1.5">
+                                        <span className="text-xl">{tpl.emoji}</span>
+                                        <span className="text-sm font-bold text-white">{tpl.name}</span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mb-2">{tpl.desc}</p>
+                                    <div className="flex gap-1 flex-wrap">
+                                        {tpl.traffic.map(t => (
+                                            <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-gray-500">{t}</span>
+                                        ))}
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* AI Modal */}
+            {showAi && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowAi(false)}>
+                    <div className="bg-[#1a1d27] rounded-2xl w-full max-w-lg border border-white/10 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+                            <h2 className="text-lg font-bold text-white flex items-center gap-2"><Sparkles className="w-4 h-4 text-brand-400" /> AI Content Generator</h2>
+                            <button onClick={() => setShowAi(false)} className="p-1 hover:bg-white/5 rounded"><X className="w-4 h-4 text-gray-400" /></button>
+                        </div>
+                        {/* Tabs */}
+                        <div className="flex border-b border-white/5">
+                            {[['generate', 'Generate'], ['fromlink', 'From Link'], ['improve', 'Improve'], ['clone', 'Clone']].map(([k, l]) => (
+                                <button key={k} onClick={() => setAiTab(k)} className={`flex-1 py-2.5 text-xs font-medium ${aiTab === k ? 'text-brand-400 border-b-2 border-brand-400' : 'text-gray-500 hover:text-gray-300'}`}>{l}</button>
+                            ))}
+                        </div>
+                        <div className="p-6 space-y-4">
+                            {(aiTab === 'generate' || aiTab === 'improve') && (
+                                <>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Product Name</label>
+                                        <input type="text" value={aiForm.productName} onChange={e => setAiForm(f => ({ ...f, productName: e.target.value }))} className="input-field text-sm" placeholder="Citrus Burn" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Product Description</label>
+                                        <textarea value={aiForm.productDescription} onChange={e => setAiForm(f => ({ ...f, productDescription: e.target.value }))} className="input-field text-sm" rows="3" placeholder="Natural fat-burning supplement..." />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Style</label>
+                                        <select value={aiForm.style} onChange={e => setAiForm(f => ({ ...f, style: e.target.value }))} className="input-field text-sm">
+                                            <option value="advertorial">📰 Advertorial</option>
+                                            <option value="health_review">🏥 Health Review</option>
+                                            <option value="listicle">📝 Listicle</option>
+                                            <option value="social_bridge">📱 Social Bridge</option>
+                                            <option value="blog_post">✍️ Blog Post (SEO)</option>
+                                        </select>
+                                    </div>
+                                </>
+                            )}
+                            {(aiTab === 'fromlink' || aiTab === 'clone') && (
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-400 mb-1">{aiTab === 'clone' ? 'Page URL to Clone' : 'Product Page URL'}</label>
+                                    <input type="text" value={aiForm.productUrl} onChange={e => setAiForm(f => ({ ...f, productUrl: e.target.value }))} className="input-field text-sm" placeholder="https://..." />
+                                </div>
+                            )}
+                            <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-1">Affiliate Link (hoplink)</label>
+                                <input type="text" value={aiForm.affiliateLink} onChange={e => setAiForm(f => ({ ...f, affiliateLink: e.target.value }))} className="input-field text-sm" placeholder="https://..." />
+                            </div>
+                            <button onClick={handleAiGenerate} disabled={aiGenerating} className="btn-primary w-full flex items-center justify-center gap-2">
+                                {aiGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                {aiGenerating ? 'Generating...' : aiTab === 'clone' ? 'Clone Page' : aiTab === 'improve' ? 'Improve Content' : 'Generate Content'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Media Picker */}
+            {showMediaPicker && (
+                <MediaPicker
+                    funnelId={funnelId}
+                    onSelect={(url, info) => insertMedia(url, info)}
+                    onClose={() => { setShowMediaPicker(false); setMediaBlockIdx(null); }}
                 />
-            </div>
-
-            <MediaPicker isOpen={showMediaPicker} onClose={() => setShowMediaPicker(false)} onSelect={insertMedia} funnelId={funnelId} />
-            {aiModal}
-            {linkEditor}
+            )}
         </div>
     );
 }
