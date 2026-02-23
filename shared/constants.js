@@ -82,6 +82,7 @@ const SETTINGS_KEYS = [
   'from_email',
   'from_name',
   'physical_address',
+  'gemini_api_key',
 ];
 
 module.exports = {

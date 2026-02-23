@@ -186,7 +186,12 @@ export default function Settings() {
                                             Free Tier
                                         </button>
                                     ) : (
-                                        <button onClick={() => handleUpgrade(plan.tier)} className={`w-full py-2.5 rounded-xl text-sm font-medium transition-all ${plan.popular ? 'btn-primary' : 'btn-secondary'}`}>
+                                        <button
+                                            onClick={() => handleUpgrade(plan.tier)}
+                                            disabled={!plan.tier || plan.tier === 'free'}
+                                            className={`w-full py-2.5 rounded-xl text-sm font-medium transition-all ${plan.popular ? 'btn-primary' : 'btn-secondary'}`}
+                                            title="Upgrade plan"
+                                        >
                                             Upgrade to {plan.name}
                                         </button>
                                     )}

@@ -46,6 +46,13 @@ router.post('/', tierGate('funnels'), async (req, res) => {
             [req.user.id, name, funnelSlug]
         );
 
+        // Auto-create default media folders for this funnel
+        const funnelId = result.rows[0].id;
+        await query(
+            `INSERT INTO media_folders (user_id, name, funnel_id) VALUES ($1, 'Images', $2), ($1, 'Videos', $2)`,
+            [req.user.id, funnelId]
+        );
+
         res.status(201).json({ funnel: result.rows[0] });
     } catch (err) {
         console.error('Create funnel error:', err);

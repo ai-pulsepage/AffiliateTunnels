@@ -148,6 +148,7 @@ export const mediaApi = {
     delete: (id) => api(`/media/${id}`, { method: 'DELETE' }),
     listFolders: () => api('/media/folders'),
     createFolder: (name, funnel_id) => api('/media/folders', { method: 'POST', body: JSON.stringify({ name, funnel_id }), headers: { 'Content-Type': 'application/json' } }),
+    updateFolder: (id, data) => api(`/media/folders/${id}`, { method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
     deleteFolder: (id) => api(`/media/folders/${id}`, { method: 'DELETE' }),
 };
 

@@ -210,11 +210,11 @@ export default function FunnelDetail() {
                                         ) : (
                                             <span className="badge text-[10px]">Draft</span>
                                         )}
-                                        <Link to={`/editor/${id}/${page.id}`} className="p-1.5 hover:bg-white/5 rounded-lg" title="Edit page">
-                                            <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                                        <Link to={`/editor/${id}/${page.id}`} className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 rounded-lg text-xs text-gray-400 hover:text-white transition-colors" title="Quick page editor">
+                                            <Pencil className="w-3.5 h-3.5" /> Edit
                                         </Link>
-                                        <Link to={`/builder/${id}/${page.id}`} className="p-1.5 hover:bg-white/5 rounded-lg" title="Advanced editor (GrapeJS)">
-                                            <Settings2 className="w-3.5 h-3.5 text-gray-500" />
+                                        <Link to={`/builder/${id}/${page.id}`} className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 rounded-lg text-xs text-gray-500 hover:text-white transition-colors" title="Advanced drag-and-drop builder (GrapeJS)">
+                                            <Settings2 className="w-3.5 h-3.5" /> Advanced
                                         </Link>
                                         <button onClick={() => handlePublishPage(page.id)} className="p-1.5 hover:bg-white/5 rounded-lg">
                                             <Globe className="w-3.5 h-3.5 text-gray-400" />

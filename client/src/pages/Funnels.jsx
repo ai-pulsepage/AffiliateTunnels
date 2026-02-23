@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { funnelApi } from '../lib/api';
 import { Plus, Search, MoreHorizontal, Copy, Trash2, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -8,7 +8,8 @@ export default function Funnels() {
     const [funnels, setFunnels] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [showCreate, setShowCreate] = useState(false);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [showCreate, setShowCreate] = useState(searchParams.get('create') === 'true');
     const [newName, setNewName] = useState('');
     const navigate = useNavigate();
 
@@ -71,7 +72,14 @@ export default function Funnels() {
                     <div className="card w-full max-w-md animate-slide-up" onClick={e => e.stopPropagation()}>
                         <h2 className="text-lg font-bold text-white mb-4">Create New Funnel</h2>
                         <form onSubmit={handleCreate} className="space-y-4">
-                            <input type="text" value={newName} onChange={e => setNewName(e.target.value)} className="input-field" placeholder="My Awesome Funnel" required autoFocus />
+                            <div>
+                                <input type="text" value={newName} onChange={e => setNewName(e.target.value)} className="input-field" placeholder="My Awesome Funnel" required autoFocus />
+                                {newName.trim() && (
+                                    <p className="text-xs text-gray-500 mt-1.5 px-1">
+                                        Slug: <span className="text-brand-400 font-mono">/p/{newName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}</span>
+                                    </p>
+                                )}
+                            </div>
                             <div className="flex justify-end gap-3">
                                 <button type="button" onClick={() => setShowCreate(false)} className="btn-secondary">Cancel</button>
                                 <button type="submit" className="btn-primary">Create</button>

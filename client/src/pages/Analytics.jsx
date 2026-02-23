@@ -24,13 +24,13 @@ export default function Analytics() {
         finally { setLoading(false); }
     }
 
-    async function loadAnalytics(funnelId) {
-        try { const d = await analyticsApi.getFunnel(funnelId, { range }); setData(d); }
+    async function loadAnalytics(funnelId, rangeOverride) {
+        try { const d = await analyticsApi.getFunnel(funnelId, { range: rangeOverride || range }); setData(d); }
         catch (err) { toast.error(err.message); }
     }
 
     function handleSelect(id) { setSelected(id); loadAnalytics(id); }
-    function handleRangeChange(r) { setRange(r); if (selected) loadAnalytics(selected); }
+    function handleRangeChange(r) { setRange(r); if (selected) loadAnalytics(selected, r); }
 
     if (loading) return <div className="card animate-pulse h-96" />;
 

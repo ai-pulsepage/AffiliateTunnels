@@ -43,6 +43,22 @@ router.post('/folders', async (req, res) => {
     }
 });
 
+// PUT /api/media/folders/:id — rename or reassign funnel
+router.put('/folders/:id', async (req, res) => {
+    try {
+        const { name, funnel_id } = req.body;
+        const result = await query(
+            `UPDATE media_folders SET name = COALESCE($1, name), funnel_id = $2
+             WHERE id = $3 AND user_id = $4 RETURNING *`,
+            [name || null, funnel_id === undefined ? null : (funnel_id || null), req.params.id, req.user.id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Folder not found' });
+        res.json({ folder: result.rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update folder' });
+    }
+});
+
 // DELETE /api/media/folders/:id
 router.delete('/folders/:id', async (req, res) => {
     try {

@@ -19,7 +19,7 @@ export default function DripBuilder() {
             const [fData, dData, tData] = await Promise.all([
                 funnelApi.get(funnelId),
                 emailApi.getDrip(funnelId),
-                emailApi.listTemplates(funnelId)
+                emailApi.listTemplates()  // Load ALL templates — they may not have funnel_id set
             ]);
             setFunnel(fData.funnel);
             setDrip(dData.drip);

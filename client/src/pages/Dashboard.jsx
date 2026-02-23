@@ -30,7 +30,7 @@ export default function Dashboard() {
                     </h1>
                     <p className="text-gray-400 mt-1">Here's what's happening with your funnels.</p>
                 </div>
-                <Link to="/funnels" className="btn-primary flex items-center gap-2">
+                <Link to="/funnels?create=true" className="btn-primary flex items-center gap-2">
                     <Plus className="w-4 h-4" /> New Funnel
                 </Link>
             </div>

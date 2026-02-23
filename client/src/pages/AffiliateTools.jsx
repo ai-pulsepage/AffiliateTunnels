@@ -266,9 +266,9 @@ export default function AffiliateTools() {
                                                     <td className="px-5 py-3 text-sm text-white font-mono">{s.transaction_id?.slice(0, 12)}...</td>
                                                     <td className="px-5 py-3">
                                                         <span className={`badge text-[10px] ${s.event_type === 'SALE' ? 'badge-success' :
-                                                                s.event_type === 'RFND' ? 'badge-warning' :
-                                                                    s.event_type === 'CGBK' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                                                                        'badge-info'
+                                                            s.event_type === 'RFND' ? 'badge-warning' :
+                                                                s.event_type === 'CGBK' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                                                                    'badge-info'
                                                             }`}>
                                                             {s.event_type}
                                                         </span>
@@ -330,7 +330,7 @@ function CreateModal({ tab, onClose, onCreated }) {
     }
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
             <div className="card w-full max-w-md animate-slide-in-right" onClick={e => e.stopPropagation()}>
                 <h2 className="text-lg font-bold text-white mb-4">Create Affiliate Asset</h2>
 

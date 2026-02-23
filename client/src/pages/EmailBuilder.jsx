@@ -20,6 +20,7 @@ export default function EmailBuilder() {
     const [editing, setEditing] = useState(null);
     const [preview, setPreview] = useState(null);
     const [filter, setFilter] = useState('');
+    const [funnelFilter, setFunnelFilter] = useState('');
     const [mode, setMode] = useState('quick'); // 'quick' or 'advanced'
 
     // Quick Create fields
@@ -155,7 +156,8 @@ export default function EmailBuilder() {
         }
     }
 
-    const filtered = filter ? templates.filter(t => t.category === filter) : templates;
+    let filtered = filter ? templates.filter(t => t.category === filter) : templates;
+    if (funnelFilter) filtered = filtered.filter(t => t.funnel_id === funnelFilter);
 
     // ── List view ──
     if (!editing) {
@@ -166,9 +168,17 @@ export default function EmailBuilder() {
                         <h1 className="text-2xl font-bold text-white">Emails</h1>
                         <p className="text-sm text-gray-500 mt-1">{templates.length} templates</p>
                     </div>
-                    <button onClick={startCreate} className="btn-primary flex items-center gap-2">
-                        <Plus className="w-4 h-4" /> Quick Create
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {funnels.length > 0 && (
+                            <select value={funnelFilter} onChange={e => setFunnelFilter(e.target.value)} className="input-field w-auto text-sm">
+                                <option value="">All Funnels</option>
+                                {funnels.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                            </select>
+                        )}
+                        <button onClick={startCreate} className="btn-primary flex items-center gap-2">
+                            <Plus className="w-4 h-4" /> Quick Create
+                        </button>
+                    </div>
                 </div>
 
                 {/* Drip Campaigns section */}
