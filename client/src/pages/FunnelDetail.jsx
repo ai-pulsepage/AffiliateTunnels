@@ -143,6 +143,7 @@ export default function FunnelDetail() {
                 {[
                     { key: 'flow', label: 'Flow', icon: Layers },
                     { key: 'pages', label: 'Pages', icon: Pencil },
+                    { key: 'emails', label: 'Emails & Drip', icon: Mail },
                     { key: 'settings', label: 'Settings', icon: Settings2 },
                 ].map(({ key, label, icon: Icon }) => (
                     <button
@@ -226,6 +227,38 @@ export default function FunnelDetail() {
                             ))}
                         </div>
                     )}
+                </div>
+            )}
+
+            {tab === 'emails' && (
+                <div className="space-y-4">
+                    <h2 className="text-lg font-semibold text-white">Emails & Drip Campaigns</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Link to={`/drip/${id}`} className="card hover:border-brand-500/30 transition-colors group">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="w-10 h-10 rounded-lg bg-brand-600/15 flex items-center justify-center group-hover:bg-brand-600/25 transition-colors">
+                                    <Mail className="w-5 h-5 text-brand-400" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-white">Drip Campaign Builder</h3>
+                                    <p className="text-xs text-gray-500">Set up automated email sequences</p>
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-400">Create a series of emails that are sent automatically to new leads over time. Set day offsets and choose email templates.</p>
+                        </Link>
+                        <Link to="/emails" className="card hover:border-purple-500/30 transition-colors group">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="w-10 h-10 rounded-lg bg-purple-600/15 flex items-center justify-center group-hover:bg-purple-600/25 transition-colors">
+                                    <Pencil className="w-5 h-5 text-purple-400" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-white">Email Templates</h3>
+                                    <p className="text-xs text-gray-500">Create and edit email content</p>
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-400">Design the email templates used in your drip campaigns. Write subject lines, body content, and preview before sending.</p>
+                        </Link>
+                    </div>
                 </div>
             )}
 

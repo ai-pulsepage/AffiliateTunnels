@@ -49,7 +49,8 @@ export function FunnelProvider({ children }) {
 
 export function useFunnel() {
     const ctx = useContext(FunnelContext);
-    if (!ctx) throw new Error('useFunnel must be used within FunnelProvider');
+    // Return safe defaults when used outside FunnelProvider (e.g. full-screen editors)
+    if (!ctx) return { funnels: [], selectedFunnelId: null, selectedFunnel: null, selectFunnel: () => { }, loading: false, refreshFunnels: () => { } };
     return ctx;
 }
 
