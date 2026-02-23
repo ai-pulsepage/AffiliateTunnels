@@ -302,7 +302,7 @@ export default function TemplateEditor() {
             setTimeout(() => {
                 const idx = afterIndex >= 0 ? afterIndex + 1 : blocks.length;
                 setMediaBlockIdx(idx);
-                setMediaAccept(type === 'video' ? 'video' : 'image');
+                setMediaAccept('all');
                 setShowMediaPicker(true);
             }, 50);
         }
@@ -378,9 +378,8 @@ export default function TemplateEditor() {
     }
 
     function handleMediaClick(idx) {
-        const block = blocks[idx];
         setMediaBlockIdx(idx);
-        setMediaAccept(block?.type === 'video' ? 'video' : block?.type === 'image' ? 'image' : 'all');
+        setMediaAccept('all');
         setShowMediaPicker(true);
     }
 

@@ -32,14 +32,8 @@ export default function MediaPicker({ isOpen, onClose, onSelect, accept = 'all',
             const d = await mediaApi.listFolders();
             const list = d.folders || [];
             setFolders(list);
-
-            // Auto-select the first folder for this funnel
-            if (funnelId) {
-                const funnelFolder = list.find(f => f.funnel_id === funnelId);
-                setSelectedFolder(funnelFolder || null);
-            } else {
-                setSelectedFolder(null);
-            }
+            // Always start at root — user can navigate to any folder
+            setSelectedFolder(null);
         } catch (err) { console.error(err); }
         finally { setLoading(false); }
     }
