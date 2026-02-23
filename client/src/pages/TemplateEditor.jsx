@@ -159,6 +159,7 @@ export default function TemplateEditor() {
     const [gateEnabled, setGateEnabled] = useState(false);
     const [showMediaPicker, setShowMediaPicker] = useState(false);
     const [mediaBlockIdx, setMediaBlockIdx] = useState(null);
+    const [mediaAccept, setMediaAccept] = useState('all');
     const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -283,15 +284,28 @@ export default function TemplateEditor() {
         const template = BLOCK_TYPES.find(b => b.type === type);
         if (!template) return;
         const newBlock = { id: genId(), type, html: template.html };
+        let newIdx;
         setBlocks(prev => {
             const next = [...prev];
             if (afterIndex >= 0) {
                 next.splice(afterIndex + 1, 0, newBlock);
+                newIdx = afterIndex + 1;
             } else {
                 next.push(newBlock);
+                newIdx = next.length - 1;
             }
             return next;
         });
+
+        // Auto-open media picker for image/video blocks
+        if (type === 'image' || type === 'video') {
+            setTimeout(() => {
+                const idx = afterIndex >= 0 ? afterIndex + 1 : blocks.length;
+                setMediaBlockIdx(idx);
+                setMediaAccept(type === 'video' ? 'video' : 'image');
+                setShowMediaPicker(true);
+            }, 50);
+        }
     }
 
     function moveBlock(idx, dir) {
@@ -363,9 +377,10 @@ export default function TemplateEditor() {
         setLinkBlockIdx(null);
     }
 
-    // Media insertion
     function handleMediaClick(idx) {
+        const block = blocks[idx];
         setMediaBlockIdx(idx);
+        setMediaAccept(block?.type === 'video' ? 'video' : block?.type === 'image' ? 'image' : 'all');
         setShowMediaPicker(true);
     }
 
@@ -526,7 +541,7 @@ export default function TemplateEditor() {
 
                 {/* Content preview (center) */}
                 <div className="flex-1 overflow-y-auto bg-white">
-                    <div className="max-w-3xl mx-auto py-10 px-8" style={fontStyle}>
+                    <div className="max-w-3xl mx-auto py-10 px-8 pl-20" style={fontStyle}>
                         {blocks.map((block, idx) => (
                             <div
                                 key={block.id}
@@ -541,8 +556,8 @@ export default function TemplateEditor() {
                                     <div className="absolute -top-1 left-0 right-0 h-0.5 bg-blue-500 rounded-full z-10" />
                                 )}
 
-                                {/* Block toolbar */}
-                                <div className="absolute -left-10 top-0 flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity hidden group-hover:flex">
+                                {/* Block toolbar — inside the group area */}
+                                <div className="absolute -left-12 top-0 flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity hidden group-hover:flex z-10">
                                     <div className="p-1 cursor-grab active:cursor-grabbing" title="Drag to reorder">
                                         <GripVertical className="w-3.5 h-3.5 text-gray-400" />
                                     </div>
@@ -745,13 +760,13 @@ export default function TemplateEditor() {
             )}
 
             {/* Media Picker */}
-            {showMediaPicker && (
-                <MediaPicker
-                    funnelId={funnelId}
-                    onSelect={(url, info) => insertMedia(url, info)}
-                    onClose={() => { setShowMediaPicker(false); setMediaBlockIdx(null); }}
-                />
-            )}
+            <MediaPicker
+                isOpen={showMediaPicker}
+                funnelId={funnelId}
+                accept={mediaAccept}
+                onSelect={(url, info) => insertMedia(url, info)}
+                onClose={() => { setShowMediaPicker(false); setMediaBlockIdx(null); }}
+            />
         </div>
     );
 }
