@@ -3,6 +3,7 @@ const { query } = require('../config/db');
 const { authenticate } = require('../middleware/auth');
 const { uploadPublishedPage } = require('../services/r2');
 const { generatePublishedHTML } = require('../services/publisher');
+const { getSettingSync } = require('../config/settings');
 
 const router = express.Router();
 
@@ -25,10 +26,16 @@ router.post('/:funnelId/:pageId', authenticate, async (req, res) => {
         // Upload to R2
         const uploaded = await uploadPublishedPage(html, funnel.slug, page.slug);
 
+        // Build the custom domain URL (preferred) or fall back to R2
+        const appBaseUrl = getSettingSync('app_base_url') || '';
+        const publicUrl = appBaseUrl
+            ? `${appBaseUrl}/p/${funnel.slug}/${page.slug}`
+            : uploaded.url;
+
         // Update page record
         await query(
             `UPDATE pages SET is_published = true, published_url = $1, updated_at = NOW() WHERE id = $2`,
-            [uploaded.url, page.id]
+            [publicUrl, page.id]
         );
 
         // Update funnel status
@@ -37,7 +44,7 @@ router.post('/:funnelId/:pageId', authenticate, async (req, res) => {
             [funnel.id]
         );
 
-        res.json({ url: uploaded.url, message: 'Page published successfully' });
+        res.json({ url: publicUrl, message: 'Page published successfully' });
     } catch (err) {
         console.error('Publish error:', err);
         res.status(500).json({ error: err.message || 'Failed to publish page' });
@@ -53,12 +60,16 @@ router.post('/:funnelId', authenticate, async (req, res) => {
         const funnel = funnelResult.rows[0];
         const pages = await query('SELECT * FROM pages WHERE funnel_id = $1 ORDER BY step_order', [funnel.id]);
 
+        const appBaseUrl = getSettingSync('app_base_url') || '';
         const results = [];
         for (const page of pages.rows) {
             const html = generatePublishedHTML(page, funnel);
             const uploaded = await uploadPublishedPage(html, funnel.slug, page.slug);
-            await query('UPDATE pages SET is_published = true, published_url = $1, updated_at = NOW() WHERE id = $2', [uploaded.url, page.id]);
-            results.push({ page: page.name, url: uploaded.url });
+            const publicUrl = appBaseUrl
+                ? `${appBaseUrl}/p/${funnel.slug}/${page.slug}`
+                : uploaded.url;
+            await query('UPDATE pages SET is_published = true, published_url = $1, updated_at = NOW() WHERE id = $2', [publicUrl, page.id]);
+            results.push({ page: page.name, url: publicUrl });
         }
 
         await query('UPDATE funnels SET status = $1, updated_at = NOW() WHERE id = $2', ['published', funnel.id]);

@@ -11,6 +11,7 @@ export default function FunnelSettings({ funnel, onUpdate }) {
         name: '',
         slug: '',
         affiliate_link: '',
+        traffic_source: 'custom',
         seo_title: '',
         seo_description: '',
         og_image_url: '',
@@ -27,6 +28,7 @@ export default function FunnelSettings({ funnel, onUpdate }) {
                 name: funnel.name || '',
                 slug: funnel.slug || '',
                 affiliate_link: funnel.affiliate_link || '',
+                traffic_source: funnel.traffic_source || 'custom',
                 seo_title: funnel.seo_title || '',
                 seo_description: funnel.seo_description || '',
                 og_image_url: funnel.og_image_url || '',
@@ -105,6 +107,74 @@ export default function FunnelSettings({ funnel, onUpdate }) {
                         placeholder="https://yourid.vendorid.hop.clickbank.net"
                     />
                     <p className="text-xs text-gray-500 mt-1">This link auto-fills into every CTA block in your page editor.</p>
+                </div>
+            </div>
+
+            {/* Traffic Source & Tracking */}
+            <div className="card border border-amber-500/20">
+                <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-amber-400" /> Traffic Source & Tracking
+                </h3>
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 mb-4">
+                    <p className="text-xs text-amber-300">📊 Select your traffic source and we'll auto-generate a landing page URL with the correct tracking macros. URL parameters are automatically forwarded to your ClickBank hop links.</p>
+                </div>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm text-gray-300 mb-1">Traffic Source</label>
+                        <select
+                            value={form.traffic_source}
+                            onChange={e => updateField('traffic_source', e.target.value)}
+                            className="input-field"
+                        >
+                            <option value="custom">🔗 Custom / Direct</option>
+                            <option value="newsbreak">📰 NewsBreak</option>
+                            <option value="facebook">📘 Facebook / Meta</option>
+                            <option value="tiktok">🎵 TikTok</option>
+                            <option value="google">🔍 Google Ads</option>
+                        </select>
+                    </div>
+
+                    {/* Ready-to-paste URL */}
+                    {form.slug && (() => {
+                        const base = `https://dealfindai.com/p/${form.slug}`;
+                        const macros = {
+                            newsbreak: `?extclid=__CALLBACK_PARAM__&campaign=__CAMPAIGN_NAME__&adgroup=__FLIGHT_NAME__&ad=__AD_TITLE__&creative=__CREATIVE_NAME__`,
+                            facebook: `?fbclid={{fbclid}}&utm_source=facebook&utm_medium=paid&utm_campaign={{campaign.name}}&utm_content={{ad.name}}`,
+                            tiktok: `?ttclid=__CLICKID__&utm_source=tiktok&utm_medium=paid&utm_campaign=__CAMPAIGN_NAME__&utm_content=__AID_NAME__`,
+                            google: `?gclid={gclid}&utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_content={creative}`,
+                            custom: '',
+                        };
+                        const url = base + (macros[form.traffic_source] || '');
+
+                        return (
+                            <div>
+                                <label className="block text-sm text-gray-300 mb-1">
+                                    {form.traffic_source === 'custom' ? 'Your Landing Page URL' : `Landing Page URL (with ${form.traffic_source} macros)`}
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        value={url}
+                                        className="input-field text-xs font-mono pr-16"
+                                        onClick={e => e.target.select()}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => { navigator.clipboard.writeText(url); toast.success('URL copied!'); }}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] bg-brand-500/20 text-brand-300 hover:bg-brand-500/30 px-2 py-1 rounded"
+                                    >
+                                        Copy
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    {form.traffic_source !== 'custom'
+                                        ? `Paste this URL into your ${form.traffic_source} ad manager as the landing page destination.`
+                                        : 'Share this URL directly or use as your landing page.'}
+                                </p>
+                            </div>
+                        );
+                    })()}
                 </div>
             </div>
 

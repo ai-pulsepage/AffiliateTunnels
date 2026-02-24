@@ -166,6 +166,30 @@ function generatePublishedHTML(page, funnel) {
     ${physicalAddress ? `<p style="margin-top:8px;">${physicalAddress}</p>` : ''}
   </div>
   ${trackingScript}
+  <!-- Parameter Passthrough: forward ad platform params to affiliate links -->
+  <script>
+    (function(){
+      var params=new URLSearchParams(location.search);
+      if(params.toString()){
+        var pass=["extclid","campaign","adgroup","ad","creative","utm_source","utm_medium","utm_campaign","utm_content","utm_term","fbclid","gclid","ttclid"];
+        var found={};
+        pass.forEach(function(k){var v=params.get(k);if(v)found[k]=v;});
+        if(Object.keys(found).length===0)return;
+        document.querySelectorAll("a[href]").forEach(function(a){
+          var h=a.getAttribute("href");
+          if(!h||h==="#")return;
+          try{
+            var u=new URL(h,location.origin);
+            var host=u.hostname.toLowerCase();
+            if(host.indexOf("clickbank")>-1||host.indexOf("hop.")>-1||h.indexOf("hop.clickbank")>-1){
+              Object.keys(found).forEach(function(k){u.searchParams.set(k,found[k]);});
+              a.setAttribute("href",u.toString());
+            }
+          }catch(e){}
+        });
+      }
+    })();
+  </script>
   ${page.custom_body || ''}
 </body>
 </html>`;
