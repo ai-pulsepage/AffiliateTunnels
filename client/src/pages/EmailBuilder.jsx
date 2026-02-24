@@ -28,6 +28,7 @@ export default function EmailBuilder() {
     const [quickBody, setQuickBody] = useState('');
     const [quickCtaText, setQuickCtaText] = useState('');
     const [quickCtaLink, setQuickCtaLink] = useState('');
+    const [quickFunnel, setQuickFunnel] = useState('');
 
     useEffect(() => { loadTemplates(); loadFunnels(); }, []);
 
@@ -48,6 +49,7 @@ export default function EmailBuilder() {
         setQuickBody('');
         setQuickCtaText('Click Here →');
         setQuickCtaLink('');
+        setQuickFunnel('');
         setEditing({ name: '', subject: '', html_content: '', text_content: '', category: 'affiliate' });
     }
 
@@ -57,8 +59,18 @@ export default function EmailBuilder() {
     }
 
     function convertQuickToHtml() {
+        const linkUrl = quickCtaLink || '#';
         const paragraphs = quickBody.split('\n').filter(l => l.trim()).map(line => {
             const trimmed = line.trim();
+            // Lines starting with >> or » become inline text links
+            if (trimmed.startsWith('>>') || trimmed.startsWith('»')) {
+                const text = trimmed.replace(/^(>>|»)\s*/, '');
+                return `<p style="color:#475569; font-size:16px; line-height:1.6; margin:16px 0;"><a href="${linkUrl}" style="color:#d97706; font-weight:700; text-decoration:underline;">${text}</a></p>`;
+            }
+            // Lines starting with From: auto-set the from name field
+            if (trimmed.toLowerCase().startsWith('from:')) return '';
+            // Lines starting with Subject: — skip (handled separately)
+            if (trimmed.toLowerCase().startsWith('subject:')) return '';
             // Lines starting with ✅ or • or - become list items
             if (trimmed.startsWith('✅') || trimmed.startsWith('•') || trimmed.startsWith('-')) {
                 return `<p style="color:#475569; font-size:16px; line-height:1.6; padding-left:8px;">${trimmed}</p>`;
@@ -66,29 +78,29 @@ export default function EmailBuilder() {
             // Lines starting with ⇒ or => become CTA links (inline)
             if (trimmed.startsWith('⇒') || trimmed.startsWith('=>')) {
                 const text = trimmed.replace(/^(⇒|=>)\s*/, '');
-                return ''; // We'll use the CTA button instead
+                return `<p style="color:#475569; font-size:16px; line-height:1.6; margin:16px 0;"><a href="${linkUrl}" style="color:#d97706; font-weight:700; text-decoration:underline;">${text}</a></p>`;
             }
             return `<p style="color:#475569; font-size:16px; line-height:1.6;">${trimmed}</p>`;
         }).filter(Boolean).join('\n    ');
 
         const ctaHtml = quickCtaText && quickCtaLink ? `
-    <div style="margin:32px 0; text-align:center;">
-      <a href="${quickCtaLink}" style="display:inline-block; padding:16px 40px; background:linear-gradient(135deg, #f59e0b, #d97706); color:#fff; font-weight:800; font-size:18px; border-radius:12px; text-decoration:none; box-shadow:0 4px 14px rgba(245,158,11,0.4);">
-        ${quickCtaText}
-      </a>
-    </div>` : '';
+<div style="margin:32px 0; text-align:center;">
+  <a href="${quickCtaLink}" style="display:inline-block; padding:16px 40px; background:linear-gradient(135deg, #f59e0b, #d97706); color:#fff; font-weight:800; font-size:18px; border-radius:12px; text-decoration:none; box-shadow:0 4px 14px rgba(245,158,11,0.4);">
+    ${quickCtaText}
+  </a>
+</div>` : '';
 
         return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0; padding:0; background:#f8fafc; font-family:Georgia, 'Times New Roman', serif;">
   <div style="max-width:600px; margin:0 auto; padding:32px 24px;">
-    <p style="color:#475569; font-size:16px; line-height:1.8;">Hey {{name}},</p>
-    ${paragraphs}
-    ${ctaHtml}
-    <p style="color:#94a3b8; font-size:12px; margin-top:40px; text-align:center; border-top:1px solid #e2e8f0; padding-top:20px;">
-      <a href="{{unsubscribe_url}}" style="color:#94a3b8;">Unsubscribe</a>
-    </p>
+<p style="color:#475569; font-size:16px; line-height:1.8;">Hey {{name}},</p>
+${paragraphs}
+${ctaHtml}
+<p style="color:#94a3b8; font-size:12px; margin-top:40px; text-align:center; border-top:1px solid #e2e8f0; padding-top:20px;">
+  <a href="{{unsubscribe_url}}" style="color:#94a3b8;">Unsubscribe</a>
+</p>
   </div>
 </body>
 </html>`;
@@ -357,30 +369,57 @@ export default function EmailBuilder() {
                                     onChange={e => setQuickBody(e.target.value)}
                                     className="input-field leading-relaxed"
                                     style={{ minHeight: 300 }}
-                                    placeholder={`Paste your email copy here...
+                                    placeholder={`Paste your manufacturer email swipe here...
+
+Supported formatting:
+  >> link text   →  becomes a clickable link
+  ✅ or • or -   →  formatted as a list item
+  From: name     →  auto-sets sender name
+  Subject: line  →  auto-sets subject line
 
 Example:
-Doctors are SHOCKED.
-A clinical nutritionist just discovered that soaking THIS specific orange peel in hot water each morning can ERASE stubborn belly fat...
+From: Spanish Orange Trick
+Subject: Soak this orange peel to melt belly fat
 
-Just paste the raw text — it will be auto-styled into a beautiful HTML email.`}
+Doctors are SHOCKED. A clinical nutritionist just discovered...
+
+>> Click here to discover the orange peel trick`}
                                 />
                             </div>
 
                             <div className="card space-y-4">
                                 <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                                    <Wand2 className="w-4 h-4 text-brand-400" /> Call-to-Action Button
+                                    <Wand2 className="w-4 h-4 text-brand-400" /> Call-to-Action & Links
                                 </h3>
+                                {/* Funnel selector for auto-fill */}
+                                {funnels.length > 0 && (
+                                    <div>
+                                        <label className="block text-xs text-gray-500 mb-1">Link to Funnel (auto-fills URL)</label>
+                                        <select
+                                            value={quickFunnel}
+                                            onChange={e => {
+                                                setQuickFunnel(e.target.value);
+                                                const f = funnels.find(f => f.id === e.target.value);
+                                                if (f) setQuickCtaLink(`https://dealfindai.com/p/${f.slug}`);
+                                            }}
+                                            className="input-field text-sm"
+                                        >
+                                            <option value="">Select a funnel...</option>
+                                            {funnels.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                        </select>
+                                    </div>
+                                )}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs text-gray-500 mb-1">Button Text</label>
                                         <input type="text" value={quickCtaText} onChange={e => setQuickCtaText(e.target.value)} className="input-field" placeholder="e.g. Try the Spanish Orange Trick →" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs text-gray-500 mb-1">Button Link (Hop Link)</label>
+                                        <label className="block text-xs text-gray-500 mb-1">Hop Link / Landing Page URL</label>
                                         <input type="text" value={quickCtaLink} onChange={e => setQuickCtaLink(e.target.value)} className="input-field" placeholder="https://xxxxx.hop.clickbank.net" />
                                     </div>
                                 </div>
+                                <p className="text-[10px] text-gray-600">This URL is used for the CTA button AND all <code className="text-brand-400">&gt;&gt;</code> inline links in your email.</p>
                             </div>
                         </>
                     ) : (
