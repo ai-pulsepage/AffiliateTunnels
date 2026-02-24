@@ -839,17 +839,21 @@ export default function TemplateEditor() {
                                         <label className="block text-xs font-medium text-gray-400 mb-1">Product Description</label>
                                         <textarea value={aiForm.productDescription} onChange={e => setAiForm(f => ({ ...f, productDescription: e.target.value }))} className="input-field text-sm" rows="3" placeholder="Natural fat-burning supplement..." />
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-400 mb-1">Style</label>
-                                        <select value={aiForm.style} onChange={e => setAiForm(f => ({ ...f, style: e.target.value }))} className="input-field text-sm">
-                                            <option value="advertorial">📰 Advertorial</option>
-                                            <option value="health_review">🏥 Health Review</option>
-                                            <option value="listicle">📝 Listicle</option>
-                                            <option value="social_bridge">📱 Social Bridge</option>
-                                            <option value="blog_post">✍️ Blog Post (SEO)</option>
-                                        </select>
-                                    </div>
                                 </>
+                            )}
+                            {aiTab !== 'clone' && (
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-400 mb-1">Page Style</label>
+                                    <select value={aiForm.style} onChange={e => setAiForm(f => ({ ...f, style: e.target.value }))} className="input-field text-sm">
+                                        <option value="review_article">📰 Review Article (Deep Review)</option>
+                                        <option value="advertorial">📰 Advertorial (News-style)</option>
+                                        <option value="video_presell">🎬 Video Presell</option>
+                                        <option value="listicle">📝 Listicle</option>
+                                        <option value="social_bridge">📱 Social Bridge</option>
+                                        <option value="lead_magnet">🎁 Lead Magnet</option>
+                                        <option value="blog_post">✍️ Blog Post (SEO)</option>
+                                    </select>
+                                </div>
                             )}
                             {(aiTab === 'fromlink' || aiTab === 'clone') && (
                                 <div>
