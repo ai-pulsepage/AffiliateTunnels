@@ -80,14 +80,88 @@ function generatePublishedHTML(page, funnel) {
   ${page.custom_head || ''}
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      color: #333;
+      line-height: 1.8;
+      background: #fff;
+      -webkit-font-smoothing: antialiased;
+    }
+    .page-container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 32px 24px 48px;
+    }
+    /* Block spacing */
+    .page-container > [data-block-type] {
+      margin-bottom: 4px;
+    }
+    /* Typography */
+    .page-container h1 { font-size: 32px; font-weight: 700; line-height: 1.2; color: #111; margin-bottom: 12px; }
+    .page-container h2 { font-size: 24px; font-weight: 700; line-height: 1.3; color: #111; margin: 24px 0 12px; }
+    .page-container h3 { font-size: 20px; font-weight: 700; line-height: 1.4; color: #222; margin: 20px 0 10px; }
+    .page-container p { font-size: 17px; line-height: 1.8; color: #444; margin-bottom: 16px; }
+    .page-container a { color: #e63946; text-decoration: underline; }
+    /* Images & Video */
+    .page-container img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 8px;
+    }
+    .page-container video {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 8px;
+    }
+    /* Blockquotes */
+    .page-container blockquote {
+      border-left: 4px solid #e63946;
+      padding: 16px 20px;
+      margin: 24px 0;
+      background: #fdf0f0;
+      font-style: italic;
+      border-radius: 0 8px 8px 0;
+    }
+    /* Lists */
+    .page-container ul, .page-container ol {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+    .page-container li { margin-bottom: 8px; font-size: 17px; }
+    /* Forms */
+    .page-container form input[type="text"],
+    .page-container form input[type="email"] {
+      width: 100%;
+      padding: 14px 18px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+    .page-container form button[type="submit"] {
+      cursor: pointer;
+    }
+    /* Media slots (placeholders should be hidden in published) */
+    [data-media-slot] span { display: none; }
+    /* Responsive */
+    @media (max-width: 640px) {
+      .page-container { padding: 20px 16px 40px; }
+      .page-container h1 { font-size: 26px; }
+      .page-container h2 { font-size: 21px; }
+      .page-container p { font-size: 16px; }
+    }
     ${page.css_output || ''}
   </style>
 </head>
 <body>
-  ${page.html_output || ''}
+  <div class="page-container">
+    ${page.html_output || ''}
+  </div>
   <!-- Affiliate Disclosure -->
-  <div style="text-align:center;padding:20px;font-size:12px;color:#888;border-top:1px solid #eee;margin-top:40px;">
+  <div style="max-width:760px;margin:0 auto;text-align:center;padding:20px 24px;font-size:12px;color:#888;border-top:1px solid #eee;">
     <p>This page contains affiliate links. We may earn a commission if you make a purchase through our links, at no extra cost to you.</p>
     ${physicalAddress ? `<p style="margin-top:8px;">${physicalAddress}</p>` : ''}
   </div>
