@@ -7,7 +7,8 @@ import {
     Link2, X, Copy, ExternalLink, Loader2, Type, AlignLeft, Image, Video,
     MousePointerClick, Quote, List, Minus, LayoutTemplate, Mail, Package,
     ChevronUp, ChevronDown, Trash2, Plus, GripVertical,
-    Bold, Italic, Underline, Strikethrough, AlignCenter, AlignRight
+    Bold, Italic, Underline, Strikethrough, AlignCenter, AlignRight,
+    Palette, Maximize2, Minimize2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -179,6 +180,8 @@ export default function TemplateEditor() {
 
     // Active block for formatting toolbar
     const [activeBlockIdx, setActiveBlockIdx] = useState(null);
+    // Media resize state
+    const [resizeTarget, setResizeTarget] = useState(null); // { blockIdx, element: 'img'|'video' }
 
     // Drag state
     const [dragIdx, setDragIdx] = useState(null);
@@ -644,6 +647,14 @@ export default function TemplateEditor() {
                                             <option value="36px">36</option>
                                         </select>
                                         <div className="w-px h-4 bg-white/10 mx-0.5" />
+                                        <input
+                                            type="color"
+                                            onChange={(e) => document.execCommand('foreColor', false, e.target.value)}
+                                            className="w-5 h-5 rounded cursor-pointer border-none bg-transparent p-0"
+                                            title="Font Color"
+                                            defaultValue="#000000"
+                                        />
+                                        <div className="w-px h-4 bg-white/10 mx-0.5" />
                                         <button onClick={() => document.execCommand('bold')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Bold"><Bold className="w-3.5 h-3.5" /></button>
                                         <button onClick={() => document.execCommand('italic')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Italic"><Italic className="w-3.5 h-3.5" /></button>
                                         <button onClick={() => document.execCommand('underline')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Underline"><Underline className="w-3.5 h-3.5" /></button>
@@ -666,11 +677,17 @@ export default function TemplateEditor() {
                                     onFocus={() => setActiveBlockIdx(idx)}
                                     onBlur={(e) => { updateBlockHtml(idx, e.currentTarget.innerHTML); setTimeout(() => setActiveBlockIdx(prev => prev === idx ? null : prev), 150); }}
                                     onClick={(e) => {
-                                        // Media slot click
+                                        // Media slot click — open media picker
                                         const slot = e.target.closest('[data-media-slot]');
-                                        if (slot || e.target.tagName === 'IMG') {
+                                        if (slot) {
                                             e.preventDefault();
                                             handleMediaClick(idx);
+                                            return;
+                                        }
+                                        // Image/video click — show resize controls (but NOT media picker)
+                                        if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
+                                            e.preventDefault();
+                                            setResizeTarget({ blockIdx: idx, el: e.target });
                                             return;
                                         }
                                         // CTA link click — open link editor
@@ -683,6 +700,46 @@ export default function TemplateEditor() {
                                     }}
                                     style={{ minHeight: block.type === 'divider' ? '10px' : '20px' }}
                                 />
+
+                                {/* Media resize toolbar — when image/video is clicked */}
+                                {resizeTarget && resizeTarget.blockIdx === idx && (
+                                    <div className="absolute -top-10 left-0 z-40 flex items-center gap-1 bg-[#1a1d2e] border border-white/10 rounded-lg px-2 py-1 shadow-2xl" onMouseDown={e => e.preventDefault()}>
+                                        <span className="text-[10px] text-gray-400 mr-1">Width:</span>
+                                        {['25%', '50%', '75%', '100%'].map(w => (
+                                            <button
+                                                key={w}
+                                                onClick={() => {
+                                                    resizeTarget.el.style.width = w;
+                                                    resizeTarget.el.style.display = 'block';
+                                                    resizeTarget.el.style.margin = w !== '100%' ? '0 auto' : '';
+                                                    updateBlockHtml(idx, resizeTarget.el.closest('[contenteditable]').innerHTML);
+                                                }}
+                                                className="px-2 py-0.5 text-[11px] rounded hover:bg-white/10 text-gray-300 hover:text-white"
+                                            >{w}</button>
+                                        ))}
+                                        <div className="w-px h-4 bg-white/10 mx-1" />
+                                        <button
+                                            onClick={() => {
+                                                const br = resizeTarget.el.style.borderRadius;
+                                                resizeTarget.el.style.borderRadius = br === '50%' ? '8px' : br === '8px' ? '0' : '50%';
+                                                updateBlockHtml(idx, resizeTarget.el.closest('[contenteditable]').innerHTML);
+                                            }}
+                                            className="px-2 py-0.5 text-[11px] rounded hover:bg-white/10 text-gray-300 hover:text-white"
+                                            title="Toggle rounded corners"
+                                        >◐ Round</button>
+                                        <div className="w-px h-4 bg-white/10 mx-1" />
+                                        <button
+                                            onClick={() => handleMediaClick(idx)}
+                                            className="px-2 py-0.5 text-[11px] rounded hover:bg-white/10 text-gray-300 hover:text-white"
+                                            title="Replace this image/video"
+                                        >⟳ Replace</button>
+                                        <button
+                                            onClick={() => setResizeTarget(null)}
+                                            className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white ml-1"
+                                            title="Close"
+                                        ><X className="w-3 h-3" /></button>
+                                    </div>
+                                )}
 
                                 {/* CTA link indicator */}
                                 {(block.type === 'button' || block.type === 'product' || block.type === 'banner') && (
@@ -815,30 +872,36 @@ export default function TemplateEditor() {
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowLinkEditor(false)}>
                     <div className="bg-[#1a1d27] rounded-2xl w-full max-w-md border border-white/10 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-                            <h3 className="text-sm font-bold text-white flex items-center gap-2"><Link2 className="w-4 h-4 text-brand-400" /> Edit CTA Link</h3>
+                            <h3 className="text-sm font-bold text-white flex items-center gap-2"><Link2 className="w-4 h-4 text-brand-400" /> Edit Button / Link Destination</h3>
                             <button onClick={() => setShowLinkEditor(false)} className="p-1 hover:bg-white/5 rounded"><X className="w-4 h-4 text-gray-400" /></button>
                         </div>
                         <div className="p-6 space-y-4">
+                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                                <p className="text-xs text-blue-300">💡 <strong>What is this?</strong> This is where CTA buttons and links in this block will send visitors when clicked. Usually this is your <strong>affiliate hop link</strong> (e.g. from ClickBank).</p>
+                            </div>
                             <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1">Link URL</label>
+                                <label className="block text-xs font-medium text-gray-400 mb-1">Where should this link go?</label>
                                 <input
                                     type="text"
                                     value={linkUrl}
                                     onChange={e => setLinkUrl(e.target.value)}
                                     className="input-field text-sm"
-                                    placeholder="https://..."
+                                    placeholder="https://yoursite.hop.clickbank.net"
                                     autoFocus
                                     onKeyDown={e => e.key === 'Enter' && applyLinkEdit()}
                                 />
+                                <p className="text-[10px] text-gray-500 mt-1">Paste your affiliate/hop link here. All buttons and links in this block will point to this URL.</p>
                             </div>
                             <div className="bg-white/5 rounded-lg p-3">
-                                <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Auto-Resolved Link</p>
-                                <p className="text-xs text-gray-400">{ctaLinkLabel}</p>
-                                <button onClick={() => setLinkUrl(ctaLink)} className="text-[10px] text-brand-400 hover:text-brand-300 mt-1">← Use auto-resolved link</button>
+                                <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">🔗 Your Funnel's Affiliate Link</p>
+                                <p className="text-xs text-brand-400 break-all">{ctaLink !== '#' ? ctaLink : 'Not set — go to Funnel Settings to add one'}</p>
+                                {ctaLink !== '#' && (
+                                    <button onClick={() => setLinkUrl(ctaLink)} className="text-[10px] bg-brand-500/20 text-brand-300 hover:bg-brand-500/30 px-2 py-1 rounded mt-2">← Use my affiliate link</button>
+                                )}
                             </div>
                             <div className="flex gap-3">
                                 <button onClick={() => setShowLinkEditor(false)} className="btn-secondary flex-1">Cancel</button>
-                                <button onClick={applyLinkEdit} className="btn-primary flex-1">Apply</button>
+                                <button onClick={applyLinkEdit} className="btn-primary flex-1">Apply Link</button>
                             </div>
                         </div>
                     </div>
