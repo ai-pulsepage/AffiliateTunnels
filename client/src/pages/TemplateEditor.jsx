@@ -710,6 +710,9 @@ export default function TemplateEditor() {
                                                 key={w}
                                                 onClick={() => {
                                                     resizeTarget.el.style.width = w;
+                                                    resizeTarget.el.style.height = 'auto';
+                                                    resizeTarget.el.style.maxWidth = '100%';
+                                                    resizeTarget.el.style.objectFit = 'contain';
                                                     resizeTarget.el.style.display = 'block';
                                                     resizeTarget.el.style.margin = w !== '100%' ? '0 auto' : '';
                                                     updateBlockHtml(idx, resizeTarget.el.closest('[contenteditable]').innerHTML);
