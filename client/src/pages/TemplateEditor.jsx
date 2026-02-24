@@ -8,7 +8,7 @@ import {
     MousePointerClick, Quote, List, Minus, LayoutTemplate, Mail, Package,
     ChevronUp, ChevronDown, Trash2, Plus, GripVertical,
     Bold, Italic, Underline, Strikethrough, AlignCenter, AlignRight,
-    Palette, Maximize2, Minimize2
+    Palette, Maximize2, Minimize2, Search
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -187,6 +187,11 @@ export default function TemplateEditor() {
     const [dragIdx, setDragIdx] = useState(null);
     const [dropIdx, setDropIdx] = useState(null);
 
+    // SEO state
+    const [showSeo, setShowSeo] = useState(false);
+    const [seoForm, setSeoForm] = useState({ seo_title: '', seo_description: '', og_image_url: '' });
+    const [seoGenerating, setSeoGenerating] = useState(false);
+
     useEffect(() => { loadPage(); }, [funnelId, pageId]);
 
     function genId() {
@@ -201,6 +206,7 @@ export default function TemplateEditor() {
             setFunnelPages(pages);
             const pg = pages.find(p => p.id === pageId);
             setPage(pg);
+            if (pg) setSeoForm({ seo_title: pg.seo_title || '', seo_description: pg.seo_description || '', og_image_url: pg.og_image_url || '' });
 
             if (pg?.html_output) {
                 parseHtmlToBlocks(pg.html_output);
@@ -449,10 +455,30 @@ export default function TemplateEditor() {
     async function handleSave() {
         setSaving(true);
         try {
-            await funnelApi.updatePage(funnelId, pageId, { html_output: blocksToHtml() });
+            await funnelApi.updatePage(funnelId, pageId, {
+                html_output: blocksToHtml(),
+                seo_title: seoForm.seo_title || null,
+                seo_description: seoForm.seo_description || null,
+                og_image_url: seoForm.og_image_url || null,
+            });
             toast.success('Saved!');
         } catch (err) { toast.error(err.message); }
         finally { setSaving(false); }
+    }
+
+    async function handleSeoGenerate() {
+        setSeoGenerating(true);
+        try {
+            const html = blocksToHtml();
+            const result = await aiApi.generateSeo(html);
+            setSeoForm(prev => ({
+                ...prev,
+                seo_title: result.seo_title || prev.seo_title,
+                seo_description: result.seo_description || prev.seo_description,
+            }));
+            toast.success('SEO generated!');
+        } catch (err) { toast.error(err.message); }
+        finally { setSeoGenerating(false); }
     }
 
     async function handlePublish() {
@@ -563,6 +589,12 @@ export default function TemplateEditor() {
                         <Sparkles className="w-3.5 h-3.5" /> AI Generate
                     </button>
                     <button
+                        onClick={() => setShowSeo(!showSeo)}
+                        className={`btn-secondary text-sm flex items-center gap-1.5 ${showSeo ? 'text-green-400' : ''}`}
+                    >
+                        <Search className="w-3.5 h-3.5" /> SEO
+                    </button>
+                    <button
                         onClick={() => setGateEnabled(!gateEnabled)}
                         className={`btn-secondary text-sm flex items-center gap-1.5 ${gateEnabled ? 'text-green-400' : ''}`}
                     >
@@ -577,6 +609,67 @@ export default function TemplateEditor() {
                     </button>
                 </div>
             </div>
+
+            {/* SEO Panel */}
+            {showSeo && (
+                <div className="border-b border-white/10 bg-[#1a1d27] px-6 py-4">
+                    <div className="max-w-3xl mx-auto">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                                <Search className="w-4 h-4 text-green-400" /> Page SEO Settings
+                            </h3>
+                            <button
+                                onClick={handleSeoGenerate}
+                                disabled={seoGenerating || blocks.length === 0}
+                                className="btn-secondary text-xs flex items-center gap-1.5"
+                            >
+                                <Sparkles className="w-3 h-3" />
+                                {seoGenerating ? 'Generating...' : 'AI Auto-Fill'}
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs text-gray-400 mb-1">SEO Title <span className={`float-right ${(seoForm.seo_title?.length || 0) > 60 ? 'text-red-400' : 'text-gray-600'}`}>{seoForm.seo_title?.length || 0}/60</span></label>
+                                <input
+                                    type="text"
+                                    value={seoForm.seo_title}
+                                    onChange={e => setSeoForm(f => ({ ...f, seo_title: e.target.value }))}
+                                    className="input-field text-sm"
+                                    placeholder="Page title for search engines"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-400 mb-1">OG Image URL</label>
+                                <input
+                                    type="text"
+                                    value={seoForm.og_image_url}
+                                    onChange={e => setSeoForm(f => ({ ...f, og_image_url: e.target.value }))}
+                                    className="input-field text-sm"
+                                    placeholder="https://... (1200x630px recommended)"
+                                />
+                            </div>
+                        </div>
+                        <div className="mt-3">
+                            <label className="block text-xs text-gray-400 mb-1">Meta Description <span className={`float-right ${(seoForm.seo_description?.length || 0) > 155 ? 'text-red-400' : 'text-gray-600'}`}>{seoForm.seo_description?.length || 0}/155</span></label>
+                            <textarea
+                                value={seoForm.seo_description}
+                                onChange={e => setSeoForm(f => ({ ...f, seo_description: e.target.value }))}
+                                className="input-field text-sm h-16"
+                                placeholder="Compelling description for search results"
+                            />
+                        </div>
+                        {/* Google Preview */}
+                        {(seoForm.seo_title || seoForm.seo_description) && (
+                            <div className="mt-3 p-3 bg-white/5 rounded-lg">
+                                <p className="text-[10px] text-gray-500 mb-1">Google Preview</p>
+                                <p className="text-sm text-blue-400 font-medium truncate">{seoForm.seo_title || 'Page Title'}</p>
+                                <p className="text-xs text-green-500 truncate">dealfindai.com/p/{funnel?.slug}/...</p>
+                                <p className="text-xs text-gray-400 line-clamp-2">{seoForm.seo_description || 'Meta description will appear here...'}</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <div className="flex flex-1 overflow-hidden">
                 {/* Block palette (left) */}

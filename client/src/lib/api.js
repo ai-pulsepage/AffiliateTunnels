@@ -271,6 +271,7 @@ export const aiApi = {
     generatePage: (data) => api('/ai/generate-page', { body: data }),
     scrapeProduct: (url) => api('/ai/scrape-product', { body: { url } }),
     clonePage: (data) => api('/ai/clone-page', { body: data }),
+    generateSeo: (content) => api('/ai/generate-seo', { body: { content } }),
 };
 
 // Blog

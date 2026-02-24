@@ -268,4 +268,57 @@ router.post('/clone-page', authenticate, async (req, res) => {
     }
 });
 
+// Generate SEO title + description from page content
+router.post('/generate-seo', authenticate, async (req, res) => {
+    try {
+        const { content } = req.body;
+        if (!content) return res.status(400).json({ error: 'Content is required' });
+
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: 'Gemini API key not configured' });
+
+        // Strip HTML to get plain text, limit to 3000 chars
+        const plainText = content
+            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .substring(0, 3000);
+
+        const prompt = `You are an SEO expert. Given this page content, generate:
+1. An SEO title (under 60 characters, compelling, includes primary keyword)
+2. A meta description (under 155 characters, includes CTA, summarizes value)
+
+Page content:
+${plainText}
+
+Respond in JSON only: {"seo_title": "...", "seo_description": "..."}`;
+
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: { maxOutputTokens: 256, temperature: 0.7 },
+                }),
+            }
+        );
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const jsonMatch = text.match(/\{[\s\S]*?\}/);
+        if (!jsonMatch) return res.status(500).json({ error: 'Failed to parse AI response' });
+
+        const result = JSON.parse(jsonMatch[0]);
+        res.json(result);
+    } catch (err) {
+        console.error('SEO generation error:', err);
+        res.status(500).json({ error: err.message || 'Failed to generate SEO' });
+    }
+});
+
 module.exports = router;
