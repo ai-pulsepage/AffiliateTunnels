@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { funnelApi } from '../../lib/api';
-import { Save, Palette, Type, Globe, BarChart3 } from 'lucide-react';
+import { Save, Palette, Type, Globe, BarChart3, Link2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 /**
@@ -10,6 +10,7 @@ export default function FunnelSettings({ funnel, onUpdate }) {
     const [form, setForm] = useState({
         name: '',
         slug: '',
+        affiliate_link: '',
         seo_title: '',
         seo_description: '',
         og_image_url: '',
@@ -25,6 +26,7 @@ export default function FunnelSettings({ funnel, onUpdate }) {
             setForm({
                 name: funnel.name || '',
                 slug: funnel.slug || '',
+                affiliate_link: funnel.affiliate_link || '',
                 seo_title: funnel.seo_title || '',
                 seo_description: funnel.seo_description || '',
                 og_image_url: funnel.og_image_url || '',
@@ -82,6 +84,27 @@ export default function FunnelSettings({ funnel, onUpdate }) {
                             <input type="text" value={form.slug} onChange={e => updateField('slug', e.target.value)} className="input-field" placeholder="my-funnel" />
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {/* Affiliate / CTA Link */}
+            <div className="card border border-brand-500/20">
+                <h3 className="font-semibold text-white mb-2 flex items-center gap-2">
+                    <Link2 className="w-4 h-4 text-brand-400" /> Affiliate / CTA Link
+                </h3>
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-4">
+                    <p className="text-xs text-blue-300">💡 This is where all CTA buttons in your pages will send visitors. Usually your <strong>ClickBank hop link</strong> or affiliate offer URL.</p>
+                </div>
+                <div>
+                    <label className="block text-sm text-gray-300 mb-1">Your Affiliate Link</label>
+                    <input
+                        type="text"
+                        value={form.affiliate_link}
+                        onChange={e => updateField('affiliate_link', e.target.value)}
+                        className="input-field"
+                        placeholder="https://yourid.vendorid.hop.clickbank.net"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">This link auto-fills into every CTA block in your page editor.</p>
                 </div>
             </div>
 

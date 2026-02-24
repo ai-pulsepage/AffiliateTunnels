@@ -1,0 +1,1 @@
+ALTER TABLE funnels ADD COLUMN IF NOT EXISTS affiliate_link TEXT;

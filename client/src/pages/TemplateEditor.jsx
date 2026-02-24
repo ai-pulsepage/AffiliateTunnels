@@ -709,6 +709,10 @@ export default function TemplateEditor() {
                                             <button
                                                 key={w}
                                                 onClick={() => {
+                                                    // Remove HTML attributes that override CSS
+                                                    resizeTarget.el.removeAttribute('width');
+                                                    resizeTarget.el.removeAttribute('height');
+                                                    // Set proportional sizing via CSS only
                                                     resizeTarget.el.style.width = w;
                                                     resizeTarget.el.style.height = 'auto';
                                                     resizeTarget.el.style.maxWidth = '100%';
