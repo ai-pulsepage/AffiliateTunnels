@@ -1,30 +1,31 @@
-# AffiliateTunnels - Single service (API + static client)
-FROM node:20-alpine AS base
+# AffiliateTunnels - Optimized for Railway
+FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies (layer cached when package.json files don't change)
 COPY package.json package-lock.json* ./
 COPY client/package.json ./client/
 COPY server/package.json ./server/
 COPY shared/package.json ./shared/
-RUN npm install --production=false
+RUN npm install
 
-# Copy source
+# Copy source and build client
 COPY . .
-
-# Build client
 RUN cd client && npm run build
 
-# Production
+# Prune devDependencies for a leaner production image
+RUN npm prune --omit=dev
+
+# Production — lean image
 FROM node:20-alpine AS production
 WORKDIR /app
 
-COPY --from=base /app/package.json ./
-COPY --from=base /app/start.js ./
-COPY --from=base /app/server ./server
-COPY --from=base /app/shared ./shared
-COPY --from=base /app/client/dist ./client/dist
-COPY --from=base /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/start.js ./
+COPY --from=builder /app/server ./server
+COPY --from=builder /app/shared ./shared
+COPY --from=builder /app/client/dist ./client/dist
+COPY --from=builder /app/node_modules ./node_modules
 
 ENV NODE_ENV=production
 EXPOSE 3001
