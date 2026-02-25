@@ -20,8 +20,11 @@ router.post('/:funnelId/:pageId', authenticate, async (req, res) => {
         const funnel = funnelResult.rows[0];
         const page = pageResult.rows[0];
 
+        // Get all pages for next-page redirect computation
+        const allPages = await query('SELECT * FROM pages WHERE funnel_id = $1 ORDER BY step_order', [funnel.id]);
+
         // Generate standalone HTML
-        const html = generatePublishedHTML(page, funnel);
+        const html = generatePublishedHTML(page, funnel, allPages.rows);
 
         // Upload to R2
         const uploaded = await uploadPublishedPage(html, funnel.slug, page.slug);
@@ -63,7 +66,7 @@ router.post('/:funnelId', authenticate, async (req, res) => {
         const appBaseUrl = getSettingSync('app_base_url') || '';
         const results = [];
         for (const page of pages.rows) {
-            const html = generatePublishedHTML(page, funnel);
+            const html = generatePublishedHTML(page, funnel, pages.rows);
             const uploaded = await uploadPublishedPage(html, funnel.slug, page.slug);
             const publicUrl = appBaseUrl
                 ? `${appBaseUrl}/p/${funnel.slug}/${page.slug}`

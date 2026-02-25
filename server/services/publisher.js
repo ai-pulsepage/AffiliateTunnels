@@ -1,9 +1,20 @@
 const { getSettingSync } = require('../config/settings');
 
-function generatePublishedHTML(page, funnel) {
+function generatePublishedHTML(page, funnel, pages) {
+  pages = pages || [];
   const ga4Id = funnel.ga4_id || getSettingSync('default_ga4_id') || '';
   const fbPixelId = funnel.fb_pixel_id || getSettingSync('default_fb_pixel_id') || '';
   const appBaseUrl = getSettingSync('app_base_url') || '';
+
+  // Compute next page URL for redirect after opt-in
+  const sorted = [...pages].sort((a, b) => (a.step_order || 0) - (b.step_order || 0));
+  const currentIdx = sorted.findIndex(p => p.id === page.id);
+  const nextPage = currentIdx >= 0 && currentIdx < sorted.length - 1 ? sorted[currentIdx + 1] : null;
+  const nextPageUrl = nextPage
+    ? (appBaseUrl ? `${appBaseUrl}/p/${funnel.slug}/${nextPage.slug}` : `/p/${funnel.slug}/${nextPage.slug}`)
+    : '';
+  // On the last page (or single-page funnel), fall back to affiliate link
+  const optinRedirectUrl = nextPageUrl || funnel.affiliate_link || '';
   const physicalAddress = getSettingSync('physical_address') || '';
 
   const ga4Script = ga4Id ? `
@@ -190,63 +201,54 @@ function generatePublishedHTML(page, funnel) {
       }
     })();
   </script>
-  <!-- Opt-in Form Handler: intercept inline opt-in forms and submit via AJAX -->
-  <script>
-    (function(){
-      var fid="${funnel.id}",pid="${page.id}";
-      var baseUrl="${appBaseUrl}";
-      // Find all forms inside the page container
-      var forms=document.querySelectorAll(".page-container form");
-      forms.forEach(function(form){
-        form.addEventListener("submit",function(e){
-          e.preventDefault();
-          var fd=new FormData(form);
-          var email=fd.get("email");
-          if(!email)return;
-          var data={funnel_id:fid,page_id:pid,email:email,name:fd.get("name")||"",
-            consent_offer:true,consent_marketing:false};
-          var btn=form.querySelector("button[type=submit],button");
-          if(btn){btn.disabled=true;btn.textContent="Submitting...";}
-          fetch(baseUrl+"/api/tracking/lead",{method:"POST",headers:{"Content-Type":"application/json"},
-            body:JSON.stringify(data)})
-          .then(function(){
-            form.innerHTML='<p style="font-size:18px;font-weight:700;color:inherit;margin:0;">✅ Thank you! Check your email.</p>';
-          })
-          .catch(function(){
-            form.innerHTML='<p style="font-size:18px;font-weight:700;color:inherit;margin:0;">✅ Thank you! Check your email.</p>';
+  <!-- Opt-in Form Handler: capture lead, then redirect to next funnel page -->
+    <script>
+      (function(){
+        var fid="${funnel.id}",pid="${page.id}";
+        var baseUrl="${appBaseUrl}";
+        var redirectUrl="${optinRedirectUrl}";
+        function handleSuccess(container){
+          if(redirectUrl){
+            container.innerHTML='<p style="font-size:18px;font-weight:700;color:inherit;margin:0;">Redirecting...</p>';
+            setTimeout(function(){window.location.href=redirectUrl;},800);
+          } else {
+            container.innerHTML='<p style="font-size:18px;font-weight:700;color:inherit;margin:0;">Thank you! Check your email.</p>';
+          }
+        }
+        var forms=document.querySelectorAll(".page-container form");
+        forms.forEach(function(form){
+          form.addEventListener("submit",function(e){
+            e.preventDefault();
+            var fd=new FormData(form);
+            var email=fd.get("email");
+            if(!email)return;
+            var data={funnel_id:fid,page_id:pid,email:email,name:fd.get("name")||"",consent_offer:true,consent_marketing:false};
+            var btn=form.querySelector("button[type=submit],button");
+            if(btn){btn.disabled=true;btn.textContent="Submitting...";}
+            fetch(baseUrl+"/api/tracking/lead",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
+            .then(function(){handleSuccess(form);}).catch(function(){handleSuccess(form);});
           });
         });
-      });
-      // Also handle opt-in blocks that aren't wrapped in a <form> (button + inputs in a div)
-      var btns=document.querySelectorAll(".page-container button");
-      btns.forEach(function(btn){
-        if(btn.closest("form"))return; // already handled above
-        var container=btn.closest("[data-block-type=optin]")||btn.closest("div");
-        if(!container)return;
-        var emailInput=container.querySelector('input[type=email]');
-        if(!emailInput)return;
-        btn.addEventListener("click",function(e){
-          e.preventDefault();
-          var email=emailInput.value;
-          if(!email)return;
-          var nameInput=container.querySelector('input[type=text]');
-          var data={funnel_id:fid,page_id:pid,email:email,name:nameInput?nameInput.value:"",
-            consent_offer:true,consent_marketing:false};
-          btn.disabled=true;btn.textContent="Submitting...";
-          fetch(baseUrl+"/api/tracking/lead",{method:"POST",headers:{"Content-Type":"application/json"},
-            body:JSON.stringify(data)})
-          .then(function(){
-            var wrapper=emailInput.closest("div")||container;
-            wrapper.innerHTML='<p style="font-size:18px;font-weight:700;color:inherit;margin:0;">✅ Thank you! Check your email.</p>';
-          })
-          .catch(function(){
-            var wrapper=emailInput.closest("div")||container;
-            wrapper.innerHTML='<p style="font-size:18px;font-weight:700;color:inherit;margin:0;">✅ Thank you! Check your email.</p>';
+        var btns=document.querySelectorAll(".page-container button");
+        btns.forEach(function(btn){
+          if(btn.closest("form"))return;
+          var container=btn.closest("[data-block-type=optin]")||btn.closest("div");
+          if(!container)return;
+          var emailInput=container.querySelector('input[type=email]');
+          if(!emailInput)return;
+          btn.addEventListener("click",function(e){
+            e.preventDefault();
+            var email=emailInput.value;if(!email)return;
+            var nameInput=container.querySelector('input[type=text]');
+            var data={funnel_id:fid,page_id:pid,email:email,name:nameInput?nameInput.value:"",consent_offer:true,consent_marketing:false};
+            btn.disabled=true;btn.textContent="Submitting...";
+            fetch(baseUrl+"/api/tracking/lead",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
+            .then(function(){handleSuccess(emailInput.closest("div")||container);})
+            .catch(function(){handleSuccess(emailInput.closest("div")||container);});
           });
         });
-      });
-    })();
-  </script>
+      })();
+    </script>
   ${page.custom_body || ''}
 </body>
 </html>`;
