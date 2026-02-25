@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { generateArticlePage, extractProductIntelligence } = require('../services/ai-writer');
+const { getSetting } = require('../config/settings');
 
 // Generate article/advertorial landing page content
 router.post('/generate-page', authenticate, async (req, res) => {
@@ -106,7 +107,7 @@ router.post('/scrape-product', authenticate, async (req, res) => {
         // Run Gemini extraction to get structured product intelligence
         let productIntel = null;
         try {
-            const apiKey = process.env.GEMINI_API_KEY;
+            const apiKey = process.env.GEMINI_API_KEY || await getSetting('gemini_api_key');
             if (apiKey) {
                 const fullText = description ? description + '\n\n' + text : text;
                 productIntel = await extractProductIntelligence(fullText, apiKey);
@@ -274,8 +275,8 @@ router.post('/generate-seo', authenticate, async (req, res) => {
         const { content } = req.body;
         if (!content) return res.status(400).json({ error: 'Content is required' });
 
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) return res.status(500).json({ error: 'Gemini API key not configured' });
+        const apiKey = process.env.GEMINI_API_KEY || await getSetting('gemini_api_key');
+        if (!apiKey) return res.status(500).json({ error: 'Gemini API key not configured. Add it in Admin Settings.' });
 
         // Strip HTML to get plain text, limit to 3000 chars
         const plainText = content
