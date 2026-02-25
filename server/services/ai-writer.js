@@ -609,7 +609,7 @@ ${sharedBlockRules()}`;
 }
 
 // ─── Pass 2: Generate page content ─────────────────────────────
-async function generateArticlePage({ productName, productDescription, affiliateLink, style = 'review_article', emailSwipes = '', existingContent = '', productIntel = null }) {
+async function generateArticlePage({ productName, productDescription, affiliateLink, style = 'review_article', emailSwipes = '', existingContent = '', productIntel = null, customDirection = '' }) {
    const apiKey = process.env.GEMINI_API_KEY || await getSetting('gemini_api_key');
    if (!apiKey) throw new Error('Gemini API key not configured. Add it in Admin Settings.');
 
@@ -678,6 +678,11 @@ async function generateArticlePage({ productName, productDescription, affiliateL
             maxTokens = 32768;
             break;
       }
+   }
+
+   // Append custom direction if user provided one
+   if (customDirection && customDirection.trim()) {
+      prompt += `\n\nCUSTOM DIRECTION FROM THE USER — follow this closely:\n${customDirection.trim()}`;
    }
 
    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;

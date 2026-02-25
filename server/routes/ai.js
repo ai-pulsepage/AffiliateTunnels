@@ -10,7 +10,7 @@ const { getSetting } = require('../config/settings');
 // Generate article/advertorial landing page content
 router.post('/generate-page', authenticate, async (req, res) => {
     try {
-        const { productName, productDescription, affiliateLink, style, emailSwipes, existingContent } = req.body;
+        const { productName, productDescription, affiliateLink, style, emailSwipes, existingContent, customDirection } = req.body;
 
         if (!affiliateLink) {
             return res.status(400).json({ error: 'Affiliate link is required' });
@@ -29,6 +29,7 @@ router.post('/generate-page', authenticate, async (req, res) => {
             emailSwipes: emailSwipes || '',
             existingContent: existingContent || '',
             productIntel: req.body.productIntel || null,
+            customDirection: customDirection || '',
         });
 
         res.json({ html });

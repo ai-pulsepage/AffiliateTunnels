@@ -101,7 +101,7 @@ export default function TemplateEditor() {
     const [showAi, setShowAi] = useState(false);
     const [aiTab, setAiTab] = useState('generate');
     const [aiGenerating, setAiGenerating] = useState(false);
-    const [aiForm, setAiForm] = useState({ productName: '', productDescription: '', affiliateLink: '', style: 'review_article', productUrl: '' });
+    const [aiForm, setAiForm] = useState({ productName: '', productDescription: '', affiliateLink: '', style: 'review_article', productUrl: '', customDirection: '' });
 
     // Active block for formatting toolbar
     const [activeBlockIdx, setActiveBlockIdx] = useState(null);
@@ -468,12 +468,13 @@ export default function TemplateEditor() {
 
     // ─── AI HANDLERS ──────────────────────────
     async function handleAiGenerate() {
-        if (aiTab === 'generate' && (!aiForm.productName || !aiForm.productDescription)) {
-            toast.error('Product name and description required');
+        if (aiTab === 'clone' && !aiForm.productUrl) {
+            toast.error('Paste the URL to clone');
             return;
         }
-        if ((aiTab === 'fromlink' || aiTab === 'clone') && !aiForm.productUrl) {
-            toast.error('Paste the URL');
+
+        if (aiTab === 'generate' && !aiForm.productName && !aiForm.productUrl) {
+            toast.error('Provide a product name or URL to scrape');
             return;
         }
 
@@ -494,25 +495,27 @@ export default function TemplateEditor() {
             let productName = aiForm.productName;
             let productIntel = null;
 
-            if (aiTab === 'fromlink') {
+            // If URL provided, scrape first to auto-fill product data
+            if (aiForm.productUrl && aiTab === 'generate') {
                 toast('Analyzing product page with AI...');
                 const scraped = await aiApi.scrapeProduct(aiForm.productUrl);
-                productName = scraped.productName || 'Product';
-                productInfo = scraped.description || '';
+                productName = productName || scraped.productName || 'Product';
+                productInfo = productInfo || scraped.description || '';
                 productIntel = scraped.productIntel || null;
-                setAiForm(f => ({ ...f, productName, productDescription: productInfo, affiliateLink: f.affiliateLink || aiForm.productUrl }));
+                setAiForm(f => ({ ...f, productName: productName, productDescription: productInfo, affiliateLink: f.affiliateLink || aiForm.productUrl }));
                 if (productIntel) {
                     toast.success(`Extracted ${productIntel.ingredients?.length || 0} ingredients, ${productIntel.testimonials?.length || 0} testimonials`);
                 }
             }
 
-            toast('Writing full review article...');
+            toast('Writing content...');
             const payload = {
                 productName: productName || aiForm.productName,
                 productDescription: productInfo || aiForm.productDescription,
                 affiliateLink: ctaLink || '#',
                 style: aiForm.style,
                 productIntel,
+                customDirection: aiForm.customDirection || '',
             };
 
             if (aiTab === 'improve') {
@@ -523,7 +526,7 @@ export default function TemplateEditor() {
             if (result.html) {
                 parseHtmlToBlocks(result.html);
                 setShowAi(false);
-                toast.success('Review article generated!');
+                toast.success('Content generated!');
             }
         } catch (err) { toast.error(err.message); }
         finally { setAiGenerating(false); }
@@ -991,12 +994,32 @@ export default function TemplateEditor() {
                         </div>
                         {/* Tabs */}
                         <div className="flex border-b border-white/5">
-                            {[['generate', 'Generate'], ['fromlink', 'From Link'], ['improve', 'Improve'], ['clone', 'Clone']].map(([k, l]) => (
+                            {[['generate', 'Generate'], ['improve', 'Improve'], ['clone', 'Clone']].map(([k, l]) => (
                                 <button key={k} onClick={() => setAiTab(k)} className={`flex-1 py-2.5 text-xs font-medium ${aiTab === k ? 'text-brand-400 border-b-2 border-brand-400' : 'text-gray-500 hover:text-gray-300'}`}>{l}</button>
                             ))}
                         </div>
                         <div className="p-6 space-y-4">
-                            {(aiTab === 'generate' || aiTab === 'improve') && (
+                            {aiTab === 'generate' && (
+                                <>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Product URL <span className="text-gray-600">(optional — scrapes product info)</span></label>
+                                        <input type="text" value={aiForm.productUrl} onChange={e => setAiForm(f => ({ ...f, productUrl: e.target.value }))} className="input-field text-sm" placeholder="https://example.com/product-page" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Product Name</label>
+                                        <input type="text" value={aiForm.productName} onChange={e => setAiForm(f => ({ ...f, productName: e.target.value }))} className="input-field text-sm" placeholder="Ted's Woodworking" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Product Description</label>
+                                        <textarea value={aiForm.productDescription} onChange={e => setAiForm(f => ({ ...f, productDescription: e.target.value }))} className="input-field text-sm" rows="2" placeholder="Natural fat-burning supplement..." />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Creative Direction <span className="text-gray-600">(optional — guide the AI's voice & angle)</span></label>
+                                        <textarea value={aiForm.customDirection} onChange={e => setAiForm(f => ({ ...f, customDirection: e.target.value }))} className="input-field text-sm" rows="2" placeholder="e.g. Write as a thank-you page, excited tone, focus on the free download..." />
+                                    </div>
+                                </>
+                            )}
+                            {aiTab === 'improve' && (
                                 <>
                                     <div>
                                         <label className="block text-xs font-medium text-gray-400 mb-1">Product Name</label>
@@ -1004,7 +1027,11 @@ export default function TemplateEditor() {
                                     </div>
                                     <div>
                                         <label className="block text-xs font-medium text-gray-400 mb-1">Product Description</label>
-                                        <textarea value={aiForm.productDescription} onChange={e => setAiForm(f => ({ ...f, productDescription: e.target.value }))} className="input-field text-sm" rows="3" placeholder="Natural fat-burning supplement..." />
+                                        <textarea value={aiForm.productDescription} onChange={e => setAiForm(f => ({ ...f, productDescription: e.target.value }))} className="input-field text-sm" rows="2" placeholder="Natural fat-burning supplement..." />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Creative Direction <span className="text-gray-600">(optional)</span></label>
+                                        <textarea value={aiForm.customDirection} onChange={e => setAiForm(f => ({ ...f, customDirection: e.target.value }))} className="input-field text-sm" rows="2" placeholder="e.g. Make it more urgent, add scarcity, change tone to casual..." />
                                     </div>
                                 </>
                             )}
@@ -1046,9 +1073,9 @@ export default function TemplateEditor() {
                                     </select>
                                 </div>
                             )}
-                            {(aiTab === 'fromlink' || aiTab === 'clone') && (
+                            {aiTab === 'clone' && (
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-400 mb-1">{aiTab === 'clone' ? 'Page URL to Clone' : 'Product Page URL'}</label>
+                                    <label className="block text-xs font-medium text-gray-400 mb-1">Page URL to Clone</label>
                                     <input type="text" value={aiForm.productUrl} onChange={e => setAiForm(f => ({ ...f, productUrl: e.target.value }))} className="input-field text-sm" placeholder="https://..." />
                                 </div>
                             )}
