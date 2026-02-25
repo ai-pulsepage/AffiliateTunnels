@@ -346,27 +346,33 @@ export default function TemplateEditor() {
         const template = BLOCK_TYPES.find(b => b.type === type);
         if (!template) return;
         const newBlock = { id: genId(), type, html: template.html };
-        let newIdx;
+        let insertIdx;
         setBlocks(prev => {
             const next = [...prev];
             if (afterIndex >= 0) {
                 next.splice(afterIndex + 1, 0, newBlock);
-                newIdx = afterIndex + 1;
+                insertIdx = afterIndex + 1;
             } else {
                 next.push(newBlock);
-                newIdx = next.length - 1;
+                insertIdx = next.length - 1;
             }
             return next;
         });
 
+        // Auto-select and scroll to the new block
+        setTimeout(() => {
+            setActiveBlockIdx(insertIdx);
+            const el = document.querySelector(`[data-block-idx="${insertIdx}"]`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+
         // Auto-open media picker for image/video blocks
         if (type === 'image' || type === 'video') {
             setTimeout(() => {
-                const idx = afterIndex >= 0 ? afterIndex + 1 : blocks.length;
-                setMediaBlockIdx(idx);
+                setMediaBlockIdx(insertIdx);
                 setMediaAccept('all');
                 setShowMediaPicker(true);
-            }, 50);
+            }, 100);
         }
     }
 
@@ -700,7 +706,7 @@ export default function TemplateEditor() {
                     {BLOCK_TYPES.map(bt => (
                         <button
                             key={bt.type}
-                            onClick={() => addBlock(bt.type)}
+                            onClick={() => addBlock(bt.type, activeBlockIdx != null ? activeBlockIdx : -1)}
                             className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
                         >
                             <bt.icon className="w-3.5 h-3.5 flex-shrink-0" />
@@ -715,6 +721,7 @@ export default function TemplateEditor() {
                         {blocks.map((block, idx) => (
                             <div
                                 key={block.id}
+                                data-block-idx={idx}
                                 className={`group relative ${dragIdx === idx ? 'opacity-40' : ''}`}
                                 draggable
                                 onDragStart={e => handleDragStart(e, idx)}
