@@ -772,6 +772,7 @@ export default function TemplateEditor() {
                                                 onMouseDown={(e) => { e.stopPropagation(); }}
                                                 onChange={(e) => {
                                                     const val = e.target.value;
+                                                    const editableEl = e.target.closest('[data-block-idx]')?.querySelector('[contenteditable]');
                                                     if (savedRangeRef.current) {
                                                         const sel = window.getSelection();
                                                         sel.removeAllRanges();
@@ -779,6 +780,7 @@ export default function TemplateEditor() {
                                                     }
                                                     document.execCommand('fontName', false, val);
                                                     e.target.value = '';
+                                                    if (editableEl) { updateBlockHtml(idx, editableEl.innerHTML); editableEl.focus(); }
                                                 }}
                                                 className="bg-white/10 text-gray-200 text-xs rounded px-1 py-1 border-none outline-none cursor-pointer"
                                                 defaultValue=""
@@ -794,6 +796,7 @@ export default function TemplateEditor() {
                                                 onMouseDown={(e) => { e.stopPropagation(); }}
                                                 onChange={(e) => {
                                                     const val = e.target.value;
+                                                    const editableEl = e.target.closest('[data-block-idx]')?.querySelector('[contenteditable]');
                                                     if (savedRangeRef.current) {
                                                         const sel = window.getSelection();
                                                         sel.removeAllRanges();
@@ -803,6 +806,7 @@ export default function TemplateEditor() {
                                                     const fontElements = document.querySelectorAll('font[size="7"]');
                                                     fontElements.forEach(el => { el.removeAttribute('size'); el.style.fontSize = val; });
                                                     e.target.value = '';
+                                                    if (editableEl) { updateBlockHtml(idx, editableEl.innerHTML); editableEl.focus(); }
                                                 }}
                                                 className="bg-white/10 text-gray-200 text-xs rounded px-1 py-1 border-none outline-none cursor-pointer"
                                                 defaultValue=""
@@ -825,12 +829,14 @@ export default function TemplateEditor() {
                                                 type="color"
                                                 onMouseDown={(e) => { e.stopPropagation(); }}
                                                 onChange={(e) => {
+                                                    const editableEl = e.target.closest('[data-block-idx]')?.querySelector('[contenteditable]');
                                                     if (savedRangeRef.current) {
                                                         const sel = window.getSelection();
                                                         sel.removeAllRanges();
                                                         sel.addRange(savedRangeRef.current);
                                                     }
                                                     document.execCommand('foreColor', false, e.target.value);
+                                                    if (editableEl) { updateBlockHtml(idx, editableEl.innerHTML); editableEl.focus(); }
                                                 }}
                                                 className="w-5 h-5 rounded cursor-pointer border-none bg-transparent p-0"
                                                 title="Font Color"
@@ -884,7 +890,13 @@ export default function TemplateEditor() {
                                             suppressContentEditableWarning
                                             dangerouslySetInnerHTML={{ __html: block.html }}
                                             onFocus={() => setActiveBlockIdx(idx)}
-                                            onBlur={(e) => { updateBlockHtml(idx, e.currentTarget.innerHTML); setTimeout(() => setActiveBlockIdx(prev => prev === idx ? null : prev), 150); }}
+                                            onBlur={(e) => {
+                                                // Don't trigger blur if focus moves to toolbar controls (select, input, button)
+                                                const blockWrapper = e.currentTarget.closest('[data-block-idx]');
+                                                if (blockWrapper && blockWrapper.contains(e.relatedTarget)) return;
+                                                updateBlockHtml(idx, e.currentTarget.innerHTML);
+                                                setTimeout(() => setActiveBlockIdx(prev => prev === idx ? null : prev), 150);
+                                            }}
                                             onClick={(e) => {
                                                 // Media slot click — open media picker
                                                 const slot = e.target.closest('[data-media-slot]');
