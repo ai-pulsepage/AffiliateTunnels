@@ -288,6 +288,10 @@ router.post('/generate-seo', authenticate, async (req, res) => {
             .trim()
             .substring(0, 3000);
 
+        if (plainText.length < 20) {
+            return res.status(400).json({ error: 'Not enough page content to generate SEO. Add some content first.' });
+        }
+
         const prompt = `You are an SEO expert. Given this page content, generate:
 1. An SEO title (under 60 characters, compelling, includes primary keyword)
 2. A meta description (under 155 characters, includes CTA, summarizes value)
@@ -305,9 +309,8 @@ Respond in JSON only: {"seo_title": "...", "seo_description": "..."}`;
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
-                        maxOutputTokens: 256,
+                        maxOutputTokens: 512,
                         temperature: 0.7,
-                        responseMimeType: 'application/json',
                     },
                 }),
             }
@@ -315,18 +318,34 @@ Respond in JSON only: {"seo_title": "...", "seo_description": "..."}`;
 
         if (!response.ok) {
             const errBody = await response.text();
-            console.error('Gemini API error:', response.status, errBody);
-            return res.status(502).json({ error: `Gemini API returned ${response.status}` });
+            console.error('Gemini SEO API error:', response.status, errBody);
+            return res.status(502).json({ error: `Gemini API returned ${response.status}. Check your API key in Admin Settings.` });
         }
 
         const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        // Strip markdown code fences if present
-        const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) return res.status(500).json({ error: 'Failed to parse AI response' });
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-        const result = JSON.parse(jsonMatch[0]);
+        if (!rawText) {
+            console.error('Gemini SEO: empty response', JSON.stringify(data).substring(0, 500));
+            return res.status(500).json({ error: 'AI returned an empty response. Try again.' });
+        }
+
+        // Strip markdown code fences if present
+        const cleaned = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            console.error('Gemini SEO: could not parse JSON from:', cleaned.substring(0, 300));
+            return res.status(500).json({ error: 'Failed to parse AI response' });
+        }
+
+        let result;
+        try {
+            result = JSON.parse(jsonMatch[0]);
+        } catch (parseErr) {
+            console.error('Gemini SEO: JSON parse error:', parseErr.message, jsonMatch[0].substring(0, 300));
+            return res.status(500).json({ error: 'AI response was not valid JSON. Try again.' });
+        }
+
         res.json(result);
     } catch (err) {
         console.error('SEO generation error:', err);
