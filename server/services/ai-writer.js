@@ -12,7 +12,7 @@ const GEMINI_MODEL = 'gemini-2.5-flash';
 
 // ─── Pass 1: Extract structured product data ───────────────────
 async function extractProductIntelligence(scrapedText, apiKey) {
-    const prompt = `You are a product research analyst. Extract ALL useful information from this product/sales page content.
+   const prompt = `You are a product research analyst. Extract ALL useful information from this product/sales page content.
 
 RAW SCRAPED CONTENT:
 ${scrapedText}
@@ -39,30 +39,30 @@ Extract and return a JSON object with these fields (use null if not found):
 
 Return ONLY valid JSON. No explanation, no markdown fences.`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
-        }),
-    });
+   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+   const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+         contents: [{ parts: [{ text: prompt }] }],
+         generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
+      }),
+   });
 
-    if (!response.ok) throw new Error(`Gemini extraction failed: ${response.status}`);
-    const data = await response.json();
-    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    text = text.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
+   if (!response.ok) throw new Error(`Gemini extraction failed: ${response.status}`);
+   const data = await response.json();
+   let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+   text = text.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
 
-    try { return JSON.parse(text); }
-    catch { return { productName: 'Product', description: text }; }
+   try { return JSON.parse(text); }
+   catch { return { productName: 'Product', description: text }; }
 }
 
 // ─── Shared helpers ────────────────────────────────────────────
 function buildProductContext(productName, productDescription, productIntel) {
-    if (!productIntel) return `PRODUCT: ${productName}\nDESCRIPTION: ${productDescription}`;
+   if (!productIntel) return `PRODUCT: ${productName}\nDESCRIPTION: ${productDescription}`;
 
-    return `PRODUCT INTELLIGENCE (extracted from the actual product page):
+   return `PRODUCT INTELLIGENCE (extracted from the actual product page):
 Product: ${productIntel.productName || productName}
 Brand: ${productIntel.brand || 'N/A'}
 Tagline: ${productIntel.tagline || 'N/A'}
@@ -95,7 +95,7 @@ BONUSES: ${(productIntel.bonuses || []).join(', ') || 'N/A'}`;
 }
 
 function sharedBlockRules() {
-    return `
+   return `
 ═══════════════════════════════════════════
 CRITICAL HTML OUTPUT RULES (BLOCK EDITOR):
 ═══════════════════════════════════════════
@@ -114,7 +114,7 @@ OUTPUT: Return ONLY the HTML elements. No markdown, no explanation, no code fenc
 // ─── Style-specific prompt builders ────────────────────────────
 
 function buildReviewArticlePrompt({ productContext, affiliateLink, dateStr, year, emailSwipes }) {
-    return `You are an expert wellness blogger and content creator who writes deeply researched, engaging product review articles. Your articles read like real editorial content — informative, trustworthy, and compelling — not like sales pages.
+   return `You are an expert wellness blogger and content creator who writes deeply researched, engaging product review articles. Your articles read like real editorial content — informative, trustworthy, and compelling — not like sales pages.
 
 TODAY'S DATE: ${dateStr}
 CURRENT YEAR: ${year}
@@ -206,7 +206,7 @@ ${sharedBlockRules()}`;
 }
 
 function buildVideoPresellPrompt({ productContext, affiliateLink, dateStr, year }) {
-    return `You are a direct-response video landing page copywriter. Write a short, high-converting video presell page for Facebook/YouTube ad traffic. This page sits BETWEEN the ad and the sales page — its job is to warm up the viewer and get them to click through.
+   return `You are a direct-response video landing page copywriter. Write a short, high-converting video presell page for Facebook/YouTube ad traffic. This page sits BETWEEN the ad and the sales page — its job is to warm up the viewer and get them to click through.
 
 TODAY'S DATE: ${dateStr}
 CURRENT YEAR: ${year}
@@ -251,7 +251,7 @@ ${sharedBlockRules()}`;
 }
 
 function buildListiclePrompt({ productContext, affiliateLink, dateStr, year, emailSwipes }) {
-    return `You are a content writer specializing in numbered listicle articles for native ad platforms and SEO. Write a compelling "X Reasons Why..." listicle that educates and naturally leads the reader toward trying the product. This should read like real editorial content.
+   return `You are a content writer specializing in numbered listicle articles for native ad platforms and SEO. Write a compelling "X Reasons Why..." listicle that educates and naturally leads the reader toward trying the product. This should read like real editorial content.
 
 TODAY'S DATE: ${dateStr}
 CURRENT YEAR: ${year}
@@ -323,7 +323,7 @@ ${sharedBlockRules()}`;
 }
 
 function buildSocialBridgePrompt({ productContext, affiliateLink, dateStr, year }) {
-    return `You are a social media landing page copywriter specializing in high-converting bridge pages for Facebook, TikTok, and Instagram ad traffic. Write a SHORT, punchy, scroll-stopping bridge page. This page sits between the social media ad and the offer page — it needs to grab attention instantly and drive a click-through.
+   return `You are a social media landing page copywriter specializing in high-converting bridge pages for Facebook, TikTok, and Instagram ad traffic. Write a SHORT, punchy, scroll-stopping bridge page. This page sits between the social media ad and the offer page — it needs to grab attention instantly and drive a click-through.
 
 TODAY'S DATE: ${dateStr}
 CURRENT YEAR: ${year}
@@ -373,7 +373,7 @@ ${sharedBlockRules()}`;
 }
 
 function buildLeadMagnetPrompt({ productContext, affiliateLink, dateStr, year }) {
-    return `You are a lead generation landing page specialist. Write a high-converting email capture page that offers a free guide/report in exchange for the visitor's email. This page should communicate massive value quickly and make the opt-in irresistible. The primary goal is EMAIL CAPTURE, not clicks to an affiliate link.
+   return `You are a lead generation landing page specialist. Write a high-converting email capture page that offers a free guide/report in exchange for the visitor's email. This page should communicate massive value quickly and make the opt-in irresistible. The primary goal is EMAIL CAPTURE, not clicks to an affiliate link.
 
 TODAY'S DATE: ${dateStr}
 CURRENT YEAR: ${year}
@@ -433,7 +433,7 @@ ${sharedBlockRules()}`;
 }
 
 function buildBlogPostPrompt({ productContext, affiliateLink, dateStr, year, emailSwipes }) {
-    return `You are an SEO content writer who creates long-form, keyword-rich blog posts that rank on Google while naturally recommending products. Your posts read like genuine, helpful content — the kind people bookmark and share.
+   return `You are an SEO content writer who creates long-form, keyword-rich blog posts that rank on Google while naturally recommending products. Your posts read like genuine, helpful content — the kind people bookmark and share.
 
 TODAY'S DATE: ${dateStr}
 CURRENT YEAR: ${year}
@@ -493,7 +493,7 @@ ${sharedBlockRules()}`;
 }
 
 function buildImprovePrompt({ productContext, affiliateLink, dateStr, year, existingContent }) {
-    return `You are an expert direct-response copywriter specializing in native advertising and affiliate content.
+   return `You are an expert direct-response copywriter specializing in native advertising and affiliate content.
 
 TODAY'S DATE: ${dateStr}
 CURRENT YEAR: ${year}
@@ -518,84 +518,195 @@ IMPROVEMENTS:
 ${sharedBlockRules()}`;
 }
 
+// ─── New template-specific prompt builders ─────────────────────
+
+function buildVSLPrompt({ productContext, affiliateLink, dateStr, year }) {
+   return `You are an expert video sales letter (VSL) copywriter. Create a complete VSL landing page.
+
+TODAY'S DATE: ${dateStr}
+CURRENT YEAR: ${year}
+
+${productContext}
+AFFILIATE LINK: ${affiliateLink}
+
+Write a COMPLETE VSL page with this EXACT structure. Each numbered item is a SEPARATE top-level HTML element:
+
+1. <div> — "ADVERTISEMENT" disclaimer bar, small centered text
+2. <h1> — Large, urgent headline with curiosity hook (e.g. "Watch This Video Before It's Taken Down")
+3. <p> — Subheadline building intrigue about the video content
+4. <div> — Video placeholder area with dark background, centered play icon, and text "▶ Click to add video" (use data-media-slot="hero")
+5. <div> — Bullet points container with checkmark emojis listing 4-5 key benefits
+6. <div> — Social proof section with 2-3 short testimonials
+7. <div> — Urgency bar (e.g. "Only X spots remain" or "Video may be removed soon")
+8. <div> — CTA button section with large button linking to ${affiliateLink}, bold action text, and guarantee mention
+9. <p> — Small disclaimer footer
+
+Use dramatic colors, dark backgrounds (#111, #1a1a2e), bright accent colors for buttons.
+All links point to: ${affiliateLink}
+Use today's date: ${dateStr}. NEVER use a past year.
+
+${sharedBlockRules()}`;
+}
+
+function buildComparisonPrompt({ productContext, affiliateLink, dateStr, year }) {
+   return `You are an expert product comparison copywriter. Create a detailed product comparison/showdown page.
+
+TODAY'S DATE: ${dateStr}
+CURRENT YEAR: ${year}
+
+${productContext}
+AFFILIATE LINK: ${affiliateLink}
+
+Write a COMPLETE comparison page with this EXACT structure. Each numbered item is a SEPARATE top-level HTML element:
+
+1. <p> — Category label badge (e.g. "PRODUCT COMPARISON")
+2. <h1> — Comparison headline (e.g. "Product A vs The Rest: Which One Actually Works?")
+3. <p> — Subheadline with date and context
+4. <div> — Hero image placeholder (data-media-slot="hero")
+5. <div> — Introduction paragraph explaining why this comparison matters
+6. <div> — Comparison table with styled rows comparing features side by side. Use a clear visual format with green checkmarks and red X marks. Compare at least 8 features.
+7. <h2> — "The Clear Winner" section heading
+8. <div> — Winner announcement with explanation of why the recommended product wins
+9. <div> — 3 key advantages listed as styled cards
+10. <blockquote> — Standout customer testimonial
+11. <div> — CTA section with prominent button linking to ${affiliateLink}
+12. <div> — FAQ section with 3-4 common comparison questions
+13. <p> — Disclaimer footer
+
+Use clean, professional styling. Green (#22c55e) for positive indicators, red (#ef4444) for negative.
+All links point to: ${affiliateLink}
+Use today's date: ${dateStr}. NEVER use a past year.
+
+${sharedBlockRules()}`;
+}
+
+function buildSqueezePrompt({ productContext, affiliateLink, dateStr, year }) {
+   return `You are an expert lead generation copywriter. Create a high-converting squeeze/email capture page.
+
+TODAY'S DATE: ${dateStr}
+CURRENT YEAR: ${year}
+
+${productContext}
+AFFILIATE LINK: ${affiliateLink}
+
+Write a COMPLETE squeeze page with this EXACT structure. Each numbered item is a SEPARATE top-level HTML element:
+
+1. <h1> — Bold, benefit-driven headline (centered, large font). Focus on what the visitor gets for free.
+2. <p> — Short supporting subheadline reinforcing the value
+3. <div> — Image placeholder for lead magnet cover (data-media-slot="hero")
+4. <ul> — 4-5 bullet points with checkmark emojis describing what they'll learn/get
+5. <div> — Email opt-in form with name field, email field, and submit button. Use a bold gradient background. The form should have the class "at-optin-form" and action="#".
+6. <p> — Privacy reassurance (e.g. "We respect your privacy. Unsubscribe anytime.")
+7. <p> — Small disclaimer footer
+
+Keep it SHORT and focused — squeeze pages should be concise. Maximum 400 words.
+Use vibrant gradient backgrounds for the opt-in section.
+The CTA button on the form should say something compelling like "Send Me The Free Guide"
+All links point to: ${affiliateLink}
+Use today's date: ${dateStr}. NEVER use a past year.
+
+${sharedBlockRules()}`;
+}
+
 // ─── Pass 2: Generate page content ─────────────────────────────
 async function generateArticlePage({ productName, productDescription, affiliateLink, style = 'review_article', emailSwipes = '', existingContent = '', productIntel = null }) {
-    const apiKey = process.env.GEMINI_API_KEY || await getSetting('gemini_api_key');
-    if (!apiKey) throw new Error('Gemini API key not configured. Add it in Admin Settings.');
+   const apiKey = process.env.GEMINI_API_KEY || await getSetting('gemini_api_key');
+   if (!apiKey) throw new Error('Gemini API key not configured. Add it in Admin Settings.');
 
-    const today = new Date();
-    const dateStr = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    const year = today.getFullYear();
-    const productContext = buildProductContext(productName, productDescription, productIntel);
+   const today = new Date();
+   const dateStr = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+   const year = today.getFullYear();
+   const productContext = buildProductContext(productName, productDescription, productIntel);
 
-    const promptArgs = { productContext, affiliateLink, dateStr, year, emailSwipes, existingContent };
+   const promptArgs = { productContext, affiliateLink, dateStr, year, emailSwipes, existingContent };
 
-    // Pick the right prompt builder based on style
-    let prompt;
-    let maxTokens = 32768;
+   // Pick the right prompt builder based on style
+   let prompt;
+   let maxTokens = 32768;
 
-    if (existingContent) {
-        prompt = buildImprovePrompt(promptArgs);
-        maxTokens = 32768;
-    } else {
-        switch (style) {
-            case 'video_presell':
-                prompt = buildVideoPresellPrompt(promptArgs);
-                maxTokens = 4096;  // Short page
-                break;
-            case 'social_bridge':
-                prompt = buildSocialBridgePrompt(promptArgs);
-                maxTokens = 4096;  // Short page
-                break;
-            case 'lead_magnet':
-                prompt = buildLeadMagnetPrompt(promptArgs);
-                maxTokens = 8192;  // Medium page
-                break;
-            case 'listicle':
-                prompt = buildListiclePrompt(promptArgs);
-                maxTokens = 16384; // Medium-long page
-                break;
-            case 'blog_post':
-                prompt = buildBlogPostPrompt(promptArgs);
-                maxTokens = 32768; // Long page
-                break;
-            case 'advertorial':
-            case 'health_review':
-            case 'review_article':
-            default:
-                prompt = buildReviewArticlePrompt(promptArgs);
-                maxTokens = 32768; // Long page
-                break;
-        }
-    }
+   if (existingContent) {
+      prompt = buildImprovePrompt(promptArgs);
+      maxTokens = 32768;
+   } else {
+      switch (style) {
+         case 'video_presell':
+         case 'vsl_classic':
+            prompt = buildVideoPresellPrompt(promptArgs);
+            maxTokens = 4096;
+            break;
+         case 'social_bridge':
+         case 'social_tiktok':
+         case 'social_instagram':
+            prompt = buildSocialBridgePrompt(promptArgs);
+            maxTokens = 4096;
+            break;
+         case 'lead_magnet':
+         case 'lead_minimal':
+         case 'lead_webinar':
+            prompt = buildLeadMagnetPrompt(promptArgs);
+            maxTokens = 8192;
+            break;
+         case 'squeeze_quick':
+         case 'squeeze_countdown':
+            prompt = buildSqueezePrompt(promptArgs);
+            maxTokens = 4096;
+            break;
+         case 'listicle':
+         case 'listicle_numbered':
+         case 'listicle_comparison':
+            prompt = buildListiclePrompt(promptArgs);
+            maxTokens = 16384;
+            break;
+         case 'blog_post':
+         case 'blog_editorial':
+         case 'blog_pinterest':
+            prompt = buildBlogPostPrompt(promptArgs);
+            maxTokens = 32768;
+            break;
+         case 'comparison_showdown':
+            prompt = buildComparisonPrompt(promptArgs);
+            maxTokens = 16384;
+            break;
+         case 'advertorial':
+         case 'health_review':
+         case 'review_article':
+         case 'review_clean':
+         case 'review_authority':
+         case 'review_urgent':
+         default:
+            prompt = buildReviewArticlePrompt(promptArgs);
+            maxTokens = 32768;
+            break;
+      }
+   }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-                temperature: 0.85,
-                maxOutputTokens: maxTokens,
-            },
-        }),
-    });
+   const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+         contents: [{ parts: [{ text: prompt }] }],
+         generationConfig: {
+            temperature: 0.85,
+            maxOutputTokens: maxTokens,
+         },
+      }),
+   });
 
-    if (!response.ok) {
-        const err = await response.text();
-        console.error('Gemini API error:', err);
-        throw new Error(`Gemini API error: ${response.status}`);
-    }
+   if (!response.ok) {
+      const err = await response.text();
+      console.error('Gemini API error:', err);
+      throw new Error(`Gemini API error: ${response.status}`);
+   }
 
-    const data = await response.json();
-    let html = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+   const data = await response.json();
+   let html = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    // Clean up any markdown code fences if present
-    html = html.replace(/^```html?\s*/i, '').replace(/```\s*$/i, '').trim();
+   // Clean up any markdown code fences if present
+   html = html.replace(/^```html?\s*/i, '').replace(/```\s*$/i, '').trim();
 
-    return html;
+   return html;
 }
 
 module.exports = { generateArticlePage, extractProductIntelligence };

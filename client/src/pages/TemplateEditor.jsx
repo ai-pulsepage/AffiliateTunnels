@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+﻿import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { funnelApi, publishApi, aiApi } from '../lib/api';
+import { PAGE_TEMPLATES, TEMPLATE_CATEGORIES } from '../lib/pageTemplates';
 import MediaPicker from '../components/MediaPicker';
 import BlockSettingsPanel from '../components/BlockSettingsPanel';
 import {
@@ -28,106 +29,6 @@ const BLOCK_TYPES = [
     { type: 'product', label: 'Product Card', icon: Package, html: '<div style="display:flex;gap:20px;padding:20px;border:2px solid #e63946;border-radius:12px;align-items:center;margin:24px 0;"><img src="" alt="Product" style="width:120px;height:120px;object-fit:cover;border-radius:8px;background:#f5f5f5;"><div><h3 style="margin-bottom:4px;">Product Name</h3><p style="color:#666;font-size:14px;margin-bottom:12px;">Brief description of what this product does.</p><a href="#" style="display:inline-block;padding:10px 24px;background:#e63946;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:14px;">Learn More →</a></div></div>' },
 ];
 
-// ─── PAGE TEMPLATES (pre-built block arrangements) ────────────
-const PAGE_TEMPLATES = {
-    advertorial: {
-        name: 'Advertorial',
-        desc: 'News article — byline, expert quotes, body text, CTA',
-        emoji: '📰',
-        traffic: ['native'],
-        blocks: (hoplink) => [
-            { type: 'text', html: '<div style="background:#f0f0f0;padding:8px;text-align:center;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;">Advertisement</div>' },
-            { type: 'heading', html: '<h1 style="font-size:32px;font-weight:700;line-height:1.2;color:#111;margin:0 0 8px;">Breakthrough Discovery Shocks Health Experts</h1>' },
-            { type: 'text', html: `<p style="font-size:14px;color:#888;">By Health Desk · Updated ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>` },
-            { type: 'image', html: '<div data-media-slot="hero" style="text-align:center;padding:20px;background:#f5f5f5;border-radius:8px;margin:16px 0;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add hero image</span></div>' },
-            { type: 'text', html: '<p style="font-size:18px;color:#444;line-height:1.8;">Scientists have uncovered a remarkable natural compound that is changing the way millions of people approach their daily health routine. The results have been nothing short of extraordinary.</p>' },
-            { type: 'quote', html: '<blockquote style="border-left:4px solid #e63946;padding:16px 20px;margin:28px 0;background:#fdf0f0;font-style:italic;border-radius:0 8px 8px 0;"><p style="margin:0;font-size:16px;color:#555;">"The results we are seeing are truly remarkable. This could change everything."</p><p style="margin:8px 0 0;font-size:13px;color:#888;">— Dr. Sarah Mitchell, Research Director</p></blockquote>' },
-            { type: 'text', html: '<div style="font-size:17px;color:#444;line-height:1.8;"><p>For years, researchers have been searching for a natural solution that could support overall wellness without harsh side effects.</p><p style="margin-top:16px;">Now, a small team of scientists has developed a formula that combines ancient botanical wisdom with modern scientific research.</p><h2 style="font-size:22px;color:#222;margin:32px 0 16px;">How Does It Work?</h2><p>The formula works by targeting the root cause rather than just masking symptoms, producing more sustainable results.</p></div>' },
-            { type: 'image', html: '<div data-media-slot="mid" style="text-align:center;padding:20px;background:#f5f5f5;border-radius:8px;margin:16px 0;min-height:150px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add image</span></div>' },
-            { type: 'button', html: `<div style="background:linear-gradient(135deg,#e63946,#d62828);border-radius:12px;padding:32px;text-align:center;margin:32px 0;"><p style="font-size:20px;color:#fff;font-weight:700;margin:0 0 8px;">Ready to Experience the Difference?</p><p style="font-size:15px;color:rgba(255,255,255,0.85);margin:0 0 20px;">Join thousands who have already transformed their health.</p><a href="${hoplink}" style="display:inline-block;padding:16px 48px;background:#fff;color:#d62828;font-size:18px;font-weight:700;border-radius:8px;text-decoration:none;">Learn More →</a></div>` },
-            { type: 'text', html: '<p style="font-size:12px;color:#bbb;text-align:center;margin-top:40px;border-top:1px solid #eee;padding-top:16px;">This is an advertisement. Individual results may vary.</p>' },
-        ],
-    },
-    video_presell: {
-        name: 'Video Presell',
-        desc: 'Hero video with headline, body text, and CTA',
-        emoji: '🎬',
-        traffic: ['facebook', 'youtube'],
-        blocks: (hoplink) => [
-            { type: 'heading', html: '<h1 style="font-size:28px;font-weight:800;text-align:center;line-height:1.3;color:#111;margin:0 0 8px;">Watch: The 30-Second Morning Ritual That Changed Everything</h1>' },
-            { type: 'text', html: '<p style="text-align:center;font-size:16px;color:#666;margin:0 0 24px;">Over 2 million people have already seen this video. Here\'s why it matters.</p>' },
-            { type: 'video', html: '<div data-media-slot="hero" style="text-align:center;padding:40px;background:#000;border-radius:12px;min-height:380px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#666;font-size:16px;">▶ Click to add video</span></div>' },
-            { type: 'text', html: '<div style="font-size:17px;line-height:1.7;color:#444;"><p>This short video reveals a surprisingly simple technique that leading health researchers say could be the key to unlocking your body\'s natural potential.</p><p style="margin-top:16px;"><strong>Here\'s what people are saying:</strong></p><ul style="padding-left:20px;"><li style="margin-bottom:8px;">"I noticed a difference within the first week" — Maria T.</li><li style="margin-bottom:8px;">"My energy levels are through the roof" — James K.</li><li style="margin-bottom:8px;">"I wish I had found this sooner" — Linda S.</li></ul></div>' },
-            { type: 'button', html: `<div style="background:#111;border-radius:12px;padding:36px;text-align:center;margin:32px 0;"><p style="font-size:22px;color:#fff;font-weight:700;margin:0 0 12px;">Get Instant Access Now</p><p style="font-size:14px;color:rgba(255,255,255,0.6);margin:0 0 20px;">Limited time offer. 60-day money-back guarantee.</p><a href="${hoplink}" style="display:inline-block;padding:18px 56px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:20px;font-weight:700;border-radius:10px;text-decoration:none;">Yes, I Want This! →</a></div>` },
-            { type: 'text', html: '<p style="font-size:12px;color:#bbb;text-align:center;margin-top:32px;">This is an advertisement. Individual results may vary.</p>' },
-        ],
-    },
-    listicle: {
-        name: 'Listicle',
-        desc: '"7 Reasons Why..." numbered article with CTA',
-        emoji: '📝',
-        traffic: ['native', 'seo'],
-        blocks: (hoplink) => [
-            { type: 'text', html: '<p style="font-size:13px;font-weight:600;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">HEALTH & WELLNESS</p>' },
-            { type: 'heading', html: '<h1 style="font-size:30px;font-weight:800;line-height:1.25;color:#111;margin:0 0 16px;">7 Reasons Why Thousands Are Switching to This Natural Solution</h1>' },
-            { type: 'text', html: '<p style="font-size:17px;color:#666;margin:0 0 28px;line-height:1.6;">Experts say this little-known natural compound could be the most significant discovery in years.</p>' },
-            { type: 'image', html: '<div data-media-slot="hero" style="text-align:center;padding:20px;background:#f5f5f5;border-radius:10px;margin:0 0 28px;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add hero image</span></div>' },
-            { type: 'text', html: '<div style="font-size:17px;line-height:1.7;color:#444;"><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">1. It\'s Backed by Clinical Research</h2><p>Multiple peer-reviewed studies have confirmed the effectiveness of the key ingredients.</p><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">2. No Harsh Side Effects</h2><p>Users report virtually zero negative side effects.</p><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">3. Results in as Little as 2 Weeks</h2><p>Participants reported noticeable improvements within the first 14 days.</p><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">4. 100% Natural Ingredients</h2><p>Every ingredient is sourced from nature and tested for purity.</p><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">5. Easy to Use</h2><p>Just take it once a day — no complicated routines needed.</p><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">6. Affordable</h2><p>Costs a fraction of the price of alternatives with better results.</p><h2 style="font-size:20px;color:#111;margin:28px 0 12px;">7. 60-Day Money-Back Guarantee</h2><p>Try it risk-free. If not satisfied, get a full refund.</p></div>' },
-            { type: 'button', html: `<div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);border-radius:12px;padding:36px;text-align:center;margin:36px 0;"><p style="font-size:22px;color:#fff;font-weight:700;margin:0 0 10px;">Ready to Try It Risk-Free?</p><p style="font-size:15px;color:rgba(255,255,255,0.8);margin:0 0 20px;">Click below to see today's exclusive pricing.</p><a href="${hoplink}" style="display:inline-block;padding:16px 52px;background:#fff;color:#6d28d9;font-size:18px;font-weight:700;border-radius:8px;text-decoration:none;">See Special Pricing →</a></div>` },
-            { type: 'text', html: '<p style="font-size:12px;color:#bbb;text-align:center;margin-top:32px;">This is an advertisement. Individual results may vary.</p>' },
-        ],
-    },
-    social_bridge: {
-        name: 'Social Bridge',
-        desc: 'Short punchy presell for Facebook/TikTok/Instagram traffic',
-        emoji: '📱',
-        traffic: ['facebook', 'tiktok', 'instagram'],
-        blocks: (hoplink) => [
-            { type: 'heading', html: '<h1 style="font-size:32px;font-weight:800;text-align:center;color:#111;line-height:1.2;margin:0 0 16px;">🔥 This Changed EVERYTHING For Me</h1>' },
-            { type: 'text', html: '<p style="text-align:center;font-size:18px;color:#555;margin:0 0 24px;">I was skeptical too. Then I tried it for myself...</p>' },
-            { type: 'video', html: '<div data-media-slot="hero" style="text-align:center;padding:60px;background:#000;border-radius:16px;min-height:380px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#666;font-size:16px;">▶ Click to add video</span></div>' },
-            { type: 'list', html: '<ul style="padding:24px;font-size:18px;line-height:2;list-style:none;"><li>✅ Works in as little as 7 days</li><li>✅ 100% natural — no side effects</li><li>✅ Over 50,000 happy customers</li><li>✅ 60-day money-back guarantee</li></ul>' },
-            { type: 'text', html: '<p style="text-align:center;font-size:17px;color:#444;margin:0 0 8px;"><strong>Don\'t just take my word for it.</strong> See the results for yourself 👇</p>' },
-            { type: 'button', html: `<div style="text-align:center;padding:24px;"><a href="${hoplink}" style="display:inline-block;padding:20px 60px;background:linear-gradient(135deg,#e63946,#d62828);color:#fff;font-size:22px;font-weight:800;border-radius:12px;text-decoration:none;box-shadow:0 4px 20px rgba(230,57,70,0.3);">👉 YES, Show Me! →</a></div>` },
-            { type: 'text', html: '<p style="text-align:center;font-size:12px;color:#bbb;">Results may vary. This is an advertisement.</p>' },
-        ],
-    },
-    lead_magnet: {
-        name: 'Lead Magnet',
-        desc: 'Email capture page with value prop and opt-in form',
-        emoji: '🎁',
-        traffic: ['tiktok', 'instagram', 'facebook'],
-        blocks: (hoplink) => [
-            { type: 'heading', html: '<h1 style="font-size:30px;font-weight:800;text-align:center;color:#111;line-height:1.3;margin:0 0 12px;">FREE: The Ultimate Guide to [Your Niche]</h1>' },
-            { type: 'text', html: '<p style="text-align:center;font-size:17px;color:#666;max-width:540px;margin:0 auto 24px;">Download our step-by-step guide and discover the secrets that experts don\'t want you to know.</p>' },
-            { type: 'image', html: '<div data-media-slot="hero" style="text-align:center;padding:30px;background:#f5f5f5;border-radius:12px;margin:0 0 24px;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add lead magnet cover image</span></div>' },
-            { type: 'list', html: '<ul style="padding-left:24px;font-size:16px;line-height:1.8;max-width:480px;margin:0 auto 24px;color:#444;"><li style="margin-bottom:8px;">The #1 mistake 90% of people make</li><li style="margin-bottom:8px;">3 proven strategies that actually work</li><li style="margin-bottom:8px;">Expert tips from industry leaders</li><li style="margin-bottom:8px;">Action plan you can start today</li></ul>' },
-            { type: 'optin', html: '<div style="text-align:center;padding:36px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:12px;color:#fff;margin:24px 0;"><h3 style="font-size:22px;margin-bottom:8px;">Get Your Free Copy Now</h3><p style="margin-bottom:20px;opacity:0.9;font-size:15px;">Enter your email and we\'ll send it right over.</p><div style="max-width:360px;margin:0 auto;"><input type="text" placeholder="Your name" style="width:100%;padding:14px;border:none;border-radius:8px;margin-bottom:10px;font-size:15px;"><input type="email" placeholder="Your email address" style="width:100%;padding:14px;border:none;border-radius:8px;margin-bottom:10px;font-size:15px;"><button style="width:100%;padding:16px;background:#e63946;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:16px;cursor:pointer;">Send Me The Guide →</button></div><p style="font-size:11px;margin-top:12px;opacity:0.7;">We respect your privacy. Unsubscribe anytime.</p></div>' },
-        ],
-    },
-    blog_post: {
-        name: 'Blog Post',
-        desc: 'SEO-optimized blog article with sections, images, and CTA',
-        emoji: '📝',
-        traffic: ['seo', 'pinterest'],
-        blocks: (hoplink) => [
-            { type: 'text', html: '<p style="font-size:13px;font-weight:600;color:#2563eb;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">HEALTH & WELLNESS</p>' },
-            { type: 'heading', html: '<h1 style="font-size:34px;font-weight:800;line-height:1.25;color:#111;margin:0 0 12px;">The Complete Guide to [Your Topic]: Everything You Need to Know</h1>' },
-            { type: 'text', html: `<p style="font-size:14px;color:#888;margin:0 0 24px;">Published ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · 8 min read</p>` },
-            { type: 'image', html: '<div data-media-slot="hero" style="text-align:center;padding:20px;background:#f5f5f5;border-radius:10px;margin:0 0 28px;min-height:220px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add featured image</span></div>' },
-            { type: 'text', html: '<div style="font-size:17px;line-height:1.8;color:#444;"><p>If you\'ve been searching for answers about [your topic], you\'re not alone. Millions of people struggle with this every day, and the information out there can be overwhelming.</p><p style="margin-top:16px;">In this comprehensive guide, we\'ll break down everything you need to know — from the basics to advanced strategies that actually work.</p></div>' },
-            { type: 'text', html: '<div style="font-size:17px;line-height:1.8;color:#444;"><h2 style="font-size:24px;color:#111;margin:36px 0 16px;">What Causes [The Problem]?</h2><p>Understanding the root cause is the first step toward finding a real solution. Research from leading universities has shown that the primary factors include:</p><ul style="padding-left:24px;margin:16px 0;"><li style="margin-bottom:10px;">Factor one — supported by clinical evidence</li><li style="margin-bottom:10px;">Factor two — often overlooked by mainstream advice</li><li style="margin-bottom:10px;">Factor three — the most recent discovery in the field</li></ul></div>' },
-            { type: 'image', html: '<div data-media-slot="mid" style="text-align:center;padding:20px;background:#f5f5f5;border-radius:10px;margin:16px 0;min-height:180px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add supporting image</span></div>' },
-            { type: 'text', html: '<div style="font-size:17px;line-height:1.8;color:#444;"><h2 style="font-size:24px;color:#111;margin:36px 0 16px;">The Natural Solution That\'s Changing Everything</h2><p>While there are many options available, one natural approach has been gaining significant attention from both researchers and everyday people.</p><p style="margin-top:16px;">This method works by addressing the underlying cause rather than just treating symptoms, which is why users report more sustainable, long-lasting results.</p></div>' },
-            { type: 'quote', html: '<blockquote style="border-left:4px solid #2563eb;padding:16px 20px;margin:28px 0;background:#eff6ff;font-style:italic;border-radius:0 8px 8px 0;"><p style="margin:0;font-size:16px;color:#555;">"After trying dozens of solutions, this was the first thing that actually made a noticeable difference in how I feel every day."</p><p style="margin:8px 0 0;font-size:13px;color:#888;">— Verified Customer</p></blockquote>' },
-            { type: 'button', html: `<div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:12px;padding:32px;text-align:center;margin:32px 0;"><p style="font-size:18px;color:#fff;font-weight:700;margin:0 0 8px;">Want to Learn More?</p><p style="font-size:14px;color:rgba(255,255,255,0.8);margin:0 0 16px;">See why thousands of people are making the switch.</p><a href="${hoplink}" style="display:inline-block;padding:14px 44px;background:#fff;color:#1d4ed8;font-size:16px;font-weight:700;border-radius:8px;text-decoration:none;">See the Official Website →</a></div>` },
-            { type: 'text', html: '<div style="font-size:17px;line-height:1.8;color:#444;"><h2 style="font-size:24px;color:#111;margin:36px 0 16px;">How to Get Started</h2><p>Getting started is simple. Here\'s what you need to do:</p><ol style="padding-left:24px;margin:16px 0;"><li style="margin-bottom:10px;"><strong>Step 1:</strong> Visit the official website to learn about available options</li><li style="margin-bottom:10px;"><strong>Step 2:</strong> Choose the package that fits your needs</li><li style="margin-bottom:10px;"><strong>Step 3:</strong> Follow the simple daily routine for best results</li></ol></div>' },
-            { type: 'text', html: '<div style="font-size:17px;line-height:1.8;color:#444;"><h2 style="font-size:24px;color:#111;margin:36px 0 16px;">The Bottom Line</h2><p>If you\'ve been struggling with [your topic] and haven\'t found a solution that works, this natural approach is worth exploring. With a 60-day money-back guarantee, there\'s no risk in giving it a try.</p></div>' },
-            { type: 'button', html: `<div style="text-align:center;padding:24px;"><a href="${hoplink}" style="display:inline-block;padding:18px 56px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:20px;font-weight:700;border-radius:10px;text-decoration:none;box-shadow:0 4px 20px rgba(37,99,235,0.3);">Try It Risk-Free →</a></div>` },
-            { type: 'text', html: '<p style="font-size:12px;color:#bbb;text-align:center;margin-top:40px;border-top:1px solid #eee;padding-top:16px;">Disclaimer: This article contains affiliate links. Individual results may vary.</p>' },
-        ],
-    },
-};
 
 // ─── GATE POPUP HTML ──────────────────────────
 function gatePopupHtml(funnelId, pageId) {
@@ -189,6 +90,7 @@ export default function TemplateEditor() {
     const [publishing, setPublishing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [showTemplates, setShowTemplates] = useState(false);
+    const [templateCat, setTemplateCat] = useState('all');
 
     // Link editor state
     const [showLinkEditor, setShowLinkEditor] = useState(false);
@@ -992,34 +894,52 @@ export default function TemplateEditor() {
             {/* Template Picker Modal */}
             {showTemplates && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowTemplates(false)}>
-                    <div className="bg-[#1a1d27] rounded-2xl w-full max-w-2xl border border-white/10 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+                    <div className="bg-[#1a1d27] rounded-2xl w-full max-w-3xl border border-white/10 shadow-2xl animate-slide-up max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 flex-shrink-0">
                             <h2 className="text-lg font-bold text-white">Choose Template</h2>
                             <button onClick={() => setShowTemplates(false)} className="p-1 hover:bg-white/5 rounded"><X className="w-4 h-4 text-gray-400" /></button>
                         </div>
-                        <div className="p-6 grid grid-cols-2 gap-3">
-                            {Object.entries(PAGE_TEMPLATES).map(([key, tpl]) => (
+                        {/* Category tabs */}
+                        <div className="flex gap-1.5 px-6 py-3 border-b border-white/5 flex-shrink-0 overflow-x-auto">
+                            <button
+                                onClick={() => setTemplateCat('all')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${templateCat === 'all' ? 'bg-brand-500/20 text-brand-400 ring-1 ring-brand-500/30' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                            >All Templates</button>
+                            {Object.entries(TEMPLATE_CATEGORIES).map(([key, cat]) => (
                                 <button
                                     key={key}
-                                    onClick={() => selectTemplate(key)}
-                                    className="text-left p-4 rounded-xl border border-white/5 hover:border-brand-500/50 hover:bg-white/5 transition-all"
-                                >
-                                    <div className="flex items-center gap-2.5 mb-1.5">
-                                        <span className="text-xl">{tpl.emoji}</span>
-                                        <span className="text-sm font-bold text-white">{tpl.name}</span>
-                                    </div>
-                                    <p className="text-xs text-gray-500 mb-2">{tpl.desc}</p>
-                                    <div className="flex gap-1 flex-wrap">
-                                        {tpl.traffic.map(t => (
-                                            <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-gray-500">{t}</span>
-                                        ))}
-                                    </div>
-                                </button>
+                                    onClick={() => setTemplateCat(key)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${templateCat === key ? 'bg-brand-500/20 text-brand-400 ring-1 ring-brand-500/30' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                                >{cat.emoji} {cat.label}</button>
                             ))}
+                        </div>
+                        {/* Template grid */}
+                        <div className="p-6 grid grid-cols-2 gap-3 overflow-y-auto flex-1">
+                            {Object.entries(PAGE_TEMPLATES)
+                                .filter(([, tpl]) => templateCat === 'all' || tpl.category === templateCat)
+                                .map(([key, tpl]) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => selectTemplate(key)}
+                                        className="text-left p-4 rounded-xl border border-white/5 hover:border-brand-500/50 hover:bg-white/5 transition-all"
+                                    >
+                                        <div className="flex items-center gap-2.5 mb-1.5">
+                                            <span className="text-xl">{tpl.emoji}</span>
+                                            <span className="text-sm font-bold text-white">{tpl.name}</span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mb-2">{tpl.desc}</p>
+                                        <div className="flex gap-1 flex-wrap">
+                                            {tpl.traffic.map(t => (
+                                                <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-gray-500">{t}</span>
+                                            ))}
+                                        </div>
+                                    </button>
+                                ))}
                         </div>
                     </div>
                 </div>
             )}
+
 
             {/* AI Modal */}
             {showAi && (
@@ -1052,13 +972,37 @@ export default function TemplateEditor() {
                                 <div>
                                     <label className="block text-xs font-medium text-gray-400 mb-1">Page Style</label>
                                     <select value={aiForm.style} onChange={e => setAiForm(f => ({ ...f, style: e.target.value }))} className="input-field text-sm">
-                                        <option value="review_article">📰 Review Article (Deep Review)</option>
-                                        <option value="advertorial">📰 Advertorial (News-style)</option>
-                                        <option value="video_presell">🎬 Video Presell</option>
-                                        <option value="listicle">📝 Listicle</option>
-                                        <option value="social_bridge">📱 Social Bridge</option>
-                                        <option value="lead_magnet">🎁 Lead Magnet</option>
-                                        <option value="blog_post">✍️ Blog Post (SEO)</option>
+                                        <optgroup label="Bridge / Review">
+                                            <option value="review_clean">📰 Clean Editorial Review</option>
+                                            <option value="review_authority">🏅 Authority Expert Review</option>
+                                            <option value="review_urgent">🔥 Urgent/Scarcity Review</option>
+                                        </optgroup>
+                                        <optgroup label="Listicle">
+                                            <option value="listicle_numbered">📝 Numbered Benefits</option>
+                                            <option value="listicle_comparison">📊 Comparison Chart</option>
+                                        </optgroup>
+                                        <optgroup label="Social Bridge">
+                                            <option value="social_tiktok">📱 TikTok Viral</option>
+                                            <option value="social_instagram">📸 Instagram Clean</option>
+                                        </optgroup>
+                                        <optgroup label="Lead Magnet">
+                                            <option value="lead_minimal">🎁 Minimal Opt-in</option>
+                                            <option value="lead_webinar">🎓 Webinar Registration</option>
+                                        </optgroup>
+                                        <optgroup label="Blog Post">
+                                            <option value="blog_editorial">✍️ Editorial Long-form</option>
+                                            <option value="blog_pinterest">📌 Pinterest Optimized</option>
+                                        </optgroup>
+                                        <optgroup label="Video / VSL">
+                                            <option value="vsl_classic">🎬 Video Sales Letter</option>
+                                        </optgroup>
+                                        <optgroup label="Comparison">
+                                            <option value="comparison_showdown">⚔️ Product Showdown</option>
+                                        </optgroup>
+                                        <optgroup label="Squeeze Page">
+                                            <option value="squeeze_quick">⚡ Quick Capture</option>
+                                            <option value="squeeze_countdown">⏰ Countdown Squeeze</option>
+                                        </optgroup>
                                     </select>
                                 </div>
                             )}
