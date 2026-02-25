@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { funnelApi, publishApi, aiApi } from '../lib/api';
 import MediaPicker from '../components/MediaPicker';
+import BlockSettingsPanel from '../components/BlockSettingsPanel';
 import {
     ArrowLeft, Save, Globe, Sparkles, ToggleLeft, ToggleRight,
     Link2, X, Copy, ExternalLink, Loader2, Type, AlignLeft, Image, Video,
@@ -333,13 +334,36 @@ export default function TemplateEditor() {
     }
 
     function blocksToHtml() {
-        let html = blocks.map(b =>
-            `<div data-block-type="${b.type}" data-block-id="${b.id}">${b.html}</div>`
-        ).join('\n');
+        let html = blocks.map(b => {
+            const s = b.styles || {};
+            const styleStr = buildStyleString(s);
+            const visClass = s.visibility === 'desktop' ? ' class="hide-on-mobile"' : s.visibility === 'mobile' ? ' class="hide-on-desktop"' : '';
+            return `<div data-block-type="${b.type}" data-block-id="${b.id}"${visClass}${styleStr ? ` style="${styleStr}"` : ''}>${b.html}</div>`;
+        }).join('\n');
+        // Add responsive visibility CSS
+        html = `<style>.hide-on-mobile{display:block}@media(max-width:768px){.hide-on-mobile{display:none!important}.hide-on-desktop{display:block!important}}.hide-on-desktop{display:none}</style>\n` + html;
         if (gateEnabled) {
             html += gatePopupHtml(funnelId, pageId);
         }
         return html;
+    }
+
+    function buildStyleString(s) {
+        const parts = [];
+        if (s.backgroundColor) parts.push(`background-color:${s.backgroundColor}`);
+        if (s.borderRadius) parts.push(`border-radius:${s.borderRadius}`);
+        if (s.borderWidth) parts.push(`border:${s.borderWidth} solid ${s.borderColor || '#e5e7eb'}`);
+        if (s.paddingTop) parts.push(`padding-top:${s.paddingTop}`);
+        if (s.paddingRight) parts.push(`padding-right:${s.paddingRight}`);
+        if (s.paddingBottom) parts.push(`padding-bottom:${s.paddingBottom}`);
+        if (s.paddingLeft) parts.push(`padding-left:${s.paddingLeft}`);
+        if (s.marginTop) parts.push(`margin-top:${s.marginTop}`);
+        if (s.marginBottom) parts.push(`margin-bottom:${s.marginBottom}`);
+        if (s.fontSize) parts.push(`font-size:${s.fontSize}`);
+        if (s.color) parts.push(`color:${s.color}`);
+        if (s.textAlign) parts.push(`text-align:${s.textAlign}`);
+        if (s.lineHeight) parts.push(`line-height:${s.lineHeight}`);
+        return parts.join(';');
     }
 
     function addBlock(type, afterIndex = -1) {
@@ -392,6 +416,22 @@ export default function TemplateEditor() {
 
     function updateBlockHtml(idx, html) {
         setBlocks(prev => prev.map((b, i) => i === idx ? { ...b, html } : b));
+    }
+
+    function updateBlockStyles(idx, styles) {
+        setBlocks(prev => prev.map((b, i) => i === idx ? { ...b, styles } : b));
+    }
+
+    function duplicateBlock(idx) {
+        setBlocks(prev => {
+            const block = prev[idx];
+            if (!block) return prev;
+            const dup = { ...block, id: genId(), styles: block.styles ? { ...block.styles } : {} };
+            const next = [...prev];
+            next.splice(idx + 1, 0, dup);
+            return next;
+        });
+        setActiveBlockIdx(idx + 1);
     }
 
     // Drag handlers
@@ -722,12 +762,28 @@ export default function TemplateEditor() {
                             <div
                                 key={block.id}
                                 data-block-idx={idx}
-                                className={`group relative ${dragIdx === idx ? 'opacity-40' : ''}`}
+                                className={`group relative ${dragIdx === idx ? 'opacity-40' : ''} ${activeBlockIdx === idx ? 'ring-2 ring-brand-500/40 rounded-lg' : ''}`}
+                                style={block.styles ? {
+                                    backgroundColor: block.styles.backgroundColor || undefined,
+                                    borderRadius: block.styles.borderRadius || undefined,
+                                    border: block.styles.borderWidth ? `${block.styles.borderWidth} solid ${block.styles.borderColor || '#e5e7eb'}` : undefined,
+                                    paddingTop: block.styles.paddingTop || undefined,
+                                    paddingRight: block.styles.paddingRight || undefined,
+                                    paddingBottom: block.styles.paddingBottom || undefined,
+                                    paddingLeft: block.styles.paddingLeft || undefined,
+                                    marginTop: block.styles.marginTop || undefined,
+                                    marginBottom: block.styles.marginBottom || undefined,
+                                    fontSize: block.styles.fontSize || undefined,
+                                    color: block.styles.color || undefined,
+                                    textAlign: block.styles.textAlign || undefined,
+                                    lineHeight: block.styles.lineHeight || undefined,
+                                } : undefined}
                                 draggable
                                 onDragStart={e => handleDragStart(e, idx)}
                                 onDragOver={e => handleDragOver(e, idx)}
                                 onDragEnd={handleDragEnd}
                                 onDrop={e => handleDrop(e, idx)}
+                                onClick={() => setActiveBlockIdx(idx)}
                             >
                                 {dropIdx === idx && dragIdx !== idx && (
                                     <div className="absolute -top-1 left-0 right-0 h-0.5 bg-blue-500 rounded-full z-10" />
@@ -743,6 +799,9 @@ export default function TemplateEditor() {
                                     </button>
                                     <button onClick={() => moveBlock(idx, 1)} className="p-1 hover:bg-gray-100 rounded" title="Move down">
                                         <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                                    </button>
+                                    <button onClick={() => duplicateBlock(idx)} className="p-1 hover:bg-blue-50 rounded" title="Duplicate">
+                                        <Copy className="w-3.5 h-3.5 text-blue-400" />
                                     </button>
                                     <button onClick={() => deleteBlock(idx)} className="p-1 hover:bg-red-50 rounded" title="Delete">
                                         <Trash2 className="w-3.5 h-3.5 text-red-400" />
@@ -878,15 +937,30 @@ export default function TemplateEditor() {
                                     </div>
                                 )}
 
-                                {/* Insert between blocks */}
-                                <div className="flex items-center justify-center h-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                        onClick={() => addBlock('text', idx)}
-                                        className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm hover:bg-blue-600"
-                                        title="Insert block below"
-                                    >
-                                        <Plus className="w-3 h-3" />
-                                    </button>
+                                {/* Insert between blocks — full block picker */}
+                                <div className="relative flex items-center justify-center h-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="absolute left-0 right-0 top-1/2 h-px bg-gray-200" />
+                                    <div className="relative group/insert">
+                                        <button
+                                            className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm hover:bg-blue-600 relative z-10"
+                                            title="Insert block here"
+                                        >
+                                            <Plus className="w-3 h-3" />
+                                        </button>
+                                        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover/insert:flex bg-[#1a1d2e] border border-white/10 rounded-lg shadow-2xl p-1.5 gap-1 z-50 whitespace-nowrap">
+                                            {BLOCK_TYPES.map(bt => (
+                                                <button
+                                                    key={bt.type}
+                                                    onClick={() => addBlock(bt.type, idx)}
+                                                    className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded hover:bg-white/10 transition-colors"
+                                                    title={bt.label}
+                                                >
+                                                    <bt.icon className="w-3.5 h-3.5 text-gray-400" />
+                                                    <span className="text-[9px] text-gray-500">{bt.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -902,6 +976,17 @@ export default function TemplateEditor() {
                         )}
                     </div>
                 </div>
+
+                {/* Block Settings Panel (right) */}
+                {activeBlockIdx != null && blocks[activeBlockIdx] && (
+                    <BlockSettingsPanel
+                        block={blocks[activeBlockIdx]}
+                        blockIdx={activeBlockIdx}
+                        onUpdateStyles={updateBlockStyles}
+                        onDuplicate={duplicateBlock}
+                        onClose={() => setActiveBlockIdx(null)}
+                    />
+                )}
             </div>
 
             {/* Template Picker Modal */}
