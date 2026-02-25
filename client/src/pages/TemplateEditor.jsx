@@ -107,8 +107,25 @@ export default function TemplateEditor() {
     const [activeBlockIdx, setActiveBlockIdx] = useState(null);
     // Media resize state
     const [resizeTarget, setResizeTarget] = useState(null); // { blockIdx, element: 'img'|'video' }
+    const savedRangeRef = useRef(null);
 
-    // Drag state
+    // Save current selection whenever it changes (so toolbar dropdowns can restore it)
+    useEffect(() => {
+        function saveSelection() {
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount > 0) {
+                const range = sel.getRangeAt(0);
+                // Only save if selection is inside a contentEditable block
+                const container = range.commonAncestorContainer;
+                const editableParent = container.nodeType === 3 ? container.parentElement?.closest('[contenteditable]') : container.closest?.('[contenteditable]');
+                if (editableParent) {
+                    savedRangeRef.current = range.cloneRange();
+                }
+            }
+        }
+        document.addEventListener('selectionchange', saveSelection);
+        return () => document.removeEventListener('selectionchange', saveSelection);
+    }, []);
     const [dragIdx, setDragIdx] = useState(null);
     const [dropIdx, setDropIdx] = useState(null);
 
@@ -750,10 +767,18 @@ export default function TemplateEditor() {
 
                                     {/* Formatting toolbar — appears when editing this block */}
                                     {activeBlockIdx === idx && ['heading', 'text', 'quote', 'list'].includes(block.type) && (
-                                        <div className="absolute -top-10 left-0 z-40 flex items-center gap-0.5 bg-[#1a1d2e] border border-white/10 rounded-lg px-1.5 py-1 shadow-2xl" onMouseDown={e => e.preventDefault()}>
+                                        <div className="absolute -top-10 left-0 z-40 flex items-center gap-0.5 bg-[#1a1d2e] border border-white/10 rounded-lg px-1.5 py-1 shadow-2xl" onMouseDown={e => { if (e.target.tagName !== 'SELECT' && e.target.tagName !== 'OPTION' && e.target.tagName !== 'INPUT') e.preventDefault(); }}>
                                             <select
+                                                onMouseDown={(e) => { e.stopPropagation(); }}
                                                 onChange={(e) => {
-                                                    document.execCommand('fontName', false, e.target.value);
+                                                    const val = e.target.value;
+                                                    if (savedRangeRef.current) {
+                                                        const sel = window.getSelection();
+                                                        sel.removeAllRanges();
+                                                        sel.addRange(savedRangeRef.current);
+                                                    }
+                                                    document.execCommand('fontName', false, val);
+                                                    e.target.value = '';
                                                 }}
                                                 className="bg-white/10 text-gray-200 text-xs rounded px-1 py-1 border-none outline-none cursor-pointer"
                                                 defaultValue=""
@@ -766,7 +791,19 @@ export default function TemplateEditor() {
                                                 <option value="'Comic Sans MS', cursive">Casual</option>
                                             </select>
                                             <select
-                                                onChange={(e) => { document.execCommand('fontSize', false, '7'); const fontElements = document.querySelectorAll('font[size="7"]'); fontElements.forEach(el => { el.removeAttribute('size'); el.style.fontSize = e.target.value; }); }}
+                                                onMouseDown={(e) => { e.stopPropagation(); }}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    if (savedRangeRef.current) {
+                                                        const sel = window.getSelection();
+                                                        sel.removeAllRanges();
+                                                        sel.addRange(savedRangeRef.current);
+                                                    }
+                                                    document.execCommand('fontSize', false, '7');
+                                                    const fontElements = document.querySelectorAll('font[size="7"]');
+                                                    fontElements.forEach(el => { el.removeAttribute('size'); el.style.fontSize = val; });
+                                                    e.target.value = '';
+                                                }}
                                                 className="bg-white/10 text-gray-200 text-xs rounded px-1 py-1 border-none outline-none cursor-pointer"
                                                 defaultValue=""
                                             >
@@ -786,7 +823,15 @@ export default function TemplateEditor() {
                                             <div className="w-px h-4 bg-white/10 mx-0.5" />
                                             <input
                                                 type="color"
-                                                onChange={(e) => document.execCommand('foreColor', false, e.target.value)}
+                                                onMouseDown={(e) => { e.stopPropagation(); }}
+                                                onChange={(e) => {
+                                                    if (savedRangeRef.current) {
+                                                        const sel = window.getSelection();
+                                                        sel.removeAllRanges();
+                                                        sel.addRange(savedRangeRef.current);
+                                                    }
+                                                    document.execCommand('foreColor', false, e.target.value);
+                                                }}
                                                 className="w-5 h-5 rounded cursor-pointer border-none bg-transparent p-0"
                                                 title="Font Color"
                                                 defaultValue="#000000"
