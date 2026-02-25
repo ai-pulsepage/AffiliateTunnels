@@ -297,13 +297,17 @@ ${plainText}
 Respond in JSON only: {"seo_title": "...", "seo_description": "..."}`;
 
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { maxOutputTokens: 256, temperature: 0.7 },
+                    generationConfig: {
+                        maxOutputTokens: 256,
+                        temperature: 0.7,
+                        responseMimeType: 'application/json',
+                    },
                 }),
             }
         );
@@ -316,7 +320,9 @@ Respond in JSON only: {"seo_title": "...", "seo_description": "..."}`;
 
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        const jsonMatch = text.match(/\{[\s\S]*?\}/);
+        // Strip markdown code fences if present
+        const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         if (!jsonMatch) return res.status(500).json({ error: 'Failed to parse AI response' });
 
         const result = JSON.parse(jsonMatch[0]);
