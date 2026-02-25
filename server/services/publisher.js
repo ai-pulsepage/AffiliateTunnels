@@ -157,12 +157,19 @@ function generatePublishedHTML(page, funnel, pages) {
     }
     /* Media slots (placeholders should be hidden in published) */
     [data-media-slot] span { display: none; }
+    /* Side-by-side layout */
+    .at-sbs-layout { display: flex; gap: 36px; align-items: flex-start; }
+    .at-sbs-left { flex: 0 0 auto; width: 340px; }
+    .at-sbs-right { flex: 1; min-width: 0; }
     /* Responsive */
     @media (max-width: 640px) {
       .page-container { padding: 20px 16px 40px; }
       .page-container h1 { font-size: 26px; }
       .page-container h2 { font-size: 21px; }
       .page-container p { font-size: 16px; }
+      .at-sbs-layout { flex-direction: column; gap: 24px; padding: 20px 16px !important; }
+      .at-sbs-left { width: 100%; }
+      .at-sbs-left img { max-width: 280px; margin: 0 auto; display: block; }
     }
     ${page.css_output || ''}
   </style>

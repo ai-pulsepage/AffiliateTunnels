@@ -14,6 +14,7 @@ export const TEMPLATE_CATEGORIES = [
     { id: 'vsl', label: 'VSL Page', emoji: '🎬', desc: 'Video sales letter with minimal distraction' },
     { id: 'comparison', label: 'Comparison', emoji: '⚖️', desc: 'Product comparison with verdict' },
     { id: 'squeeze', label: 'Squeeze Page', emoji: '🎯', desc: 'Ultra-focused email capture' },
+    { id: 'ad', label: 'Ad Creative', emoji: '📢', desc: 'Split-layout ad-style pages for native, display & social' },
 ];
 
 // ─── TEMPLATES ────────────────────────────────
@@ -496,6 +497,30 @@ export const PAGE_TEMPLATES = {
             { type: 'text', html: '<div style="display:flex;justify-content:center;gap:16px;margin:0 0 32px;"><div style="text-align:center;background:#0f172a;padding:16px 20px;border-radius:12px;min-width:72px;"><p style="font-size:28px;font-weight:800;color:#fff;margin:0;">00</p><p style="font-size:11px;color:#64748b;margin:4px 0 0;text-transform:uppercase;">Hours</p></div><div style="text-align:center;background:#0f172a;padding:16px 20px;border-radius:12px;min-width:72px;"><p style="font-size:28px;font-weight:800;color:#ef4444;margin:0;">47</p><p style="font-size:11px;color:#64748b;margin:4px 0 0;text-transform:uppercase;">Minutes</p></div><div style="text-align:center;background:#0f172a;padding:16px 20px;border-radius:12px;min-width:72px;"><p style="font-size:28px;font-weight:800;color:#fff;margin:0;">23</p><p style="font-size:11px;color:#64748b;margin:4px 0 0;text-transform:uppercase;">Seconds</p></div></div>' },
             { type: 'optin', html: '<div style="max-width:440px;margin:0 auto;padding:36px;background:linear-gradient(135deg,#fef2f2,#fee2e2);border-radius:20px;border:2px solid #fca5a5;"><form data-at-form="optin" style="display:flex;flex-direction:column;gap:10px;"><input type="text" name="name" placeholder="Your Name" style="width:100%;padding:16px 20px;border:1px solid #fca5a5;border-radius:12px;font-size:16px;box-sizing:border-box;" /><input type="email" name="email" placeholder="Your Email" required style="width:100%;padding:16px 20px;border:1px solid #fca5a5;border-radius:12px;font-size:16px;box-sizing:border-box;" /><button type="submit" style="width:100%;padding:18px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:18px;font-weight:700;border:none;border-radius:12px;cursor:pointer;">🔥 Send Me the Free Report →</button></form><p style="text-align:center;color:#9ca3af;font-size:11px;margin:10px 0 0;">🔒 We respect your privacy. Unsubscribe anytime.</p></div>' },
             { type: 'text', html: '<div style="text-align:center;margin-top:24px;"><p style="font-size:14px;color:#64748b;">⭐ Trusted by <strong>12,847 people</strong> this month</p></div>' },
+        ],
+    },
+
+    // ═══════════════════════════════════════════
+    // AD CREATIVE
+    // ═══════════════════════════════════════════
+
+    ad_side_by_side: {
+        name: 'Side-by-Side',
+        desc: 'Product image left (600×800), headline + bullets + CTA on right',
+        emoji: '📢',
+        category: 'ad',
+        traffic: ['native', 'display', 'facebook', 'tiktok'],
+        structure: [
+            { role: 'hero_image', type: 'image' },
+            { role: 'headline', type: 'heading' },
+            { role: 'bullet_1', type: 'text' },
+            { role: 'bullet_2', type: 'text' },
+            { role: 'bullet_3', type: 'text' },
+            { role: 'cta', type: 'button' },
+            { role: 'body', type: 'text' },
+        ],
+        blocks: (hoplink) => [
+            { type: 'text', html: `<div class="at-sbs-layout" style="display:flex;gap:36px;align-items:flex-start;max-width:960px;margin:0 auto;padding:40px 24px;"><div class="at-sbs-left" style="flex:0 0 auto;width:340px;"><img src="https://placehold.co/600x800/0f172a/e2e8f0?text=Product+Image" alt="Product" style="width:100%;height:auto;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.12);" /></div><div class="at-sbs-right" style="flex:1;min-width:0;"><h1 style="font-size:32px;font-weight:800;color:#0f172a;line-height:1.2;margin:0 0 24px;">Your Headline Goes Here — Grab Attention Fast</h1><ul style="list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:14px;"><li style="display:flex;align-items:flex-start;gap:10px;font-size:16px;color:#334155;line-height:1.5;"><span style="color:#22c55e;font-size:20px;flex-shrink:0;">✓</span> First key benefit or feature — what makes it unique</li><li style="display:flex;align-items:flex-start;gap:10px;font-size:16px;color:#334155;line-height:1.5;"><span style="color:#22c55e;font-size:20px;flex-shrink:0;">✓</span> Second benefit — why readers should care about this</li><li style="display:flex;align-items:flex-start;gap:10px;font-size:16px;color:#334155;line-height:1.5;"><span style="color:#22c55e;font-size:20px;flex-shrink:0;">✓</span> Third benefit — create urgency or desire here</li></ul><a href="${hoplink || '#'}" target="_blank" data-cta="true" style="display:inline-block;padding:18px 40px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:18px;font-weight:700;border-radius:12px;text-decoration:none;box-shadow:0 6px 20px rgba(37,99,235,0.3);transition:transform 0.2s;">Get Started Now →</a><p style="font-size:14px;color:#64748b;line-height:1.7;margin:24px 0 0;">Brief supporting text goes here. Explain the offer, social proof, or add a personal note to build trust with your reader.</p></div></div>` },
         ],
     },
 };

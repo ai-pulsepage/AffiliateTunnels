@@ -608,6 +608,44 @@ Use today's date: ${dateStr}. NEVER use a past year.
 ${sharedBlockRules()}`;
 }
 
+function buildSideBySidePrompt({ productContext, affiliateLink, dateStr, year }) {
+   return `You are an expert ad creative copywriter. Create a side-by-side ad landing page with a product image on the left and compelling copy on the right.
+
+TODAY'S DATE: ${dateStr}
+CURRENT YEAR: ${year}
+
+${productContext}
+AFFILIATE LINK: ${affiliateLink}
+
+Write the ENTIRE page as a SINGLE top-level <div> with this EXACT structure:
+
+<div class="at-sbs-layout" style="display:flex;gap:36px;align-items:flex-start;max-width:960px;margin:0 auto;padding:40px 24px;">
+  <div class="at-sbs-left" style="flex:0 0 auto;width:340px;">
+    <div data-media-slot="hero" style="width:100%;aspect-ratio:3/4;border-radius:16px;overflow:hidden;background:#f5f5f5;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,0.12);">
+      <span style="color:#999;font-size:14px;">Click to add product image</span>
+    </div>
+  </div>
+  <div class="at-sbs-right" style="flex:1;min-width:0;">
+    <h1> — Bold, benefit-driven headline (32px, font-weight 800)
+    <ul> — 3 bullet points using ✓ checkmarks (green color), each as a <li> with flexbox layout
+    <a> — CTA button (gradient blue, large padding, rounded-lg, data-cta="true", href to affiliate link)
+    <p> — Brief supporting text (14px, gray, 1-2 sentences of social proof or trust)
+  </div>
+</div>
+
+IMPORTANT RULES:
+- This is ONE single <div> element with class "at-sbs-layout" containing two child divs
+- The left div has class "at-sbs-left", the right div has class "at-sbs-right"
+- Each bullet should use: <li style="display:flex;align-items:flex-start;gap:10px;"><span style="color:#22c55e;font-size:20px;flex-shrink:0;">✓</span> [benefit text]</li>
+- The <ul> should have: style="list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:14px;"
+- CTA button: <a href="${affiliateLink}" target="_blank" data-cta="true" style="display:inline-block;padding:18px 40px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:18px;font-weight:700;border-radius:12px;text-decoration:none;box-shadow:0 6px 20px rgba(37,99,235,0.3);">Button Text →</a>
+- Keep copy SHORT and punchy — this is an ad, not an article. Maximum 200 words of text total.
+- Use today's date: ${dateStr}. NEVER use a past year.
+- All links point to: ${affiliateLink}
+
+OUTPUT: Return ONLY the single <div class="at-sbs-layout"> element. No markdown, no explanation, no code fences.`;
+}
+
 // ─── Pass 2: Generate page content ─────────────────────────────
 async function generateArticlePage({ productName, productDescription, affiliateLink, style = 'review_article', emailSwipes = '', existingContent = '', productIntel = null, customDirection = '' }) {
    const apiKey = process.env.GEMINI_API_KEY || await getSetting('gemini_api_key');
@@ -666,6 +704,10 @@ async function generateArticlePage({ productName, productDescription, affiliateL
          case 'comparison_showdown':
             prompt = buildComparisonPrompt(promptArgs);
             maxTokens = 16384;
+            break;
+         case 'ad_side_by_side':
+            prompt = buildSideBySidePrompt(promptArgs);
+            maxTokens = 4096;
             break;
          case 'advertorial':
          case 'health_review':

@@ -10,7 +10,7 @@ import {
     MousePointerClick, Quote, List, Minus, LayoutTemplate, Mail, Package,
     ChevronUp, ChevronDown, Trash2, Plus, GripVertical,
     Bold, Italic, Underline, Strikethrough, AlignCenter, AlignRight,
-    Palette, Maximize2, Minimize2, Search
+    Palette, Maximize2, Minimize2, Search, Monitor, Tablet, Smartphone
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -116,6 +116,9 @@ export default function TemplateEditor() {
     const [showSeo, setShowSeo] = useState(false);
     const [seoForm, setSeoForm] = useState({ seo_title: '', seo_description: '', og_image_url: '' });
     const [seoGenerating, setSeoGenerating] = useState(false);
+
+    // Viewport preview state
+    const [viewport, setViewport] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
 
     useEffect(() => { loadPage(); }, [funnelId, pageId]);
 
@@ -572,6 +575,19 @@ export default function TemplateEditor() {
                     >
                         <Search className="w-3.5 h-3.5" /> SEO
                     </button>
+                    {/* Viewport toggles */}
+                    <div className="flex items-center bg-[#0f1117] rounded-lg p-0.5 border border-white/5">
+                        {[['desktop', Monitor, 'Desktop'], ['tablet', Tablet, 'Tablet'], ['mobile', Smartphone, 'Mobile']].map(([key, Icon, label]) => (
+                            <button
+                                key={key}
+                                onClick={() => setViewport(key)}
+                                title={label}
+                                className={`p-1.5 rounded-md transition-colors ${viewport === key ? 'bg-brand-500/20 text-brand-400' : 'text-gray-500 hover:text-gray-300'}`}
+                            >
+                                <Icon className="w-3.5 h-3.5" />
+                            </button>
+                        ))}
+                    </div>
                     <button
                         onClick={() => setGateEnabled(!gateEnabled)}
                         className={`btn-secondary text-sm flex items-center gap-1.5 ${gateEnabled ? 'text-green-400' : ''}`}
@@ -666,8 +682,17 @@ export default function TemplateEditor() {
                 </div>
 
                 {/* Content preview (center) */}
-                <div className="flex-1 overflow-y-auto bg-white">
-                    <div className="max-w-3xl mx-auto py-10 px-8 pl-20" style={fontStyle}>
+                <div className="flex-1 overflow-y-auto" style={{ background: viewport === 'desktop' ? '#fff' : '#e5e7eb' }}>
+                    <div
+                        className="mx-auto py-10 px-8 pl-20 transition-all duration-300 ease-in-out"
+                        style={{
+                            ...fontStyle,
+                            maxWidth: viewport === 'desktop' ? undefined : viewport === 'tablet' ? '480px' : '375px',
+                            background: '#fff',
+                            minHeight: '100%',
+                            ...(viewport !== 'desktop' ? { boxShadow: '0 0 40px rgba(0,0,0,0.12)', borderRadius: '8px', marginTop: '16px', marginBottom: '16px', minHeight: 'calc(100% - 32px)' } : {}),
+                        }}
+                    >
                         {blocks.map((block, idx) => (
                             <div
                                 key={block.id}
@@ -1069,6 +1094,9 @@ export default function TemplateEditor() {
                                         <optgroup label="Squeeze Page">
                                             <option value="squeeze_quick">⚡ Quick Capture</option>
                                             <option value="squeeze_countdown">⏰ Countdown Squeeze</option>
+                                        </optgroup>
+                                        <optgroup label="Ad Creative">
+                                            <option value="ad_side_by_side">📢 Side-by-Side (Image + Bullets)</option>
                                         </optgroup>
                                     </select>
                                 </div>
