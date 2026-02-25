@@ -693,257 +693,295 @@ export default function TemplateEditor() {
                             ...(viewport !== 'desktop' ? { boxShadow: '0 0 40px rgba(0,0,0,0.12)', borderRadius: '8px', marginTop: '16px', marginBottom: '16px', minHeight: 'calc(100% - 32px)' } : {}),
                         }}
                     >
-                        {blocks.map((block, idx) => (
-                            <div
-                                key={block.id}
-                                data-block-idx={idx}
-                                className={`group relative ${dragIdx === idx ? 'opacity-40' : ''} ${activeBlockIdx === idx ? 'ring-2 ring-brand-500/40 rounded-lg' : ''}`}
-                                style={block.styles ? {
-                                    backgroundColor: block.styles.backgroundColor || undefined,
-                                    borderRadius: block.styles.borderRadius || undefined,
-                                    border: block.styles.borderWidth ? `${block.styles.borderWidth} solid ${block.styles.borderColor || '#e5e7eb'}` : undefined,
-                                    paddingTop: block.styles.paddingTop || undefined,
-                                    paddingRight: block.styles.paddingRight || undefined,
-                                    paddingBottom: block.styles.paddingBottom || undefined,
-                                    paddingLeft: block.styles.paddingLeft || undefined,
-                                    marginTop: block.styles.marginTop || undefined,
-                                    marginBottom: block.styles.marginBottom || undefined,
-                                    fontSize: block.styles.fontSize || undefined,
-                                    color: block.styles.color || undefined,
-                                    textAlign: block.styles.textAlign || undefined,
-                                    lineHeight: block.styles.lineHeight || undefined,
-                                } : undefined}
-                                draggable
-                                onDragStart={e => handleDragStart(e, idx)}
-                                onDragOver={e => handleDragOver(e, idx)}
-                                onDragEnd={handleDragEnd}
-                                onDrop={e => handleDrop(e, idx)}
-                                onClick={() => setActiveBlockIdx(idx)}
-                            >
-                                {dropIdx === idx && dragIdx !== idx && (
-                                    <div className="absolute -top-1 left-0 right-0 h-0.5 bg-blue-500 rounded-full z-10" />
-                                )}
+                        <style dangerouslySetInnerHTML={{
+                            __html: `
+                            .at-editor-preview img, .at-editor-preview video { max-width: 100%; height: auto; }
+                        `}} />
+                        <div className="at-editor-preview">
+                            {blocks.map((block, idx) => (
+                                <div
+                                    key={block.id}
+                                    data-block-idx={idx}
+                                    className={`group relative ${dragIdx === idx ? 'opacity-40' : ''} ${activeBlockIdx === idx ? 'ring-2 ring-brand-500/40 rounded-lg' : ''}`}
+                                    style={block.styles ? {
+                                        backgroundColor: block.styles.backgroundColor || undefined,
+                                        borderRadius: block.styles.borderRadius || undefined,
+                                        border: block.styles.borderWidth ? `${block.styles.borderWidth} solid ${block.styles.borderColor || '#e5e7eb'}` : undefined,
+                                        paddingTop: block.styles.paddingTop || undefined,
+                                        paddingRight: block.styles.paddingRight || undefined,
+                                        paddingBottom: block.styles.paddingBottom || undefined,
+                                        paddingLeft: block.styles.paddingLeft || undefined,
+                                        marginTop: block.styles.marginTop || undefined,
+                                        marginBottom: block.styles.marginBottom || undefined,
+                                        fontSize: block.styles.fontSize || undefined,
+                                        color: block.styles.color || undefined,
+                                        textAlign: block.styles.textAlign || undefined,
+                                        lineHeight: block.styles.lineHeight || undefined,
+                                    } : undefined}
+                                    draggable
+                                    onDragStart={e => handleDragStart(e, idx)}
+                                    onDragOver={e => handleDragOver(e, idx)}
+                                    onDragEnd={handleDragEnd}
+                                    onDrop={e => handleDrop(e, idx)}
+                                    onClick={() => setActiveBlockIdx(idx)}
+                                >
+                                    {dropIdx === idx && dragIdx !== idx && (
+                                        <div className="absolute -top-1 left-0 right-0 h-0.5 bg-blue-500 rounded-full z-10" />
+                                    )}
 
-                                {/* Block toolbar — always accessible on hover, top-right corner */}
-                                <div className="absolute -right-11 top-0 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-30 bg-white/90 rounded-lg shadow-md border border-gray-200 p-0.5">
-                                    <div className="p-1 cursor-grab active:cursor-grabbing" title="Drag to reorder">
-                                        <GripVertical className="w-3.5 h-3.5 text-gray-400" />
+                                    {/* Block toolbar — always accessible on hover, top-right corner */}
+                                    <div className="absolute -right-11 top-0 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-30 bg-white/90 rounded-lg shadow-md border border-gray-200 p-0.5">
+                                        <div className="p-1 cursor-grab active:cursor-grabbing" title="Drag to reorder">
+                                            <GripVertical className="w-3.5 h-3.5 text-gray-400" />
+                                        </div>
+                                        <button onClick={() => moveBlock(idx, -1)} className="p-1 hover:bg-gray-100 rounded" title="Move up">
+                                            <ChevronUp className="w-3.5 h-3.5 text-gray-500" />
+                                        </button>
+                                        <button onClick={() => moveBlock(idx, 1)} className="p-1 hover:bg-gray-100 rounded" title="Move down">
+                                            <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                                        </button>
+                                        <button onClick={() => duplicateBlock(idx)} className="p-1 hover:bg-blue-50 rounded" title="Duplicate">
+                                            <Copy className="w-3.5 h-3.5 text-blue-400" />
+                                        </button>
+                                        <button onClick={() => deleteBlock(idx)} className="p-1 hover:bg-red-50 rounded" title="Delete">
+                                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                                        </button>
                                     </div>
-                                    <button onClick={() => moveBlock(idx, -1)} className="p-1 hover:bg-gray-100 rounded" title="Move up">
-                                        <ChevronUp className="w-3.5 h-3.5 text-gray-500" />
-                                    </button>
-                                    <button onClick={() => moveBlock(idx, 1)} className="p-1 hover:bg-gray-100 rounded" title="Move down">
-                                        <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
-                                    </button>
-                                    <button onClick={() => duplicateBlock(idx)} className="p-1 hover:bg-blue-50 rounded" title="Duplicate">
-                                        <Copy className="w-3.5 h-3.5 text-blue-400" />
-                                    </button>
-                                    <button onClick={() => deleteBlock(idx)} className="p-1 hover:bg-red-50 rounded" title="Delete">
-                                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                                    </button>
-                                </div>
 
-                                {/* Formatting toolbar — appears when editing this block */}
-                                {activeBlockIdx === idx && ['heading', 'text', 'quote', 'list'].includes(block.type) && (
-                                    <div className="absolute -top-10 left-0 z-40 flex items-center gap-0.5 bg-[#1a1d2e] border border-white/10 rounded-lg px-1.5 py-1 shadow-2xl" onMouseDown={e => e.preventDefault()}>
-                                        <select
-                                            onChange={(e) => { document.execCommand('fontSize', false, '7'); const fontElements = document.querySelectorAll('font[size="7"]'); fontElements.forEach(el => { el.removeAttribute('size'); el.style.fontSize = e.target.value; }); }}
-                                            className="bg-white/10 text-gray-200 text-xs rounded px-1 py-1 border-none outline-none cursor-pointer"
-                                            defaultValue=""
-                                        >
-                                            <option value="" disabled>Size</option>
-                                            <option value="12px">12</option>
-                                            <option value="14px">14</option>
-                                            <option value="16px">16</option>
-                                            <option value="18px">18</option>
-                                            <option value="20px">20</option>
-                                            <option value="24px">24</option>
-                                            <option value="28px">28</option>
-                                            <option value="32px">32</option>
-                                            <option value="36px">36</option>
-                                        </select>
-                                        <div className="w-px h-4 bg-white/10 mx-0.5" />
-                                        <input
-                                            type="color"
-                                            onChange={(e) => document.execCommand('foreColor', false, e.target.value)}
-                                            className="w-5 h-5 rounded cursor-pointer border-none bg-transparent p-0"
-                                            title="Font Color"
-                                            defaultValue="#000000"
+                                    {/* Formatting toolbar — appears when editing this block */}
+                                    {activeBlockIdx === idx && ['heading', 'text', 'quote', 'list'].includes(block.type) && (
+                                        <div className="absolute -top-10 left-0 z-40 flex items-center gap-0.5 bg-[#1a1d2e] border border-white/10 rounded-lg px-1.5 py-1 shadow-2xl" onMouseDown={e => e.preventDefault()}>
+                                            <select
+                                                onChange={(e) => {
+                                                    document.execCommand('fontName', false, e.target.value);
+                                                }}
+                                                className="bg-white/10 text-gray-200 text-xs rounded px-1 py-1 border-none outline-none cursor-pointer"
+                                                defaultValue=""
+                                            >
+                                                <option value="" disabled>Font</option>
+                                                <option value="Georgia, serif">Serif</option>
+                                                <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">Sans-serif</option>
+                                                <option value="'Courier New', monospace">Mono</option>
+                                                <option value="Impact, sans-serif">Impact</option>
+                                                <option value="'Comic Sans MS', cursive">Casual</option>
+                                            </select>
+                                            <select
+                                                onChange={(e) => { document.execCommand('fontSize', false, '7'); const fontElements = document.querySelectorAll('font[size="7"]'); fontElements.forEach(el => { el.removeAttribute('size'); el.style.fontSize = e.target.value; }); }}
+                                                className="bg-white/10 text-gray-200 text-xs rounded px-1 py-1 border-none outline-none cursor-pointer"
+                                                defaultValue=""
+                                            >
+                                                <option value="" disabled>Size</option>
+                                                <option value="12px">12</option>
+                                                <option value="14px">14</option>
+                                                <option value="16px">16</option>
+                                                <option value="18px">18</option>
+                                                <option value="20px">20</option>
+                                                <option value="24px">24</option>
+                                                <option value="28px">28</option>
+                                                <option value="32px">32</option>
+                                                <option value="36px">36</option>
+                                                <option value="42px">42</option>
+                                                <option value="48px">48</option>
+                                            </select>
+                                            <div className="w-px h-4 bg-white/10 mx-0.5" />
+                                            <input
+                                                type="color"
+                                                onChange={(e) => document.execCommand('foreColor', false, e.target.value)}
+                                                className="w-5 h-5 rounded cursor-pointer border-none bg-transparent p-0"
+                                                title="Font Color"
+                                                defaultValue="#000000"
+                                            />
+                                            <div className="w-px h-4 bg-white/10 mx-0.5" />
+                                            <button onClick={() => document.execCommand('bold')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Bold"><Bold className="w-3.5 h-3.5" /></button>
+                                            <button onClick={() => document.execCommand('italic')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Italic"><Italic className="w-3.5 h-3.5" /></button>
+                                            <button onClick={() => document.execCommand('underline')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Underline"><Underline className="w-3.5 h-3.5" /></button>
+                                            <button onClick={() => document.execCommand('strikethrough')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Strikethrough"><Strikethrough className="w-3.5 h-3.5" /></button>
+                                            <div className="w-px h-4 bg-white/10 mx-0.5" />
+                                            <button onClick={() => { const u = prompt('Enter URL:'); if (u) document.execCommand('createLink', false, u); }} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Add Link"><Link2 className="w-3.5 h-3.5" /></button>
+                                            <div className="w-px h-4 bg-white/10 mx-0.5" />
+                                            <button onClick={() => document.execCommand('justifyLeft')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Align Left"><AlignLeft className="w-3.5 h-3.5" /></button>
+                                            <button onClick={() => document.execCommand('justifyCenter')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Align Center"><AlignCenter className="w-3.5 h-3.5" /></button>
+                                            <button onClick={() => document.execCommand('justifyRight')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Align Right"><AlignRight className="w-3.5 h-3.5" /></button>
+                                        </div>
+                                    )}
+
+                                    {/* Block content */}
+                                    {block.type === 'optin' ? (
+                                        /* Opt-in blocks: NOT contentEditable — form inputs conflict with contentEditable */
+                                        <div
+                                            className="outline-none rounded transition-shadow group-hover:ring-2 group-hover:ring-blue-200 relative cursor-pointer"
+                                            dangerouslySetInnerHTML={{ __html: block.html }}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setActiveBlockIdx(idx);
+                                                // Click on button inside form — open link editor
+                                                if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                                                    handleLinkClick(idx);
+                                                    return;
+                                                }
+                                                // Click on media slot
+                                                const slot = e.target.closest('[data-media-slot]');
+                                                if (slot) { handleMediaClick(idx); return; }
+                                                // Click on image
+                                                if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
+                                                    setResizeTarget({ blockIdx: idx, el: e.target });
+                                                    return;
+                                                }
+                                            }}
+                                            style={{ minHeight: '20px', pointerEvents: 'auto' }}
                                         />
-                                        <div className="w-px h-4 bg-white/10 mx-0.5" />
-                                        <button onClick={() => document.execCommand('bold')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Bold"><Bold className="w-3.5 h-3.5" /></button>
-                                        <button onClick={() => document.execCommand('italic')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Italic"><Italic className="w-3.5 h-3.5" /></button>
-                                        <button onClick={() => document.execCommand('underline')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Underline"><Underline className="w-3.5 h-3.5" /></button>
-                                        <button onClick={() => document.execCommand('strikethrough')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Strikethrough"><Strikethrough className="w-3.5 h-3.5" /></button>
-                                        <div className="w-px h-4 bg-white/10 mx-0.5" />
-                                        <button onClick={() => { const u = prompt('Enter URL:'); if (u) document.execCommand('createLink', false, u); }} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Add Link"><Link2 className="w-3.5 h-3.5" /></button>
-                                        <div className="w-px h-4 bg-white/10 mx-0.5" />
-                                        <button onClick={() => document.execCommand('justifyLeft')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Align Left"><AlignLeft className="w-3.5 h-3.5" /></button>
-                                        <button onClick={() => document.execCommand('justifyCenter')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Align Center"><AlignCenter className="w-3.5 h-3.5" /></button>
-                                        <button onClick={() => document.execCommand('justifyRight')} className="p-1.5 hover:bg-white/10 rounded text-gray-300 hover:text-white" title="Align Right"><AlignRight className="w-3.5 h-3.5" /></button>
-                                    </div>
-                                )}
+                                    ) : (
+                                        /* Normal blocks: contentEditable for inline text editing */
+                                        <div
+                                            className="outline-none rounded transition-shadow group-hover:ring-2 group-hover:ring-blue-200"
+                                            contentEditable
+                                            suppressContentEditableWarning
+                                            dangerouslySetInnerHTML={{ __html: block.html }}
+                                            onFocus={() => setActiveBlockIdx(idx)}
+                                            onBlur={(e) => { updateBlockHtml(idx, e.currentTarget.innerHTML); setTimeout(() => setActiveBlockIdx(prev => prev === idx ? null : prev), 150); }}
+                                            onClick={(e) => {
+                                                // Media slot click — open media picker
+                                                const slot = e.target.closest('[data-media-slot]');
+                                                if (slot) {
+                                                    e.preventDefault();
+                                                    handleMediaClick(idx);
+                                                    return;
+                                                }
+                                                // Image/video click — show resize controls (but NOT media picker)
+                                                if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
+                                                    e.preventDefault();
+                                                    setResizeTarget({ blockIdx: idx, el: e.target });
+                                                    return;
+                                                }
+                                                // CTA link click — open link editor
+                                                const link = e.target.closest('a');
+                                                if (link) {
+                                                    e.preventDefault();
+                                                    handleLinkClick(idx);
+                                                    return;
+                                                }
+                                                // Button click (in non-form contexts) — open link editor
+                                                const btn = e.target.closest('button');
+                                                if (btn) {
+                                                    e.preventDefault();
+                                                    handleLinkClick(idx);
+                                                    return;
+                                                }
+                                            }}
+                                            style={{ minHeight: block.type === 'divider' ? '10px' : '20px' }}
+                                        />
+                                    )}
 
-                                {/* Block content */}
-                                {block.type === 'optin' ? (
-                                    /* Opt-in blocks: NOT contentEditable — form inputs conflict with contentEditable */
-                                    <div
-                                        className="outline-none rounded transition-shadow group-hover:ring-2 group-hover:ring-blue-200 relative cursor-pointer"
-                                        dangerouslySetInnerHTML={{ __html: block.html }}
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setActiveBlockIdx(idx);
-                                            // Click on button inside form — open link editor
-                                            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
-                                                handleLinkClick(idx);
-                                                return;
-                                            }
-                                            // Click on media slot
-                                            const slot = e.target.closest('[data-media-slot]');
-                                            if (slot) { handleMediaClick(idx); return; }
-                                            // Click on image
-                                            if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
-                                                setResizeTarget({ blockIdx: idx, el: e.target });
-                                                return;
-                                            }
-                                        }}
-                                        style={{ minHeight: '20px', pointerEvents: 'auto' }}
-                                    />
-                                ) : (
-                                    /* Normal blocks: contentEditable for inline text editing */
-                                    <div
-                                        className="outline-none rounded transition-shadow group-hover:ring-2 group-hover:ring-blue-200"
-                                        contentEditable
-                                        suppressContentEditableWarning
-                                        dangerouslySetInnerHTML={{ __html: block.html }}
-                                        onFocus={() => setActiveBlockIdx(idx)}
-                                        onBlur={(e) => { updateBlockHtml(idx, e.currentTarget.innerHTML); setTimeout(() => setActiveBlockIdx(prev => prev === idx ? null : prev), 150); }}
-                                        onClick={(e) => {
-                                            // Media slot click — open media picker
-                                            const slot = e.target.closest('[data-media-slot]');
-                                            if (slot) {
-                                                e.preventDefault();
-                                                handleMediaClick(idx);
-                                                return;
-                                            }
-                                            // Image/video click — show resize controls (but NOT media picker)
-                                            if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
-                                                e.preventDefault();
-                                                setResizeTarget({ blockIdx: idx, el: e.target });
-                                                return;
-                                            }
-                                            // CTA link click — open link editor
-                                            const link = e.target.closest('a');
-                                            if (link) {
-                                                e.preventDefault();
-                                                handleLinkClick(idx);
-                                                return;
-                                            }
-                                            // Button click (in non-form contexts) — open link editor
-                                            const btn = e.target.closest('button');
-                                            if (btn) {
-                                                e.preventDefault();
-                                                handleLinkClick(idx);
-                                                return;
-                                            }
-                                        }}
-                                        style={{ minHeight: block.type === 'divider' ? '10px' : '20px' }}
-                                    />
-                                )}
-
-                                {/* Media resize toolbar — when image/video is clicked */}
-                                {resizeTarget && resizeTarget.blockIdx === idx && (
-                                    <div className="absolute -top-10 left-0 z-40 flex items-center gap-1 bg-[#1a1d2e] border border-white/10 rounded-lg px-2 py-1 shadow-2xl" onMouseDown={e => e.preventDefault()}>
-                                        <span className="text-[10px] text-gray-400 mr-1">Width:</span>
-                                        {['25%', '50%', '75%', '100%'].map(w => (
+                                    {/* Media resize toolbar — when image/video is clicked */}
+                                    {resizeTarget && resizeTarget.blockIdx === idx && (
+                                        <div className="absolute -top-10 left-0 z-40 flex items-center gap-1 bg-[#1a1d2e] border border-white/10 rounded-lg px-2 py-1 shadow-2xl" onMouseDown={e => e.preventDefault()}>
+                                            <span className="text-[10px] text-gray-400 mr-1">Width:</span>
+                                            {['25%', '50%', '75%', '100%'].map(w => (
+                                                <button
+                                                    key={w}
+                                                    onClick={() => {
+                                                        // Remove HTML attributes that override CSS
+                                                        resizeTarget.el.removeAttribute('width');
+                                                        resizeTarget.el.removeAttribute('height');
+                                                        // Set proportional sizing via CSS only
+                                                        resizeTarget.el.style.width = w;
+                                                        resizeTarget.el.style.height = 'auto';
+                                                        resizeTarget.el.style.maxWidth = '100%';
+                                                        resizeTarget.el.style.objectFit = 'contain';
+                                                        resizeTarget.el.style.display = 'block';
+                                                        resizeTarget.el.style.margin = w !== '100%' ? '0 auto' : '';
+                                                        updateBlockHtml(idx, resizeTarget.el.closest('[contenteditable]').innerHTML);
+                                                    }}
+                                                    className="px-2 py-0.5 text-[11px] rounded hover:bg-white/10 text-gray-300 hover:text-white"
+                                                >{w}</button>
+                                            ))}
+                                            <div className="w-px h-4 bg-white/10 mx-1" />
                                             <button
-                                                key={w}
                                                 onClick={() => {
-                                                    // Remove HTML attributes that override CSS
-                                                    resizeTarget.el.removeAttribute('width');
-                                                    resizeTarget.el.removeAttribute('height');
-                                                    // Set proportional sizing via CSS only
-                                                    resizeTarget.el.style.width = w;
-                                                    resizeTarget.el.style.height = 'auto';
-                                                    resizeTarget.el.style.maxWidth = '100%';
-                                                    resizeTarget.el.style.objectFit = 'contain';
-                                                    resizeTarget.el.style.display = 'block';
-                                                    resizeTarget.el.style.margin = w !== '100%' ? '0 auto' : '';
+                                                    const br = resizeTarget.el.style.borderRadius;
+                                                    resizeTarget.el.style.borderRadius = br === '50%' ? '8px' : br === '8px' ? '0' : '50%';
                                                     updateBlockHtml(idx, resizeTarget.el.closest('[contenteditable]').innerHTML);
                                                 }}
                                                 className="px-2 py-0.5 text-[11px] rounded hover:bg-white/10 text-gray-300 hover:text-white"
-                                            >{w}</button>
-                                        ))}
-                                        <div className="w-px h-4 bg-white/10 mx-1" />
-                                        <button
-                                            onClick={() => {
-                                                const br = resizeTarget.el.style.borderRadius;
-                                                resizeTarget.el.style.borderRadius = br === '50%' ? '8px' : br === '8px' ? '0' : '50%';
-                                                updateBlockHtml(idx, resizeTarget.el.closest('[contenteditable]').innerHTML);
-                                            }}
-                                            className="px-2 py-0.5 text-[11px] rounded hover:bg-white/10 text-gray-300 hover:text-white"
-                                            title="Toggle rounded corners"
-                                        >◐ Round</button>
-                                        <div className="w-px h-4 bg-white/10 mx-1" />
-                                        <button
-                                            onClick={() => handleMediaClick(idx)}
-                                            className="px-2 py-0.5 text-[11px] rounded hover:bg-white/10 text-gray-300 hover:text-white"
-                                            title="Replace this image/video"
-                                        >⟳ Replace</button>
-                                        <button
-                                            onClick={() => setResizeTarget(null)}
-                                            className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white ml-1"
-                                            title="Close"
-                                        ><X className="w-3 h-3" /></button>
-                                    </div>
-                                )}
+                                                title="Toggle rounded corners"
+                                            >◐ Round</button>
+                                            <div className="w-px h-4 bg-white/10 mx-1" />
+                                            <button
+                                                onClick={() => handleMediaClick(idx)}
+                                                className="px-2 py-0.5 text-[11px] rounded hover:bg-white/10 text-gray-300 hover:text-white"
+                                                title="Replace this image/video"
+                                            >⟳ Replace</button>
+                                            <button
+                                                onClick={() => {
+                                                    // Replace image/video with a media slot placeholder
+                                                    const el = resizeTarget.el;
+                                                    const container = el.closest('[contenteditable]') || el.closest('[data-block-idx]');
+                                                    const slot = document.createElement('div');
+                                                    slot.setAttribute('data-media-slot', 'hero');
+                                                    slot.setAttribute('style', 'margin:24px 0;border-radius:12px;overflow:hidden;background:#f5f5f5;min-height:180px;display:flex;align-items:center;justify-content:center;cursor:pointer;');
+                                                    slot.innerHTML = '<span style="color:#999;font-size:14px;">Click to add image</span>';
+                                                    el.replaceWith(slot);
+                                                    if (container) updateBlockHtml(idx, container.innerHTML);
+                                                    setResizeTarget(null);
+                                                }}
+                                                className="px-2 py-0.5 text-[11px] rounded hover:bg-red-500/20 text-red-400 hover:text-red-300"
+                                                title="Remove this image"
+                                            >✕ Remove</button>
+                                            <button
+                                                onClick={() => setResizeTarget(null)}
+                                                className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white ml-1"
+                                                title="Close"
+                                            ><X className="w-3 h-3" /></button>
+                                        </div>
+                                    )}
 
-                                {/* CTA link indicator */}
-                                {(block.type === 'button' || block.type === 'product' || block.type === 'banner') && (
-                                    <div className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Link2 className="w-3 h-3" />
-                                        <button onClick={() => handleLinkClick(idx)} className="hover:text-blue-500 hover:underline">{ctaLinkLabel}</button>
-                                    </div>
-                                )}
+                                    {/* CTA link indicator */}
+                                    {(block.type === 'button' || block.type === 'product' || block.type === 'banner') && (
+                                        <div className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Link2 className="w-3 h-3" />
+                                            <button onClick={() => handleLinkClick(idx)} className="hover:text-blue-500 hover:underline">{ctaLinkLabel}</button>
+                                        </div>
+                                    )}
 
-                                {/* Insert between blocks — full block picker */}
-                                <div className="relative flex items-center justify-center h-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <div className="absolute left-0 right-0 top-1/2 h-px bg-gray-200" />
-                                    <div className="relative group/insert">
-                                        <button
-                                            className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm hover:bg-blue-600 relative z-10"
-                                            title="Insert block here"
-                                        >
-                                            <Plus className="w-3 h-3" />
-                                        </button>
-                                        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover/insert:flex bg-[#1a1d2e] border border-white/10 rounded-lg shadow-2xl p-1.5 gap-1 z-50 whitespace-nowrap">
-                                            {BLOCK_TYPES.map(bt => (
-                                                <button
-                                                    key={bt.type}
-                                                    onClick={() => addBlock(bt.type, idx)}
-                                                    className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded hover:bg-white/10 transition-colors"
-                                                    title={bt.label}
-                                                >
-                                                    <bt.icon className="w-3.5 h-3.5 text-gray-400" />
-                                                    <span className="text-[9px] text-gray-500">{bt.label}</span>
-                                                </button>
-                                            ))}
+                                    {/* Insert between blocks — full block picker */}
+                                    <div className="relative flex items-center justify-center h-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="absolute left-0 right-0 top-1/2 h-px bg-gray-200" />
+                                        <div className="relative group/insert">
+                                            <button
+                                                className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm hover:bg-blue-600 relative z-10"
+                                                title="Insert block here"
+                                            >
+                                                <Plus className="w-3 h-3" />
+                                            </button>
+                                            <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover/insert:flex bg-[#1a1d2e] border border-white/10 rounded-lg shadow-2xl p-1.5 gap-1 z-50 whitespace-nowrap">
+                                                {BLOCK_TYPES.map(bt => (
+                                                    <button
+                                                        key={bt.type}
+                                                        onClick={() => addBlock(bt.type, idx)}
+                                                        className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded hover:bg-white/10 transition-colors"
+                                                        title={bt.label}
+                                                    >
+                                                        <bt.icon className="w-3.5 h-3.5 text-gray-400" />
+                                                        <span className="text-[9px] text-gray-500">{bt.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
 
-                        {blocks.length === 0 && (
-                            <div className="text-center py-20 text-gray-400">
-                                <p className="text-lg mb-2">Choose a template to get started</p>
-                                <p className="text-sm mb-6">Or add blocks manually from the left panel</p>
-                                <button onClick={() => setShowTemplates(true)} className="btn-primary">
-                                    <LayoutTemplate className="w-4 h-4 mr-2 inline" /> Choose Template
-                                </button>
-                            </div>
-                        )}
+                            {blocks.length === 0 && (
+                                <div className="text-center py-20 text-gray-400">
+                                    <p className="text-lg mb-2">Choose a template to get started</p>
+                                    <p className="text-sm mb-6">Or add blocks manually from the left panel</p>
+                                    <button onClick={() => setShowTemplates(true)} className="btn-primary">
+                                        <LayoutTemplate className="w-4 h-4 mr-2 inline" /> Choose Template
+                                    </button>
+                                </div>
+                            )}
+                        </div>{/* end at-editor-preview */}
                     </div>
                 </div>
 

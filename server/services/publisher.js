@@ -155,6 +155,9 @@ function generatePublishedHTML(page, funnel, pages) {
     .page-container form button[type="submit"] {
       cursor: pointer;
     }
+    /* Global image overflow prevention */
+    .page-container img, .page-container video { max-width: 100%; height: auto; }
+    .page-container [data-media-slot] { overflow: hidden; }
     /* Media slots (placeholders should be hidden in published) */
     [data-media-slot] span { display: none; }
     /* Side-by-side layout */
