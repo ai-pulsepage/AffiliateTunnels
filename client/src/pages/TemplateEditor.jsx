@@ -369,8 +369,9 @@ export default function TemplateEditor() {
         const block = blocks[idx];
         const tmp = document.createElement('div');
         tmp.innerHTML = block.html;
-        const link = tmp.querySelector('a');
-        setLinkUrl(link?.getAttribute('href') || ctaLink);
+        // Check both <a> and <button> elements (opt-in forms use buttons)
+        const link = tmp.querySelector('a') || tmp.querySelector('button[data-link]');
+        setLinkUrl(link?.getAttribute('href') || link?.getAttribute('data-link') || ctaLink);
         setLinkBlockIdx(idx);
         setShowLinkEditor(true);
     }
@@ -380,8 +381,12 @@ export default function TemplateEditor() {
         const block = blocks[linkBlockIdx];
         const tmp = document.createElement('div');
         tmp.innerHTML = block.html;
+        // Update <a> links
         const links = tmp.querySelectorAll('a');
         links.forEach(a => a.setAttribute('href', linkUrl));
+        // Also update form action if this is an opt-in block
+        const form = tmp.querySelector('form');
+        if (form) form.setAttribute('data-redirect', linkUrl);
         updateBlockHtml(linkBlockIdx, tmp.innerHTML);
         setShowLinkEditor(false);
         setLinkBlockIdx(null);
@@ -752,37 +757,72 @@ export default function TemplateEditor() {
                                 )}
 
                                 {/* Block content */}
-                                <div
-                                    className="outline-none rounded transition-shadow group-hover:ring-2 group-hover:ring-blue-200"
-                                    contentEditable
-                                    suppressContentEditableWarning
-                                    dangerouslySetInnerHTML={{ __html: block.html }}
-                                    onFocus={() => setActiveBlockIdx(idx)}
-                                    onBlur={(e) => { updateBlockHtml(idx, e.currentTarget.innerHTML); setTimeout(() => setActiveBlockIdx(prev => prev === idx ? null : prev), 150); }}
-                                    onClick={(e) => {
-                                        // Media slot click — open media picker
-                                        const slot = e.target.closest('[data-media-slot]');
-                                        if (slot) {
+                                {block.type === 'optin' ? (
+                                    /* Opt-in blocks: NOT contentEditable — form inputs conflict with contentEditable */
+                                    <div
+                                        className="outline-none rounded transition-shadow group-hover:ring-2 group-hover:ring-blue-200 relative cursor-pointer"
+                                        dangerouslySetInnerHTML={{ __html: block.html }}
+                                        onClick={(e) => {
                                             e.preventDefault();
-                                            handleMediaClick(idx);
-                                            return;
-                                        }
-                                        // Image/video click — show resize controls (but NOT media picker)
-                                        if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
-                                            e.preventDefault();
-                                            setResizeTarget({ blockIdx: idx, el: e.target });
-                                            return;
-                                        }
-                                        // CTA link click — open link editor
-                                        const link = e.target.closest('a');
-                                        if (link) {
-                                            e.preventDefault();
-                                            handleLinkClick(idx);
-                                            return;
-                                        }
-                                    }}
-                                    style={{ minHeight: block.type === 'divider' ? '10px' : '20px' }}
-                                />
+                                            e.stopPropagation();
+                                            setActiveBlockIdx(idx);
+                                            // Click on button inside form — open link editor
+                                            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                                                handleLinkClick(idx);
+                                                return;
+                                            }
+                                            // Click on media slot
+                                            const slot = e.target.closest('[data-media-slot]');
+                                            if (slot) { handleMediaClick(idx); return; }
+                                            // Click on image
+                                            if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
+                                                setResizeTarget({ blockIdx: idx, el: e.target });
+                                                return;
+                                            }
+                                        }}
+                                        style={{ minHeight: '20px', pointerEvents: 'auto' }}
+                                    />
+                                ) : (
+                                    /* Normal blocks: contentEditable for inline text editing */
+                                    <div
+                                        className="outline-none rounded transition-shadow group-hover:ring-2 group-hover:ring-blue-200"
+                                        contentEditable
+                                        suppressContentEditableWarning
+                                        dangerouslySetInnerHTML={{ __html: block.html }}
+                                        onFocus={() => setActiveBlockIdx(idx)}
+                                        onBlur={(e) => { updateBlockHtml(idx, e.currentTarget.innerHTML); setTimeout(() => setActiveBlockIdx(prev => prev === idx ? null : prev), 150); }}
+                                        onClick={(e) => {
+                                            // Media slot click — open media picker
+                                            const slot = e.target.closest('[data-media-slot]');
+                                            if (slot) {
+                                                e.preventDefault();
+                                                handleMediaClick(idx);
+                                                return;
+                                            }
+                                            // Image/video click — show resize controls (but NOT media picker)
+                                            if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
+                                                e.preventDefault();
+                                                setResizeTarget({ blockIdx: idx, el: e.target });
+                                                return;
+                                            }
+                                            // CTA link click — open link editor
+                                            const link = e.target.closest('a');
+                                            if (link) {
+                                                e.preventDefault();
+                                                handleLinkClick(idx);
+                                                return;
+                                            }
+                                            // Button click (in non-form contexts) — open link editor
+                                            const btn = e.target.closest('button');
+                                            if (btn) {
+                                                e.preventDefault();
+                                                handleLinkClick(idx);
+                                                return;
+                                            }
+                                        }}
+                                        style={{ minHeight: block.type === 'divider' ? '10px' : '20px' }}
+                                    />
+                                )}
 
                                 {/* Media resize toolbar — when image/video is clicked */}
                                 {resizeTarget && resizeTarget.blockIdx === idx && (
