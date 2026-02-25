@@ -50,7 +50,7 @@ export default function EmailBuilder() {
         setQuickCtaText('Click Here →');
         setQuickCtaLink('');
         setQuickFunnel('');
-        setEditing({ name: '', subject: '', html_content: '', text_content: '', category: 'affiliate' });
+        setEditing({ name: '', subject: '', html_content: '', text_content: '', category: 'affiliate', funnel_id: null });
     }
 
     function startEdit(template) {
@@ -400,7 +400,12 @@ Doctors are SHOCKED. A clinical nutritionist just discovered...
                                             onChange={e => {
                                                 setQuickFunnel(e.target.value);
                                                 const f = funnels.find(f => f.id === e.target.value);
-                                                if (f) setQuickCtaLink(`https://dealfindai.com/p/${f.slug}`);
+                                                if (f) {
+                                                    setQuickCtaLink(`https://dealfindai.com/p/${f.slug}`);
+                                                    setEditing(prev => ({ ...prev, funnel_id: f.id }));
+                                                } else {
+                                                    setEditing(prev => ({ ...prev, funnel_id: null }));
+                                                }
                                             }}
                                             className="input-field text-sm"
                                         >

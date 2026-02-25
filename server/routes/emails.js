@@ -150,9 +150,23 @@ router.post('/drips/:funnelId', async (req, res) => {
 router.put('/drips/:id/activate', async (req, res) => {
     try {
         const { is_active } = req.body;
-        const result = await query(
-            'UPDATE drip_campaigns SET is_active = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+        await query(
+            'UPDATE drip_campaigns SET is_active = $1, updated_at = NOW() WHERE id = $2',
             [is_active !== false, req.params.id]
+        );
+        // Return full drip with emails (same shape as GET)
+        const result = await query(
+            `SELECT dc.*,
+             (SELECT json_agg(
+               json_build_object(
+                 'id', de.id, 'step_order', de.step_order, 'delay_days', de.delay_days,
+                 'subject_override', de.subject_override, 'email_template_id', de.email_template_id,
+                 'template_name', et.name, 'template_subject', et.subject
+               ) ORDER BY de.step_order
+             ) FROM drip_emails de LEFT JOIN email_templates et ON de.email_template_id = et.id
+             WHERE de.drip_campaign_id = dc.id) as emails
+            FROM drip_campaigns dc WHERE dc.id = $1`,
+            [req.params.id]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Drip not found' });
         res.json({ drip: result.rows[0] });

@@ -308,6 +308,12 @@ Respond in JSON only: {"seo_title": "...", "seo_description": "..."}`;
             }
         );
 
+        if (!response.ok) {
+            const errBody = await response.text();
+            console.error('Gemini API error:', response.status, errBody);
+            return res.status(502).json({ error: `Gemini API returned ${response.status}` });
+        }
+
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
         const jsonMatch = text.match(/\{[\s\S]*?\}/);
