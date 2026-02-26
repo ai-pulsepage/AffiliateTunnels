@@ -11,6 +11,18 @@ import toast from 'react-hot-toast';
 
 const PAGE_TYPES = ['landing', 'bridge', 'offer', 'optin', 'thankyou', 'bonus'];
 
+const TRAFFIC_TAGS = [
+    { value: 'facebook', emoji: '📘', label: 'Facebook' },
+    { value: 'newsbreak', emoji: '📰', label: 'NewsBreak' },
+    { value: 'tiktok', emoji: '🎵', label: 'TikTok' },
+    { value: 'youtube', emoji: '▶️', label: 'YouTube' },
+    { value: 'instagram', emoji: '📷', label: 'Instagram' },
+    { value: 'native', emoji: '📰', label: 'Native Ads' },
+    { value: 'google', emoji: '🔍', label: 'Google Ads' },
+    { value: 'pinterest', emoji: '📌', label: 'Pinterest' },
+    { value: 'seo', emoji: '🌐', label: 'SEO / Organic' },
+];
+
 const TRAFFIC_SOURCE_LABELS = {
     native: { emoji: '📰', label: 'Native Ads', color: 'text-amber-400' },
     facebook: { emoji: '📘', label: 'Facebook', color: 'text-blue-400' },
@@ -29,7 +41,7 @@ export default function FunnelDetail() {
     const [pages, setPages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAddPage, setShowAddPage] = useState(false);
-    const [newPage, setNewPage] = useState({ name: '', page_type: 'landing' });
+    const [newPage, setNewPage] = useState({ name: '', page_type: 'landing', traffic_tag: '' });
     const [tab, setTab] = useState('flow');
     const [blogPosts, setBlogPosts] = useState([]);
 
@@ -63,9 +75,19 @@ export default function FunnelDetail() {
                 slug: newPage.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
             });
             setPages([...pages, data.page]);
-            setNewPage({ name: '', page_type: 'landing' });
+            setNewPage({ name: '', page_type: 'landing', traffic_tag: '' });
             setShowAddPage(false);
             toast.success('Page created');
+        } catch (err) { toast.error(err.message); }
+    }
+
+    async function handleDuplicatePage(pageId) {
+        const suffix = prompt('Name for the copy (e.g. "FB", "NewsBreak", "V2"):', 'copy');
+        if (suffix === null) return;
+        try {
+            const data = await funnelApi.duplicatePage(id, pageId, suffix || 'copy');
+            setPages(prev => [...prev, data.page]);
+            toast.success('Page duplicated!');
         } catch (err) { toast.error(err.message); }
     }
 
@@ -272,19 +294,29 @@ export default function FunnelDetail() {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
+                                        {(() => {
+                                            const tag = TRAFFIC_TAGS.find(t => t.value === page.traffic_tag);
+                                            return tag ? (
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/5 text-[10px] font-medium text-gray-300">
+                                                    {tag.emoji} {tag.label}
+                                                </span>
+                                            ) : null;
+                                        })()}
                                         {page.is_published ? (
                                             <span className="badge badge-success text-[10px]">Published</span>
                                         ) : (
                                             <span className="badge text-[10px]">Draft</span>
                                         )}
-                                        <Link to={`/editor/${id}/${page.id}`} className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 rounded-lg text-xs text-gray-400 hover:text-white transition-colors" title="Quick page editor">
+                                        <Link to={`/editor/${id}/${page.id}`} className="flex items-center gap-1 px-2 py-1.5 hover:bg-white/5 rounded-lg text-xs text-gray-400 hover:text-white transition-colors" title="Edit page">
                                             <Pencil className="w-3.5 h-3.5" /> Edit
                                         </Link>
-
-                                        <button onClick={() => handlePublishPage(page.id)} className="p-1.5 hover:bg-white/5 rounded-lg">
+                                        <button onClick={() => handleDuplicatePage(page.id)} className="p-1.5 hover:bg-white/5 rounded-lg" title="Duplicate page">
+                                            <Copy className="w-3.5 h-3.5 text-gray-400" />
+                                        </button>
+                                        <button onClick={() => handlePublishPage(page.id)} className="p-1.5 hover:bg-white/5 rounded-lg" title="Publish page">
                                             <Globe className="w-3.5 h-3.5 text-gray-400" />
                                         </button>
-                                        <button onClick={() => handleDeletePage(page.id)} className="p-1.5 hover:bg-red-500/10 rounded-lg">
+                                        <button onClick={() => handleDeletePage(page.id)} className="p-1.5 hover:bg-red-500/10 rounded-lg" title="Delete page">
                                             <Trash2 className="w-3.5 h-3.5 text-red-400" />
                                         </button>
                                     </div>
@@ -368,6 +400,23 @@ export default function FunnelDetail() {
                             <div className="flex gap-3 pt-2">
                                 <button onClick={() => setShowAddPage(false)} className="btn-secondary flex-1">Cancel</button>
                                 <button onClick={handleAddPage} className="btn-primary flex-1">Create Page</button>
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-white/5">
+                                <label className="block text-sm text-gray-300 mb-2">Platform Tag <span className="text-gray-500">(optional)</span></label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {TRAFFIC_TAGS.map(tag => (
+                                        <button
+                                            key={tag.value}
+                                            onClick={() => setNewPage({ ...newPage, traffic_tag: newPage.traffic_tag === tag.value ? '' : tag.value })}
+                                            className={`p-2 rounded-xl border text-center text-xs transition-all ${newPage.traffic_tag === tag.value
+                                                ? 'border-brand-500 bg-brand-500/10 text-white'
+                                                : 'border-white/5 text-gray-400 hover:border-white/10'
+                                                }`}
+                                        >
+                                            {tag.emoji} {tag.label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>

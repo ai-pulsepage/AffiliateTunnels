@@ -112,6 +112,7 @@ export const funnelApi = {
     createPage: (funnelId, data) => api(`/funnels/${funnelId}/pages`, { body: data }),
     updatePage: (funnelId, pageId, data) => api(`/funnels/${funnelId}/pages/${pageId}`, { body: data, method: 'PUT' }),
     deletePage: (funnelId, pageId) => api(`/funnels/${funnelId}/pages/${pageId}`, { method: 'DELETE' }),
+    duplicatePage: (funnelId, pageId, suffix) => api(`/funnels/${funnelId}/pages/${pageId}/duplicate`, { body: { suffix } }),
     getVersions: (funnelId, pageId) => api(`/funnels/${funnelId}/pages/${pageId}/versions`),
     rollback: (funnelId, pageId, versionId) => api(`/funnels/${funnelId}/pages/${pageId}/rollback/${versionId}`, { body: {}, method: 'PUT' }),
     // Custom templates

@@ -232,7 +232,7 @@ router.get('/:funnelId/pages', async (req, res) => {
 // POST /api/funnels/:funnelId/pages
 router.post('/:funnelId/pages', tierGate('pagesPerFunnel'), async (req, res) => {
     try {
-        const { name, page_type = 'landing' } = req.body;
+        const { name, page_type = 'landing', traffic_tag } = req.body;
         if (!name) return res.status(400).json({ error: 'Page name is required' });
 
         // Verify funnel ownership
@@ -243,15 +243,47 @@ router.post('/:funnelId/pages', tierGate('pagesPerFunnel'), async (req, res) => 
         const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
         const result = await query(
-            `INSERT INTO pages (funnel_id, name, slug, step_order, page_type, grapes_data)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-            [req.params.funnelId, name, slug, maxOrder.rows[0].next, page_type, JSON.stringify({ components: [], styles: [] })]
+            `INSERT INTO pages (funnel_id, name, slug, step_order, page_type, grapes_data, traffic_tag)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [req.params.funnelId, name, slug, maxOrder.rows[0].next, page_type, JSON.stringify({ components: [], styles: [] }), traffic_tag || null]
         );
 
         res.status(201).json({ page: result.rows[0] });
     } catch (err) {
         console.error('Create page error:', err);
         res.status(500).json({ error: 'Failed to create page' });
+    }
+});
+
+// POST /api/funnels/:funnelId/pages/:pageId/duplicate
+router.post('/:funnelId/pages/:pageId/duplicate', tierGate('pagesPerFunnel'), async (req, res) => {
+    try {
+        const { suffix } = req.body;
+        // Verify funnel ownership
+        const funnel = await query('SELECT id FROM funnels WHERE id = $1 AND user_id = $2', [req.params.funnelId, req.user.id]);
+        if (funnel.rows.length === 0) return res.status(404).json({ error: 'Funnel not found' });
+
+        // Get original page
+        const original = await query('SELECT * FROM pages WHERE id = $1 AND funnel_id = $2', [req.params.pageId, req.params.funnelId]);
+        if (original.rows.length === 0) return res.status(404).json({ error: 'Page not found' });
+
+        const page = original.rows[0];
+        const newName = suffix ? `${page.name} (${suffix})` : `${page.name} (copy)`;
+        const newSlug = newName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        const maxOrder = await query('SELECT COALESCE(MAX(step_order), -1) + 1 as next FROM pages WHERE funnel_id = $1', [req.params.funnelId]);
+
+        const result = await query(
+            `INSERT INTO pages (funnel_id, name, slug, step_order, page_type, grapes_data, html_output, css_output, custom_head, custom_body, seo_title, seo_description, og_image_url, traffic_tag)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+            [req.params.funnelId, newName, newSlug, maxOrder.rows[0].next, page.page_type,
+            page.grapes_data, page.html_output, page.css_output, page.custom_head, page.custom_body,
+            page.seo_title, page.seo_description, page.og_image_url, page.traffic_tag]
+        );
+
+        res.status(201).json({ page: result.rows[0] });
+    } catch (err) {
+        console.error('Duplicate page error:', err);
+        res.status(500).json({ error: 'Failed to duplicate page' });
     }
 });
 
@@ -273,7 +305,7 @@ router.get('/:funnelId/pages/:id', async (req, res) => {
 // PUT /api/funnels/:funnelId/pages/:id - Save page (GrapeJS state)
 router.put('/:funnelId/pages/:id', async (req, res) => {
     try {
-        const { name, slug, grapes_data, html_output, css_output, custom_head, custom_body, seo_title, seo_description, og_image_url } = req.body;
+        const { name, slug, grapes_data, html_output, css_output, custom_head, custom_body, seo_title, seo_description, og_image_url, traffic_tag } = req.body;
 
         // Save version before updating
         if (grapes_data) {
@@ -307,9 +339,10 @@ router.put('/:funnelId/pages/:id', async (req, res) => {
         seo_title = COALESCE($8, seo_title),
         seo_description = COALESCE($9, seo_description),
         og_image_url = COALESCE($10, og_image_url),
+        traffic_tag = COALESCE($11, traffic_tag),
         updated_at = NOW()
-       WHERE id = $11 AND funnel_id = $12 RETURNING *`,
-            [name, slug, JSON.stringify(grapes_data), html_output, css_output, custom_head, custom_body, seo_title, seo_description, og_image_url, req.params.id, req.params.funnelId]
+       WHERE id = $12 AND funnel_id = $13 RETURNING *`,
+            [name, slug, JSON.stringify(grapes_data), html_output, css_output, custom_head, custom_body, seo_title, seo_description, og_image_url, traffic_tag, req.params.id, req.params.funnelId]
         );
 
         if (result.rows.length === 0) return res.status(404).json({ error: 'Page not found' });
