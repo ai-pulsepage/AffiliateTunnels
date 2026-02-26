@@ -755,10 +755,9 @@ export default function TemplateEditor() {
                     ))}
                 </div>
 
-                {/* Content preview (center) */}
                 <div className="flex-1 overflow-y-auto" style={{ background: viewport === 'desktop' ? '#fff' : '#e5e7eb' }}>
                     <div
-                        className="mx-auto py-10 px-8 pl-20 transition-all duration-300 ease-in-out"
+                        className={`mx-auto transition-all duration-300 ease-in-out ${viewport === 'desktop' ? 'py-10 px-8 pl-20' : viewport === 'tablet' ? 'py-6 px-4' : 'py-4 px-3'}`}
                         style={{
                             ...fontStyle,
                             maxWidth: viewport === 'desktop' ? undefined : viewport === 'tablet' ? '480px' : '375px',
@@ -770,6 +769,57 @@ export default function TemplateEditor() {
                         <style dangerouslySetInnerHTML={{
                             __html: `
                             .at-editor-preview img, .at-editor-preview video { max-width: 100%; height: auto; }
+                            ${viewport !== 'desktop' ? `
+                            /* ── Responsive preview overrides ── */
+                            .at-editor-preview h1 { font-size: ${viewport === 'mobile' ? '22px' : '26px'} !important; line-height: 1.25 !important; }
+                            .at-editor-preview h2 { font-size: ${viewport === 'mobile' ? '18px' : '20px'} !important; }
+                            .at-editor-preview h3 { font-size: ${viewport === 'mobile' ? '16px' : '17px'} !important; }
+                            .at-editor-preview p { font-size: ${viewport === 'mobile' ? '14px' : '15px'} !important; }
+                            .at-editor-preview li { font-size: ${viewport === 'mobile' ? '14px' : '15px'} !important; }
+                            /* Collapse grids */
+                            .at-editor-preview [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+                            /* Collapse flex rows */
+                            .at-editor-preview [style*="display:flex"][style*="gap"] { flex-direction: column !important; }
+                            .at-editor-preview [style*="display: flex"][style*="gap"] { flex-direction: column !important; }
+                            /* Reduce padding */
+                            .at-editor-preview [style*="padding:40px"] { padding: ${viewport === 'mobile' ? '16px' : '20px'} !important; }
+                            .at-editor-preview [style*="padding:36px"] { padding: ${viewport === 'mobile' ? '16px' : '20px'} !important; }
+                            .at-editor-preview [style*="padding:60px"] { padding: ${viewport === 'mobile' ? '16px' : '20px'} !important; }
+                            .at-editor-preview [style*="padding:80px"] { padding: 16px !important; }
+                            .at-editor-preview [style*="padding:100px"] { padding: 16px !important; }
+                            /* Max-widths → full */
+                            .at-editor-preview [style*="max-width:500px"],
+                            .at-editor-preview [style*="max-width:520px"],
+                            .at-editor-preview [style*="max-width:560px"],
+                            .at-editor-preview [style*="max-width:600px"],
+                            .at-editor-preview [style*="max-width:480px"],
+                            .at-editor-preview [style*="max-width:440px"],
+                            .at-editor-preview [style*="max-width:420px"],
+                            .at-editor-preview [style*="max-width:400px"],
+                            .at-editor-preview [style*="max-width:360px"] { max-width: 100% !important; }
+                            /* Full-width CTAs */
+                            .at-editor-preview a[style*="padding:18px"],
+                            .at-editor-preview a[style*="padding:20px"],
+                            .at-editor-preview a[style*="padding:22px"] {
+                              display: block !important; text-align: center !important;
+                              padding-left: 16px !important; padding-right: 16px !important;
+                            }
+                            /* Large font overrides */
+                            .at-editor-preview [style*="font-size:32px"] { font-size: ${viewport === 'mobile' ? '22px' : '26px'} !important; }
+                            .at-editor-preview [style*="font-size:34px"] { font-size: ${viewport === 'mobile' ? '22px' : '26px'} !important; }
+                            .at-editor-preview [style*="font-size:36px"] { font-size: ${viewport === 'mobile' ? '22px' : '26px'} !important; }
+                            .at-editor-preview [style*="font-size:38px"] { font-size: ${viewport === 'mobile' ? '22px' : '26px'} !important; }
+                            .at-editor-preview [style*="font-size:40px"] { font-size: ${viewport === 'mobile' ? '20px' : '24px'} !important; }
+                            .at-editor-preview [style*="font-size:42px"] { font-size: ${viewport === 'mobile' ? '20px' : '24px'} !important; }
+                            .at-editor-preview [style*="font-size:28px"] { font-size: ${viewport === 'mobile' ? '20px' : '22px'} !important; }
+                            .at-editor-preview [style*="font-size:26px"] { font-size: ${viewport === 'mobile' ? '18px' : '20px'} !important; }
+                            .at-editor-preview [style*="font-size:24px"] { font-size: ${viewport === 'mobile' ? '18px' : '20px'} !important; }
+                            .at-editor-preview [style*="font-size:22px"] { font-size: ${viewport === 'mobile' ? '17px' : '19px'} !important; }
+                            /* Countdown blocks */
+                            .at-editor-preview [style*="min-width:72px"] { min-width: 48px !important; padding: 10px 12px !important; }
+                            /* Tables */
+                            .at-editor-preview table { font-size: 12px !important; }
+                            ` : ''}
                         `}} />
                         <div className="at-editor-preview">
                             {blocks.map((block, idx) => (
