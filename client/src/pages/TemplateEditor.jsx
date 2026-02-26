@@ -87,6 +87,8 @@ export default function TemplateEditor() {
     const [gateEnabled, setGateEnabled] = useState(false);
     const [showMediaPicker, setShowMediaPicker] = useState(false);
     const [mediaBlockIdx, setMediaBlockIdx] = useState(null);
+    const [mediaColIdx, setMediaColIdx] = useState(null);
+    const [mediaChildIdx, setMediaChildIdx] = useState(null);
     const [mediaAccept, setMediaAccept] = useState('all');
     const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
@@ -526,7 +528,6 @@ export default function TemplateEditor() {
 
     function insertMedia(url, mediaInfo) {
         if (mediaBlockIdx === null) return;
-        const block = blocks[mediaBlockIdx];
         let mediaTag;
         if (mediaInfo?.mime_type?.startsWith('video/')) {
             mediaTag = `<video src="${url}" controls style="width:100%;border-radius:8px;"></video>`;
@@ -534,23 +535,49 @@ export default function TemplateEditor() {
             mediaTag = `<img src="${url}" style="width:100%;display:block;border-radius:8px;" alt="">`;
         }
 
-        // Try to replace only the data-media-slot element within the block,
-        // preserving all surrounding content (important for AI-generated blocks)
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(`<div>${block.html}</div>`, 'text/html');
-        const slot = doc.querySelector('[data-media-slot]');
-        if (slot) {
-            // Replace just the placeholder slot with the media element
-            const wrapper = doc.createElement('div');
-            wrapper.innerHTML = mediaTag;
-            slot.replaceWith(wrapper.firstChild);
-            updateBlockHtml(mediaBlockIdx, doc.body.firstChild.innerHTML);
+        // Column child block media
+        if (mediaColIdx !== null && mediaChildIdx !== null) {
+            setBlocks(prev => prev.map((b, i) => {
+                if (i !== mediaBlockIdx) return b;
+                const newCols = b.columns.map((c, ci) => {
+                    if (ci !== mediaColIdx) return c;
+                    return {
+                        ...c, blocks: c.blocks.map((cb, cbi) => {
+                            if (cbi !== mediaChildIdx) return cb;
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(`<div>${cb.html}</div>`, 'text/html');
+                            const slot = doc.querySelector('[data-media-slot]');
+                            if (slot) {
+                                const wrapper = doc.createElement('div');
+                                wrapper.innerHTML = mediaTag;
+                                slot.replaceWith(wrapper.firstChild);
+                                return { ...cb, html: doc.body.firstChild.innerHTML };
+                            }
+                            return { ...cb, html: mediaTag };
+                        })
+                    };
+                });
+                return { ...b, columns: newCols };
+            }));
         } else {
-            // No slot found — standalone image/video block, replace entirely
-            updateBlockHtml(mediaBlockIdx, mediaTag);
+            // Normal top-level block
+            const block = blocks[mediaBlockIdx];
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(`<div>${block.html}</div>`, 'text/html');
+            const slot = doc.querySelector('[data-media-slot]');
+            if (slot) {
+                const wrapper = doc.createElement('div');
+                wrapper.innerHTML = mediaTag;
+                slot.replaceWith(wrapper.firstChild);
+                updateBlockHtml(mediaBlockIdx, doc.body.firstChild.innerHTML);
+            } else {
+                updateBlockHtml(mediaBlockIdx, mediaTag);
+            }
         }
         setShowMediaPicker(false);
         setMediaBlockIdx(null);
+        setMediaColIdx(null);
+        setMediaChildIdx(null);
     }
 
     async function handleSave() {
@@ -1081,9 +1108,17 @@ export default function TemplateEditor() {
                                                                         // Prevent link navigation in editor
                                                                         const link = e.target.closest('a');
                                                                         if (link) { e.preventDefault(); }
-                                                                        // Prevent media slot from doing nothing useful
+                                                                        // Media slot — open media picker for this column child
                                                                         const slot = e.target.closest('[data-media-slot]');
-                                                                        if (slot) { e.preventDefault(); setActiveBlockIdx(idx); }
+                                                                        if (slot) {
+                                                                            e.preventDefault();
+                                                                            setMediaBlockIdx(idx);
+                                                                            setMediaColIdx(colIdx);
+                                                                            setMediaChildIdx(childIdx);
+                                                                            setMediaAccept('all');
+                                                                            setShowMediaPicker(true);
+                                                                            return;
+                                                                        }
                                                                     }}
                                                                     style={{ minHeight: '20px' }}
                                                                 />
