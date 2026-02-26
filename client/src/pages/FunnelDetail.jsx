@@ -100,6 +100,15 @@ export default function FunnelDetail() {
         } catch (err) { toast.error(err.message); }
     }
 
+    async function handleDeleteFunnel() {
+        if (!confirm('Delete this funnel and ALL its pages? This cannot be undone.')) return;
+        try {
+            await funnelApi.delete(id);
+            toast.success('Funnel deleted');
+            navigate('/funnels');
+        } catch (err) { toast.error(err.message); }
+    }
+
     async function handlePublishPage(pageId) {
         try {
             const data = await publishApi.publishPage(id, pageId);
@@ -166,6 +175,9 @@ export default function FunnelDetail() {
                     </button>
                     <button onClick={handlePublishAll} className="btn-primary text-sm flex items-center gap-1.5">
                         <Globe className="w-3.5 h-3.5" /> Publish All
+                    </button>
+                    <button onClick={handleDeleteFunnel} className="p-2 hover:bg-red-500/10 rounded-lg" title="Delete funnel">
+                        <Trash2 className="w-4 h-4 text-red-400" />
                     </button>
                 </div>
             </div>

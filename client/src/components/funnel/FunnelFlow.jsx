@@ -113,8 +113,8 @@ function FlowNode({ page, colors, funnelId, funnelSlug, onEdit, onPublish, onDel
                 )}
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Actions — always visible */}
+            <div className="flex gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                 <button onClick={onEdit} className="p-1.5 hover:bg-white/10 rounded-lg" title="Edit in builder">
                     <Pencil className="w-3.5 h-3.5 text-gray-400" />
                 </button>
