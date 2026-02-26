@@ -1070,11 +1070,11 @@ export default function TemplateEditor() {
                                 onClick={() => setTemplateCat('all')}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${templateCat === 'all' ? 'bg-brand-500/20 text-brand-400 ring-1 ring-brand-500/30' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
                             >All Templates</button>
-                            {Object.entries(TEMPLATE_CATEGORIES).map(([key, cat]) => (
+                            {TEMPLATE_CATEGORIES.map(cat => (
                                 <button
-                                    key={key}
-                                    onClick={() => setTemplateCat(key)}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${templateCat === key ? 'bg-brand-500/20 text-brand-400 ring-1 ring-brand-500/30' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                                    key={cat.id}
+                                    onClick={() => setTemplateCat(cat.id)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${templateCat === cat.id ? 'bg-brand-500/20 text-brand-400 ring-1 ring-brand-500/30' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
                                 >{cat.emoji} {cat.label}</button>
                             ))}
                         </div>
