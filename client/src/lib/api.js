@@ -114,6 +114,10 @@ export const funnelApi = {
     deletePage: (funnelId, pageId) => api(`/funnels/${funnelId}/pages/${pageId}`, { method: 'DELETE' }),
     getVersions: (funnelId, pageId) => api(`/funnels/${funnelId}/pages/${pageId}/versions`),
     rollback: (funnelId, pageId, versionId) => api(`/funnels/${funnelId}/pages/${pageId}/rollback/${versionId}`, { body: {}, method: 'PUT' }),
+    // Custom templates
+    listCustomTemplates: () => api('/funnels/templates/custom'),
+    saveCustomTemplate: (data) => api('/funnels/templates/custom', { body: data }),
+    deleteCustomTemplate: (id) => api(`/funnels/templates/custom/${id}`, { method: 'DELETE' }),
 };
 
 // Publish helpers

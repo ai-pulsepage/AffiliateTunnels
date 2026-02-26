@@ -364,4 +364,50 @@ router.put('/:funnelId/pages/:id/rollback/:versionId', async (req, res) => {
     }
 });
 
+// ─── CUSTOM TEMPLATES ───────────────────────────
+
+// GET /api/funnels/templates — list user's custom templates
+router.get('/templates/custom', async (req, res) => {
+    try {
+        const result = await query(
+            'SELECT * FROM custom_templates WHERE user_id = $1 ORDER BY created_at DESC',
+            [req.user.id]
+        );
+        res.json({ templates: result.rows });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/funnels/templates/custom — save current blocks as a template
+router.post('/templates/custom', async (req, res) => {
+    try {
+        const { name, emoji, category, blocks } = req.body;
+        if (!name || !blocks || !Array.isArray(blocks)) {
+            return res.status(400).json({ error: 'Name and blocks are required' });
+        }
+        const result = await query(
+            `INSERT INTO custom_templates (user_id, name, emoji, category, blocks)
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [req.user.id, name, emoji || '📄', category || 'custom', JSON.stringify(blocks)]
+        );
+        res.json({ template: result.rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE /api/funnels/templates/custom/:id — delete a custom template
+router.delete('/templates/custom/:id', async (req, res) => {
+    try {
+        await query(
+            'DELETE FROM custom_templates WHERE id = $1 AND user_id = $2',
+            [req.params.id, req.user.id]
+        );
+        res.json({ message: 'Template deleted' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

@@ -92,6 +92,13 @@ export default function TemplateEditor() {
     const [showTemplates, setShowTemplates] = useState(false);
     const [templateCat, setTemplateCat] = useState('all');
 
+    // Save as Template state
+    const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+    const [saveTemplateName, setSaveTemplateName] = useState('');
+    const [saveTemplateEmoji, setSaveTemplateEmoji] = useState('📄');
+    const [savingTemplate, setSavingTemplate] = useState(false);
+    const [customTemplates, setCustomTemplates] = useState([]);
+
     // Link editor state
     const [showLinkEditor, setShowLinkEditor] = useState(false);
     const [linkBlockIdx, setLinkBlockIdx] = useState(null);
@@ -219,7 +226,8 @@ export default function TemplateEditor() {
                 }
                 // If it has a data-block-type, use it directly
                 if (child.getAttribute('data-block-type')) {
-                    parsed.push({ id: child.getAttribute('data-block-id') || genId(), type: child.getAttribute('data-block-type'), html: child.innerHTML });
+                    const wrapperStyles = extractStylesFromHtml(child.outerHTML);
+                    parsed.push({ id: child.getAttribute('data-block-id') || genId(), type: child.getAttribute('data-block-type'), html: child.innerHTML, styles: wrapperStyles });
                     continue;
                 }
                 // Unwrap container/wrapper divs to pull out individual blocks
@@ -228,7 +236,7 @@ export default function TemplateEditor() {
                     continue;
                 }
                 const type = guessBlockType(child);
-                parsed.push({ id: genId(), type, html: child.outerHTML });
+                parsed.push({ id: genId(), type, html: child.outerHTML, styles: extractStylesFromHtml(child.outerHTML) });
             }
         }
 
@@ -250,9 +258,50 @@ export default function TemplateEditor() {
 
     function selectTemplate(key) {
         const tpl = PAGE_TEMPLATES[key];
-        const newBlocks = tpl.blocks(ctaLink).map(b => ({ ...b, id: genId() }));
+        const newBlocks = tpl.blocks(ctaLink).map(b => ({
+            ...b,
+            id: genId(),
+            styles: b.styles || extractStylesFromHtml(b.html),
+        }));
         setBlocks(newBlocks);
         setShowTemplates(false);
+    }
+
+    // Auto-extract settings-panel-relevant CSS from a block's root element
+    function extractStylesFromHtml(html) {
+        const styles = {};
+        try {
+            const div = document.createElement('div');
+            div.innerHTML = html.trim();
+            const el = div.firstElementChild;
+            if (!el) return styles;
+            const cs = el.style;
+            if (cs.backgroundColor) styles.backgroundColor = cs.backgroundColor;
+            if (cs.background && !cs.background.includes('gradient')) styles.backgroundColor = cs.background;
+            if (cs.borderRadius) styles.borderRadius = cs.borderRadius;
+            if (cs.paddingTop) styles.paddingTop = cs.paddingTop;
+            if (cs.paddingRight) styles.paddingRight = cs.paddingRight;
+            if (cs.paddingBottom) styles.paddingBottom = cs.paddingBottom;
+            if (cs.paddingLeft) styles.paddingLeft = cs.paddingLeft;
+            if (cs.padding) {
+                const parts = cs.padding.split(/\s+/);
+                if (parts.length === 1) {
+                    styles.paddingTop = styles.paddingRight = styles.paddingBottom = styles.paddingLeft = parts[0];
+                } else if (parts.length === 2) {
+                    styles.paddingTop = styles.paddingBottom = parts[0];
+                    styles.paddingLeft = styles.paddingRight = parts[1];
+                } else if (parts.length === 4) {
+                    [styles.paddingTop, styles.paddingRight, styles.paddingBottom, styles.paddingLeft] = parts;
+                }
+            }
+            if (cs.marginTop) styles.marginTop = cs.marginTop;
+            if (cs.marginBottom) styles.marginBottom = cs.marginBottom;
+            if (cs.fontSize) styles.fontSize = cs.fontSize;
+            if (cs.color) styles.color = cs.color;
+            if (cs.textAlign) styles.textAlign = cs.textAlign;
+            if (cs.lineHeight) styles.lineHeight = cs.lineHeight;
+        } catch (_) { /* ignore parse errors */ }
+        return styles;
     }
 
     function blocksToHtml() {
@@ -614,6 +663,14 @@ export default function TemplateEditor() {
                     </button>
                     <button onClick={handleSave} disabled={saving} className="btn-secondary text-sm flex items-center gap-1.5">
                         <Save className="w-3.5 h-3.5" /> {saving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                        onClick={() => { setSaveTemplateName(''); setSaveTemplateEmoji('📄'); setShowSaveTemplate(true); }}
+                        disabled={blocks.length === 0}
+                        className="btn-secondary text-sm flex items-center gap-1.5"
+                        title="Save as reusable template"
+                    >
+                        <LayoutTemplate className="w-3.5 h-3.5" /> Save Template
                     </button>
                     <button onClick={handlePublish} disabled={publishing} className="btn-primary text-sm flex items-center gap-1.5">
                         <Globe className="w-3.5 h-3.5" /> {publishing ? 'Publishing...' : 'Publish'}
@@ -1070,6 +1127,10 @@ export default function TemplateEditor() {
                                 onClick={() => setTemplateCat('all')}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${templateCat === 'all' ? 'bg-brand-500/20 text-brand-400 ring-1 ring-brand-500/30' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
                             >All Templates</button>
+                            <button
+                                onClick={() => { setTemplateCat('custom'); funnelApi.listCustomTemplates().then(d => setCustomTemplates(d.templates || [])).catch(() => { }); }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${templateCat === 'custom' ? 'bg-brand-500/20 text-brand-400 ring-1 ring-brand-500/30' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                            >⭐ My Templates</button>
                             {TEMPLATE_CATEGORIES.map(cat => (
                                 <button
                                     key={cat.id}
@@ -1080,26 +1141,134 @@ export default function TemplateEditor() {
                         </div>
                         {/* Template grid */}
                         <div className="p-6 grid grid-cols-2 gap-3 overflow-y-auto flex-1">
-                            {Object.entries(PAGE_TEMPLATES)
-                                .filter(([, tpl]) => templateCat === 'all' || tpl.category === templateCat)
-                                .map(([key, tpl]) => (
-                                    <button
-                                        key={key}
-                                        onClick={() => selectTemplate(key)}
-                                        className="text-left p-4 rounded-xl border border-white/5 hover:border-brand-500/50 hover:bg-white/5 transition-all"
+                            {templateCat === 'custom' ? (
+                                /* Custom templates */
+                                customTemplates.length === 0 ? (
+                                    <div className="col-span-2 text-center py-12">
+                                        <p className="text-gray-500 text-sm">No saved templates yet.</p>
+                                        <p className="text-gray-600 text-xs mt-1">Design a page and click "Save Template" to save it here.</p>
+                                    </div>
+                                ) : customTemplates.map(ct => (
+                                    <div
+                                        key={ct.id}
+                                        className="relative text-left p-4 rounded-xl border border-white/5 hover:border-brand-500/50 hover:bg-white/5 transition-all group"
                                     >
-                                        <div className="flex items-center gap-2.5 mb-1.5">
-                                            <span className="text-xl">{tpl.emoji}</span>
-                                            <span className="text-sm font-bold text-white">{tpl.name}</span>
-                                        </div>
-                                        <p className="text-xs text-gray-500 mb-2">{tpl.desc}</p>
-                                        <div className="flex gap-1 flex-wrap">
-                                            {tpl.traffic.map(t => (
-                                                <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-gray-500">{t}</span>
-                                            ))}
-                                        </div>
-                                    </button>
-                                ))}
+                                        <button
+                                            onClick={() => {
+                                                const loadedBlocks = (typeof ct.blocks === 'string' ? JSON.parse(ct.blocks) : ct.blocks).map(b => ({ ...b, id: genId() }));
+                                                setBlocks(loadedBlocks);
+                                                setShowTemplates(false);
+                                                toast.success(`Template "${ct.name}" loaded`);
+                                            }}
+                                            className="w-full text-left"
+                                        >
+                                            <div className="flex items-center gap-2.5 mb-1.5">
+                                                <span className="text-xl">{ct.emoji || '📄'}</span>
+                                                <span className="text-sm font-bold text-white">{ct.name}</span>
+                                            </div>
+                                            <p className="text-xs text-gray-500">{(typeof ct.blocks === 'string' ? JSON.parse(ct.blocks) : ct.blocks).length} blocks</p>
+                                        </button>
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (!confirm(`Delete template "${ct.name}"?`)) return;
+                                                await funnelApi.deleteCustomTemplate(ct.id);
+                                                setCustomTemplates(prev => prev.filter(t => t.id !== ct.id));
+                                                toast.success('Template deleted');
+                                            }}
+                                            className="absolute top-2 right-2 p-1.5 bg-red-500/20 hover:bg-red-500/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                            title="Delete template"
+                                        >
+                                            <X className="w-3 h-3 text-red-400" />
+                                        </button>
+                                    </div>
+                                ))
+                            ) : (
+                                /* Built-in templates */
+                                Object.entries(PAGE_TEMPLATES)
+                                    .filter(([, tpl]) => templateCat === 'all' || tpl.category === templateCat)
+                                    .map(([key, tpl]) => (
+                                        <button
+                                            key={key}
+                                            onClick={() => selectTemplate(key)}
+                                            className="text-left p-4 rounded-xl border border-white/5 hover:border-brand-500/50 hover:bg-white/5 transition-all"
+                                        >
+                                            <div className="flex items-center gap-2.5 mb-1.5">
+                                                <span className="text-xl">{tpl.emoji}</span>
+                                                <span className="text-sm font-bold text-white">{tpl.name}</span>
+                                            </div>
+                                            <p className="text-xs text-gray-500 mb-2">{tpl.desc}</p>
+                                            <div className="flex gap-1 flex-wrap">
+                                                {tpl.traffic.map(t => (
+                                                    <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-gray-500">{t}</span>
+                                                ))}
+                                            </div>
+                                        </button>
+                                    ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Save as Template Modal */}
+            {showSaveTemplate && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowSaveTemplate(false)}>
+                    <div className="bg-[#1a1d27] rounded-2xl w-full max-w-md border border-white/10 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+                            <h2 className="text-lg font-bold text-white flex items-center gap-2"><LayoutTemplate className="w-4 h-4 text-brand-400" /> Save as Template</h2>
+                            <button onClick={() => setShowSaveTemplate(false)} className="p-1 hover:bg-white/5 rounded"><X className="w-4 h-4 text-gray-400" /></button>
+                        </div>
+                        <div className="px-6 py-5 space-y-4">
+                            <div>
+                                <label className="block text-xs text-gray-400 mb-1.5">Template Name</label>
+                                <input
+                                    type="text"
+                                    value={saveTemplateName}
+                                    onChange={e => setSaveTemplateName(e.target.value)}
+                                    className="input-field text-sm"
+                                    placeholder="My Custom Template"
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-400 mb-1.5">Emoji</label>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {['📄', '📰', '📝', '📱', '🎁', '✍️', '🎬', '⚖️', '🎯', '📢', '🚀', '💎', '🔥', '⭐', '💰', '🏆'].map(e => (
+                                        <button
+                                            key={e}
+                                            onClick={() => setSaveTemplateEmoji(e)}
+                                            className={`w-8 h-8 rounded-lg text-lg flex items-center justify-center transition-all ${saveTemplateEmoji === e ? 'bg-brand-500/30 ring-1 ring-brand-500/50' : 'bg-white/5 hover:bg-white/10'}`}
+                                        >{e}</button>
+                                    ))}
+                                </div>
+                            </div>
+                            <p className="text-xs text-gray-500">{blocks.length} blocks will be saved</p>
+                        </div>
+                        <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-2">
+                            <button onClick={() => setShowSaveTemplate(false)} className="btn-secondary text-sm">Cancel</button>
+                            <button
+                                disabled={!saveTemplateName.trim() || savingTemplate}
+                                onClick={async () => {
+                                    setSavingTemplate(true);
+                                    try {
+                                        await funnelApi.saveCustomTemplate({
+                                            name: saveTemplateName.trim(),
+                                            emoji: saveTemplateEmoji,
+                                            blocks: blocks.map(b => ({ type: b.type, html: b.html, styles: b.styles || {} })),
+                                        });
+                                        toast.success('Template saved!');
+                                        setShowSaveTemplate(false);
+                                    } catch (err) {
+                                        toast.error('Failed to save template');
+                                    } finally {
+                                        setSavingTemplate(false);
+                                    }
+                                }}
+                                className="btn-primary text-sm flex items-center gap-1.5"
+                            >
+                                <Save className="w-3.5 h-3.5" /> {savingTemplate ? 'Saving...' : 'Save Template'}
+                            </button>
                         </div>
                     </div>
                 </div>
