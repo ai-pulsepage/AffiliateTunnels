@@ -8,7 +8,7 @@
  */
 const { getSetting } = require('../config/settings');
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 // ─── Pass 1: Extract structured product data ───────────────────
 async function extractProductIntelligence(scrapedText, apiKey) {
