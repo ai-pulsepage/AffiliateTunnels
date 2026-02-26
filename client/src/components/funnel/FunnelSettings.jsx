@@ -16,6 +16,7 @@ export default function FunnelSettings({ funnel, onUpdate }) {
         seo_description: '',
         og_image_url: '',
         ga4_id: '',
+        gads_id: '',
         fb_pixel_id: '',
         brand_colors: { primary: '#6366f1', secondary: '#8b5cf6', accent: '#10b981' },
         brand_fonts: { heading: 'Inter', body: 'Inter' },
@@ -33,6 +34,7 @@ export default function FunnelSettings({ funnel, onUpdate }) {
                 seo_description: funnel.seo_description || '',
                 og_image_url: funnel.og_image_url || '',
                 ga4_id: funnel.ga4_id || '',
+                gads_id: funnel.gads_id || '',
                 fb_pixel_id: funnel.fb_pixel_id || '',
                 brand_colors: funnel.brand_colors || { primary: '#6366f1', secondary: '#8b5cf6', accent: '#10b981' },
                 brand_fonts: funnel.brand_fonts || { heading: 'Inter', body: 'Inter' },
@@ -253,10 +255,14 @@ export default function FunnelSettings({ funnel, onUpdate }) {
                     <BarChart3 className="w-4 h-4 text-amber-400" /> Tracking Overrides
                 </h3>
                 <p className="text-xs text-gray-500 mb-4">Override global tracking IDs for this funnel. Leave blank to use system defaults.</p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                     <div>
                         <label className="block text-xs text-gray-400 mb-1.5">GA4 Measurement ID</label>
                         <input type="text" value={form.ga4_id} onChange={e => updateField('ga4_id', e.target.value)} className="input-field text-sm" placeholder="G-XXXXXXXXXX" />
+                    </div>
+                    <div>
+                        <label className="block text-xs text-gray-400 mb-1.5">Google Ads Tag ID</label>
+                        <input type="text" value={form.gads_id} onChange={e => updateField('gads_id', e.target.value)} className="input-field text-sm" placeholder="AW-XXXXXXXXXX" />
                     </div>
                     <div>
                         <label className="block text-xs text-gray-400 mb-1.5">Facebook Pixel ID</label>

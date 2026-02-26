@@ -4,6 +4,7 @@ function generatePublishedHTML(page, funnel, pages) {
   pages = pages || [];
   const ga4Id = funnel.ga4_id || getSettingSync('default_ga4_id') || '';
   const fbPixelId = funnel.fb_pixel_id || getSettingSync('default_fb_pixel_id') || '';
+  const gadsId = funnel.gads_id || getSettingSync('default_gads_id') || '';
   const appBaseUrl = getSettingSync('app_base_url') || '';
 
   // Compute next page URL for redirect after opt-in
@@ -25,6 +26,16 @@ function generatePublishedHTML(page, funnel, pages) {
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', '${ga4Id}');
+    </script>` : '';
+
+  const gadsScript = gadsId ? `
+    <!-- Google Ads -->
+    ${!ga4Id ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${gadsId}"></script>` : ''}
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '${gadsId}');
     </script>` : '';
 
   const fbPixelScript = fbPixelId ? `
@@ -87,6 +98,7 @@ function generatePublishedHTML(page, funnel, pages) {
   ${page.og_image_url ? `<meta property="og:image" content="${page.og_image_url}">` : ''}
   <meta property="og:type" content="website">
   ${ga4Script}
+  ${gadsScript}
   ${fbPixelScript}
   ${page.custom_head || ''}
   <style>
@@ -271,6 +283,7 @@ module.exports = { generatePublishedHTML, generateBlogHTML, generateBlogIndexHTM
 
 function generateBlogHTML(post) {
   const ga4Id = getSettingSync('default_ga4_id') || '';
+  const gadsId = getSettingSync('default_gads_id') || '';
   const physicalAddress = getSettingSync('physical_address') || '';
   const r2PublicUrl = getSettingSync('r2_public_url') || '';
 
@@ -281,6 +294,15 @@ function generateBlogHTML(post) {
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', '${ga4Id}');
+    </script>` : '';
+
+  const gadsScript = gadsId ? `
+    ${!ga4Id ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${gadsId}"></script>` : ''}
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '${gadsId}');
     </script>` : '';
 
   const publishDate = post.published_at ? new Date(post.published_at).toISOString() : new Date().toISOString();
@@ -317,6 +339,7 @@ function generateBlogHTML(post) {
   <link rel="canonical" href="${r2PublicUrl}/blog/${post.slug}/index.html">
   <script type="application/ld+json">${jsonLd}</script>
   ${ga4Script}
+  ${gadsScript}
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Georgia, 'Times New Roman', serif; color: #333; line-height: 1.8; background: #fff; }
@@ -364,6 +387,7 @@ function generateBlogHTML(post) {
 
 function generateBlogIndexHTML(posts) {
   const ga4Id = getSettingSync('default_ga4_id') || '';
+  const gadsId = getSettingSync('default_gads_id') || '';
   const r2PublicUrl = getSettingSync('r2_public_url') || '';
 
   const ga4Script = ga4Id ? `
@@ -373,6 +397,15 @@ function generateBlogIndexHTML(posts) {
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', '${ga4Id}');
+    </script>` : '';
+
+  const gadsScript = gadsId ? `
+    ${!ga4Id ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${gadsId}"></script>` : ''}
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '${gadsId}');
     </script>` : '';
 
   const postCards = posts.map(p => {
@@ -399,6 +432,7 @@ function generateBlogIndexHTML(posts) {
   <title>Blog</title>
   <meta name="description" content="Read our latest articles and tips.">
   ${ga4Script}
+  ${gadsScript}
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; background: #f9fafb; }
