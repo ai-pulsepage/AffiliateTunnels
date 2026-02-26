@@ -106,6 +106,8 @@ export default function TemplateEditor() {
     // Link editor state
     const [showLinkEditor, setShowLinkEditor] = useState(false);
     const [linkBlockIdx, setLinkBlockIdx] = useState(null);
+    const [linkColIdx, setLinkColIdx] = useState(null);
+    const [linkChildIdx, setLinkChildIdx] = useState(null);
     const [linkUrl, setLinkUrl] = useState('');
 
     // AI state
@@ -499,32 +501,60 @@ export default function TemplateEditor() {
         handleDragEnd();
     }
 
-    // Link editor for CTA blocks
-    function handleLinkClick(idx) {
-        const block = blocks[idx];
+    // Link editor for CTA blocks — supports top-level and column child blocks
+    function handleLinkClick(idx, colIdx = null, childIdx = null) {
+        let html;
+        if (colIdx != null && childIdx != null) {
+            html = blocks[idx]?.columns?.[colIdx]?.blocks?.[childIdx]?.html || '';
+        } else {
+            html = blocks[idx]?.html || '';
+        }
         const tmp = document.createElement('div');
-        tmp.innerHTML = block.html;
-        // Check both <a> and <button> elements (opt-in forms use buttons)
+        tmp.innerHTML = html;
         const link = tmp.querySelector('a') || tmp.querySelector('button[data-link]');
         setLinkUrl(link?.getAttribute('href') || link?.getAttribute('data-link') || ctaLink);
         setLinkBlockIdx(idx);
+        setLinkColIdx(colIdx);
+        setLinkChildIdx(childIdx);
         setShowLinkEditor(true);
     }
 
     function applyLinkEdit() {
         if (linkBlockIdx === null) return;
-        const block = blocks[linkBlockIdx];
-        const tmp = document.createElement('div');
-        tmp.innerHTML = block.html;
-        // Update <a> links
-        const links = tmp.querySelectorAll('a');
-        links.forEach(a => a.setAttribute('href', linkUrl));
-        // Also update form action if this is an opt-in block
-        const form = tmp.querySelector('form');
-        if (form) form.setAttribute('data-redirect', linkUrl);
-        updateBlockHtml(linkBlockIdx, tmp.innerHTML);
+        if (linkColIdx != null && linkChildIdx != null) {
+            // Column child block
+            setBlocks(prev => prev.map((b, i) => {
+                if (i !== linkBlockIdx) return b;
+                const newCols = b.columns.map((c, ci) => {
+                    if (ci !== linkColIdx) return c;
+                    return {
+                        ...c, blocks: c.blocks.map((cb, cbi) => {
+                            if (cbi !== linkChildIdx) return cb;
+                            const tmp = document.createElement('div');
+                            tmp.innerHTML = cb.html || '';
+                            tmp.querySelectorAll('a').forEach(a => a.setAttribute('href', linkUrl));
+                            const form = tmp.querySelector('form');
+                            if (form) form.setAttribute('data-redirect', linkUrl);
+                            return { ...cb, html: tmp.innerHTML };
+                        })
+                    };
+                });
+                return { ...b, columns: newCols };
+            }));
+        } else {
+            // Top-level block
+            const block = blocks[linkBlockIdx];
+            const tmp = document.createElement('div');
+            tmp.innerHTML = block.html;
+            tmp.querySelectorAll('a').forEach(a => a.setAttribute('href', linkUrl));
+            const form = tmp.querySelector('form');
+            if (form) form.setAttribute('data-redirect', linkUrl);
+            updateBlockHtml(linkBlockIdx, tmp.innerHTML);
+        }
         setShowLinkEditor(false);
         setLinkBlockIdx(null);
+        setLinkColIdx(null);
+        setLinkChildIdx(null);
     }
 
     function handleMediaClick(idx) {
@@ -851,7 +881,7 @@ export default function TemplateEditor() {
                         className={`mx-auto transition-all duration-300 ease-in-out ${viewport === 'desktop' ? 'py-10 px-8 pl-20' : viewport === 'tablet' ? 'py-6 px-4' : 'py-4 px-3'}`}
                         style={{
                             ...fontStyle,
-                            maxWidth: viewport === 'desktop' ? undefined : viewport === 'tablet' ? '480px' : '375px',
+                            maxWidth: viewport === 'desktop' ? '680px' : viewport === 'tablet' ? '480px' : '375px',
                             background: '#fff',
                             minHeight: '100%',
                             ...(viewport !== 'desktop' ? { boxShadow: '0 0 40px rgba(0,0,0,0.12)', borderRadius: '8px', marginTop: '16px', marginBottom: '16px', minHeight: 'calc(100% - 32px)' } : {}),
@@ -1099,7 +1129,7 @@ export default function TemplateEditor() {
                                                                 <div
                                                                     contentEditable
                                                                     suppressContentEditableWarning
-                                                                    dangerouslySetInnerHTML={{ __html: child.html }}
+                                                                    dangerouslySetInnerHTML={{ __html: child.html || '' }}
                                                                     className="outline-none rounded transition-shadow hover:ring-1 hover:ring-blue-200"
                                                                     onBlur={(e) => {
                                                                         setBlocks(prev => prev.map((b, i) => {
@@ -1112,6 +1142,7 @@ export default function TemplateEditor() {
                                                                         }));
                                                                     }}
                                                                     onClick={(e) => {
+                                                                        e.stopPropagation();
                                                                         // Prevent link navigation in editor
                                                                         const link = e.target.closest('a');
                                                                         if (link) { e.preventDefault(); }
@@ -1132,6 +1163,17 @@ export default function TemplateEditor() {
                                                                             setResizeTarget({ blockIdx: idx, colIdx, childIdx, el: e.target });
                                                                             return;
                                                                         }
+                                                                        // CTA link click — open link editor for this column child
+                                                                        if (link) {
+                                                                            handleLinkClick(idx, colIdx, childIdx);
+                                                                            return;
+                                                                        }
+                                                                        const btn = e.target.closest('button');
+                                                                        if (btn) {
+                                                                            e.preventDefault();
+                                                                            handleLinkClick(idx, colIdx, childIdx);
+                                                                            return;
+                                                                        }
                                                                     }}
                                                                     style={{ minHeight: '20px' }}
                                                                 />
@@ -1150,6 +1192,44 @@ export default function TemplateEditor() {
                                                                     className="absolute -right-2 -top-2 p-0.5 bg-red-500 text-white rounded-full opacity-0 group-hover/child:opacity-100 transition-opacity z-10"
                                                                     title="Remove"
                                                                 ><X className="w-3 h-3" /></button>
+                                                                {/* Move child up */}
+                                                                {childIdx > 0 && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setBlocks(prev => prev.map((b, i) => {
+                                                                                if (i !== idx) return b;
+                                                                                const newCols = b.columns.map((c, ci) => {
+                                                                                    if (ci !== colIdx) return c;
+                                                                                    const arr = [...c.blocks];
+                                                                                    [arr[childIdx - 1], arr[childIdx]] = [arr[childIdx], arr[childIdx - 1]];
+                                                                                    return { ...c, blocks: arr };
+                                                                                });
+                                                                                return { ...b, columns: newCols };
+                                                                            }));
+                                                                        }}
+                                                                        className="absolute -right-2 top-4 p-0.5 bg-gray-500 text-white rounded-full opacity-0 group-hover/child:opacity-100 transition-opacity z-10"
+                                                                        title="Move up"
+                                                                    ><ChevronUp className="w-3 h-3" /></button>
+                                                                )}
+                                                                {/* Move child down */}
+                                                                {childIdx < col.blocks.length - 1 && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setBlocks(prev => prev.map((b, i) => {
+                                                                                if (i !== idx) return b;
+                                                                                const newCols = b.columns.map((c, ci) => {
+                                                                                    if (ci !== colIdx) return c;
+                                                                                    const arr = [...c.blocks];
+                                                                                    [arr[childIdx], arr[childIdx + 1]] = [arr[childIdx + 1], arr[childIdx]];
+                                                                                    return { ...c, blocks: arr };
+                                                                                });
+                                                                                return { ...b, columns: newCols };
+                                                                            }));
+                                                                        }}
+                                                                        className="absolute -right-2 top-9 p-0.5 bg-gray-500 text-white rounded-full opacity-0 group-hover/child:opacity-100 transition-opacity z-10"
+                                                                        title="Move down"
+                                                                    ><ChevronDown className="w-3 h-3" /></button>
+                                                                )}
                                                             </div>
                                                         ))}
                                                         {/* Add block to column */}
