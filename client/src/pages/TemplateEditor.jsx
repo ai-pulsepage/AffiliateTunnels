@@ -876,15 +876,18 @@ export default function TemplateEditor() {
                     ))}
                 </div>
 
-                <div className="flex-1 overflow-y-auto" style={{ background: viewport === 'desktop' ? '#fff' : '#e5e7eb' }}>
+                <div className="flex-1 overflow-y-auto" style={{ background: '#f0f1f3' }}>
                     <div
                         className={`mx-auto transition-all duration-300 ease-in-out ${viewport === 'desktop' ? 'py-10 px-8 pl-20' : viewport === 'tablet' ? 'py-6 px-4' : 'py-4 px-3'}`}
                         style={{
                             ...fontStyle,
-                            maxWidth: viewport === 'desktop' ? '680px' : viewport === 'tablet' ? '480px' : '375px',
+                            maxWidth: viewport === 'desktop' ? undefined : viewport === 'tablet' ? '480px' : '375px',
                             background: '#fff',
-                            minHeight: '100%',
-                            ...(viewport !== 'desktop' ? { boxShadow: '0 0 40px rgba(0,0,0,0.12)', borderRadius: '8px', marginTop: '16px', marginBottom: '16px', minHeight: 'calc(100% - 32px)' } : {}),
+                            minHeight: 'calc(100% - 32px)',
+                            boxShadow: '0 0 40px rgba(0,0,0,0.08)',
+                            borderRadius: viewport !== 'desktop' ? '8px' : undefined,
+                            marginTop: '16px',
+                            marginBottom: '16px',
                         }}
                     >
                         <style dangerouslySetInnerHTML={{
