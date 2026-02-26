@@ -101,24 +101,65 @@ export default function MediaPicker({ isOpen, onClose, onSelect, accept = 'all',
 
                 <div className="flex flex-1 overflow-hidden">
                     {/* Folder list */}
-                    <div className="w-44 shrink-0 border-r border-white/5 overflow-y-auto p-2 space-y-0.5">
+                    <div className="w-48 shrink-0 border-r border-white/5 overflow-y-auto p-2 space-y-0.5">
                         <button
                             onClick={() => setSelectedFolder(null)}
                             className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs transition-colors ${!selectedFolder ? 'bg-brand-600/20 text-brand-400 font-medium' : 'text-gray-400 hover:bg-white/5'}`}
                         >
                             <Layers className="w-3.5 h-3.5" /> All Files
                         </button>
-                        {sortedFolders.map(f => (
+
+                        {/* This funnel's folders */}
+                        {funnelId && (() => {
+                            const mine = sortedFolders.filter(f => f.funnel_id === funnelId);
+                            const others = sortedFolders.filter(f => f.funnel_id !== funnelId);
+                            return (
+                                <>
+                                    {mine.length > 0 && (
+                                        <p className="text-[9px] font-bold text-gray-500 uppercase tracking-wider px-2.5 pt-3 pb-1">📂 This Campaign</p>
+                                    )}
+                                    {mine.map(f => (
+                                        <button
+                                            key={f.id}
+                                            onClick={() => setSelectedFolder(f)}
+                                            className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs truncate transition-colors ${selectedFolder?.id === f.id ? 'bg-brand-600/20 text-brand-400 font-medium' : 'text-gray-400 hover:bg-white/5'}`}
+                                        >
+                                            <FolderOpen className="w-3.5 h-3.5 shrink-0" />
+                                            <span className="truncate">{f.name}</span>
+                                            <span className="ml-auto text-[9px] text-gray-600">{f.file_count || 0}</span>
+                                        </button>
+                                    ))}
+                                    {others.length > 0 && (
+                                        <p className="text-[9px] font-bold text-gray-500 uppercase tracking-wider px-2.5 pt-3 pb-1">📁 Other Campaigns</p>
+                                    )}
+                                    {others.map(f => (
+                                        <button
+                                            key={f.id}
+                                            onClick={() => setSelectedFolder(f)}
+                                            className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] truncate transition-colors ${selectedFolder?.id === f.id ? 'bg-brand-600/20 text-brand-400 font-medium' : 'text-gray-500 hover:bg-white/5'}`}
+                                        >
+                                            <FolderOpen className="w-3 h-3 shrink-0" />
+                                            <span className="truncate">{f.name}</span>
+                                            {f.funnel_name && (
+                                                <span className="ml-auto text-[8px] text-gray-600 truncate max-w-[60px]">{f.funnel_name}</span>
+                                            )}
+                                        </button>
+                                    ))}
+                                </>
+                            );
+                        })()}
+
+                        {/* No funnelId — show all folders flat with funnel name */}
+                        {!funnelId && sortedFolders.map(f => (
                             <button
                                 key={f.id}
                                 onClick={() => setSelectedFolder(f)}
-                                className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs truncate transition-colors ${selectedFolder?.id === f.id ? 'bg-brand-600/20 text-brand-400 font-medium' : 'text-gray-400 hover:bg-white/5'
-                                    }`}
+                                className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs truncate transition-colors ${selectedFolder?.id === f.id ? 'bg-brand-600/20 text-brand-400 font-medium' : 'text-gray-400 hover:bg-white/5'}`}
                             >
                                 <FolderOpen className="w-3.5 h-3.5 shrink-0" />
                                 <span className="truncate">{f.name}</span>
-                                {f.funnel_id === funnelId && (
-                                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0" />
+                                {f.funnel_name && (
+                                    <span className="ml-auto text-[8px] text-gray-600 truncate max-w-[60px]">{f.funnel_name}</span>
                                 )}
                             </button>
                         ))}
