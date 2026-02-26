@@ -117,9 +117,14 @@ router.post('/scrape-product', authenticate, async (req, res) => {
             console.warn('Product intelligence extraction failed (non-fatal):', err.message);
         }
 
+        // Build a clean, short description (NOT the raw page text)
+        const cleanDescription = productIntel?.description
+            || description   // meta description
+            || text.substring(0, 300).replace(/\s+/g, ' ').trim(); // fallback: first 300 chars
+
         res.json({
             productName: productIntel?.productName || productName,
-            description: description ? description + '\n\n' + text : text,
+            description: cleanDescription,
             sourceUrl: url,
             productIntel,
         });
