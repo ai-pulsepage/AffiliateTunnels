@@ -166,14 +166,32 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/funnels/:id
 router.delete('/:id', async (req, res) => {
     try {
-        const result = await query(
-            'DELETE FROM funnels WHERE id = $1 AND user_id = $2 RETURNING id',
-            [req.params.id, req.user.id]
-        );
-
-        if (result.rows.length === 0) {
+        // Verify ownership first
+        const check = await query('SELECT id FROM funnels WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+        if (check.rows.length === 0) {
             return res.status(404).json({ error: 'Funnel not found' });
         }
+
+        const funnelId = req.params.id;
+
+        // Clean up child records that lack ON DELETE CASCADE
+        // 1. Get page IDs for this funnel
+        const pageIds = await query('SELECT id FROM pages WHERE funnel_id = $1', [funnelId]);
+        const pIds = pageIds.rows.map(p => p.id);
+
+        if (pIds.length > 0) {
+            // Nullify page_id refs in analytics_events and leads (they reference pages without CASCADE)
+            await query('UPDATE analytics_events SET page_id = NULL WHERE page_id = ANY($1)', [pIds]);
+            await query('UPDATE leads SET page_id = NULL WHERE page_id = ANY($1)', [pIds]);
+            // page_versions has CASCADE on pages, so it's auto-handled
+        }
+
+        // 2. Nullify funnel_id in analytics_events and leads (they have CASCADE, but be safe)
+        await query('DELETE FROM analytics_events WHERE funnel_id = $1', [funnelId]);
+        await query('DELETE FROM clickbank_sales WHERE funnel_id = $1', [funnelId]);
+
+        // 3. Now delete the funnel (CASCADE handles pages, leads, drip_campaigns, etc.)
+        await query('DELETE FROM funnels WHERE id = $1', [funnelId]);
 
         res.json({ message: 'Funnel deleted' });
     } catch (err) {
