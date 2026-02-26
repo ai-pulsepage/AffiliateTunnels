@@ -520,7 +520,30 @@ export const PAGE_TEMPLATES = {
             { role: 'body', type: 'text' },
         ],
         blocks: (hoplink) => [
-            { type: 'text', html: `<div class="at-sbs-layout" style="display:flex;gap:36px;align-items:flex-start;max-width:960px;margin:0 auto;padding:40px 24px;"><div class="at-sbs-left" style="flex:0 0 auto;width:340px;"><div data-media-slot="hero" style="width:100%;aspect-ratio:3/4;border-radius:16px;overflow:hidden;background:#f5f5f5;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 32px rgba(0,0,0,0.12);"><span style="color:#999;font-size:14px;">Click to add product image</span></div></div><div class="at-sbs-right" style="flex:1;min-width:0;"><h1 style="font-size:32px;font-weight:800;color:#0f172a;line-height:1.2;margin:0 0 24px;">Your Headline Goes Here — Grab Attention Fast</h1><ul style="list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:14px;"><li style="display:flex;align-items:flex-start;gap:10px;font-size:16px;color:#334155;line-height:1.5;"><span style="color:#22c55e;font-size:20px;flex-shrink:0;">✓</span> First key benefit or feature — what makes it unique</li><li style="display:flex;align-items:flex-start;gap:10px;font-size:16px;color:#334155;line-height:1.5;"><span style="color:#22c55e;font-size:20px;flex-shrink:0;">✓</span> Second benefit — why readers should care about this</li><li style="display:flex;align-items:flex-start;gap:10px;font-size:16px;color:#334155;line-height:1.5;"><span style="color:#22c55e;font-size:20px;flex-shrink:0;">✓</span> Third benefit — create urgency or desire here</li></ul><a href="${hoplink || '#'}" target="_blank" data-cta="true" style="display:inline-block;padding:18px 40px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:18px;font-weight:700;border-radius:12px;text-decoration:none;box-shadow:0 6px 20px rgba(37,99,235,0.3);transition:transform 0.2s;">Get Started Now →</a><p style="font-size:14px;color:#64748b;line-height:1.7;margin:24px 0 0;">Brief supporting text goes here. Explain the offer, social proof, or add a personal note to build trust with your reader.</p></div></div>` },
+            {
+                type: 'image', html: '<div data-media-slot="hero" style="text-align:center;padding:60px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:16px;margin:0 0 28px;min-height:300px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid #e2e8f0;"><span style="color:#94a3b8;font-size:15px;">📸 Click to add product image</span></div>',
+                styles: { marginBottom: '28px' }
+            },
+            {
+                type: 'heading', html: '<h1 style="font-size:32px;font-weight:800;color:#0f172a;line-height:1.2;">Your Headline Goes Here — Grab Attention Fast</h1>',
+                styles: { fontSize: '32px', color: '#0f172a', marginBottom: '20px' }
+            },
+            {
+                type: 'list', html: '<ul style="list-style:none;padding:0;font-size:16px;line-height:2.2;"><li>✅ First key benefit — what makes it unique</li><li>✅ Second benefit — why readers should care</li><li>✅ Third benefit — create urgency or desire here</li></ul>',
+                styles: { fontSize: '16px', marginBottom: '24px' }
+            },
+            {
+                type: 'button', html: `<div style="text-align:center;padding:24px 0;"><a href="${hoplink || '#'}" target="_blank" data-cta="true" style="display:inline-block;padding:18px 48px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:18px;font-weight:700;border-radius:12px;text-decoration:none;box-shadow:0 6px 20px rgba(37,99,235,0.3);">Get Started Now →</a></div>`,
+                styles: { textAlign: 'center', marginBottom: '20px' }
+            },
+            {
+                type: 'text', html: '<p style="font-size:15px;color:#64748b;line-height:1.7;">Brief supporting text goes here. Explain the offer, add social proof, or include a personal note to build trust with your reader.</p>',
+                styles: { fontSize: '15px', color: '#64748b', lineHeight: '1.7' }
+            },
+            {
+                type: 'text', html: '<p style="font-size:12px;color:#9ca3af;text-align:center;margin-top:24px;">This is an advertisement. Individual results may vary.</p>',
+                styles: { fontSize: '12px', color: '#9ca3af', textAlign: 'center', marginTop: '24px' }
+            },
         ],
     },
 };
