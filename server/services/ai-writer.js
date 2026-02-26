@@ -12,7 +12,7 @@ const GEMINI_MODEL = 'gemini-2.5-flash';
 
 // ─── Pass 1: Extract structured product data ───────────────────
 async function extractProductIntelligence(scrapedText, apiKey) {
-   const prompt = `You are a product research analyst. Extract ALL useful information from this product/sales page content.
+   const prompt = `You are a product research analyst. Extract the most useful information from this product/sales page content.
 
 RAW SCRAPED CONTENT:
 ${scrapedText}
@@ -23,21 +23,21 @@ Extract and return a JSON object with these fields (use null if not found):
   "brand": "brand name",
   "tagline": "main marketing tagline",
   "description": "2-3 sentence summary of what the product does",
-  "targetAudience": "who this product is for (age, gender, conditions)",
-  "mainClaims": ["list of key marketing claims"],
+  "targetAudience": "who this product is for",
+  "mainClaims": ["top 5 key marketing claims only"],
   "ingredients": [{"name": "ingredient name", "benefit": "what it does"}],
-  "scientificClaims": ["any research/study references mentioned"],
-  "testimonials": [{"quote": "testimonial text", "name": "person name", "detail": "age, location, or other detail"}],
-  "pricing": [{"tier": "package name", "bottles": 2, "pricePerBottle": "$79", "totalPrice": "$158"}],
+  "testimonials": [{"quote": "short testimonial (max 2 sentences)", "name": "person name", "detail": "location"}],
+  "pricing": [{"tier": "package name", "totalPrice": "$XX"}],
   "guarantee": "money-back guarantee details",
   "bonuses": ["any free bonuses mentioned"],
-  "keyStats": ["any specific numbers/percentages mentioned like '74% increase'"],
+  "keyStats": ["top 5 specific numbers/percentages"],
   "problemItSolves": "the core problem this product addresses",
-  "howItWorks": "mechanism of action explanation",
-  "uniqueAngle": "what makes this product different from competitors"
+  "howItWorks": "mechanism of action in 1-2 sentences",
+  "uniqueAngle": "what makes this different from competitors"
 }
 
-Return ONLY valid JSON. No explanation, no markdown fences.`;
+IMPORTANT: Keep testimonials to maximum 5. Keep all lists to maximum 5 items. Keep all text fields concise.
+Return ONLY valid JSON.`;
 
    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
    const response = await fetch(url, {
@@ -45,7 +45,11 @@ Return ONLY valid JSON. No explanation, no markdown fences.`;
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
          contents: [{ parts: [{ text: prompt }] }],
-         generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
+         generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 8192,
+            responseMimeType: 'application/json',
+         },
       }),
    });
 
@@ -54,8 +58,17 @@ Return ONLY valid JSON. No explanation, no markdown fences.`;
    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
    text = text.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
 
-   try { return JSON.parse(text); }
-   catch { return { productName: 'Product', description: text }; }
+   try {
+      return JSON.parse(text);
+   } catch {
+      // If JSON is truncated, try to extract key fields via regex
+      const nameMatch = text.match(/"productName"\s*:\s*"([^"]+)"/);
+      const descMatch = text.match(/"description"\s*:\s*"([^"]+)"/);
+      return {
+         productName: nameMatch?.[1] || 'Product',
+         description: descMatch?.[1] || '',
+      };
+   }
 }
 
 // ─── Shared helpers ────────────────────────────────────────────
