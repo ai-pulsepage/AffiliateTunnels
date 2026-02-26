@@ -118,6 +118,9 @@ export default function TemplateEditor() {
 
     // Active block for formatting toolbar
     const [activeBlockIdx, setActiveBlockIdx] = useState(null);
+    // Hovered block for block toolbar (with debounce to prevent flicker on thin blocks)
+    const [hoveredBlockIdx, setHoveredBlockIdx] = useState(null);
+    const hoverTimerRef = useRef(null);
     // Media resize state
     const [resizeTarget, setResizeTarget] = useState(null); // { blockIdx, element: 'img'|'video' }
     const savedRangeRef = useRef(null);
@@ -969,13 +972,19 @@ export default function TemplateEditor() {
                                     onDragOver={e => handleDragOver(e, idx)}
                                     onDrop={e => handleDrop(e, idx)}
                                     onClick={() => setActiveBlockIdx(idx)}
+                                    onMouseEnter={() => { clearTimeout(hoverTimerRef.current); setHoveredBlockIdx(idx); }}
+                                    onMouseLeave={() => { hoverTimerRef.current = setTimeout(() => setHoveredBlockIdx(null), 150); }}
                                 >
                                     {dropIdx === idx && dragIdx !== idx && (
                                         <div className="absolute -top-1 left-0 right-0 h-0.5 bg-blue-500 rounded-full z-10" />
                                     )}
 
-                                    {/* Block toolbar — always accessible on hover, left edge */}
-                                    <div className="absolute -left-12 top-0 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-30 bg-white/90 rounded-lg shadow-md border border-gray-200 p-0.5">
+                                    {/* Block toolbar — visible on hover with debounce */}
+                                    <div
+                                        className={`absolute -left-12 top-0 flex flex-col gap-0.5 transition-opacity z-30 bg-white/90 rounded-lg shadow-md border border-gray-200 p-0.5 ${hoveredBlockIdx === idx ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                                        onMouseEnter={() => { clearTimeout(hoverTimerRef.current); setHoveredBlockIdx(idx); }}
+                                        onMouseLeave={() => { hoverTimerRef.current = setTimeout(() => setHoveredBlockIdx(null), 150); }}
+                                    >
                                         <div
                                             className="p-1 cursor-grab active:cursor-grabbing"
                                             title="Drag to reorder"
