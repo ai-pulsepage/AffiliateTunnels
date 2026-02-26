@@ -174,23 +174,25 @@ router.delete('/:id', async (req, res) => {
 
         const funnelId = req.params.id;
 
-        // Clean up child records that lack ON DELETE CASCADE
-        // 1. Get page IDs for this funnel
-        const pageIds = await query('SELECT id FROM pages WHERE funnel_id = $1', [funnelId]);
-        const pIds = pageIds.rows.map(p => p.id);
+        // Get all page IDs for this funnel
+        const pageResult = await query('SELECT id FROM pages WHERE funnel_id = $1', [funnelId]);
+        const pageIds = pageResult.rows.map(p => p.id);
 
-        if (pIds.length > 0) {
-            // Nullify page_id refs in analytics_events and leads (they reference pages without CASCADE)
-            await query('UPDATE analytics_events SET page_id = NULL WHERE page_id = ANY($1)', [pIds]);
-            await query('UPDATE leads SET page_id = NULL WHERE page_id = ANY($1)', [pIds]);
-            // page_versions has CASCADE on pages, so it's auto-handled
+        // Step 1: Nullify page_id FK refs (these lack ON DELETE CASCADE)
+        if (pageIds.length > 0) {
+            await query('UPDATE analytics_events SET page_id = NULL WHERE page_id = ANY($1::uuid[])', [pageIds]);
+            await query('UPDATE leads SET page_id = NULL WHERE page_id = ANY($1::uuid[])', [pageIds]);
         }
 
-        // 2. Nullify funnel_id in analytics_events and leads (they have CASCADE, but be safe)
-        await query('DELETE FROM analytics_events WHERE funnel_id = $1', [funnelId]);
+        // Step 2: Delete records referencing funnel without CASCADE
         await query('DELETE FROM clickbank_sales WHERE funnel_id = $1', [funnelId]);
 
-        // 3. Now delete the funnel (CASCADE handles pages, leads, drip_campaigns, etc.)
+        // Step 3: Delete pages explicitly (page_versions cascades from pages)
+        if (pageIds.length > 0) {
+            await query('DELETE FROM pages WHERE funnel_id = $1', [funnelId]);
+        }
+
+        // Step 4: Delete the funnel (remaining children cascade: leads, analytics_events, drip_campaigns)
         await query('DELETE FROM funnels WHERE id = $1', [funnelId]);
 
         res.json({ message: 'Funnel deleted' });
@@ -374,13 +376,25 @@ router.put('/:funnelId/pages/:id', async (req, res) => {
 // DELETE /api/funnels/:funnelId/pages/:id
 router.delete('/:funnelId/pages/:id', async (req, res) => {
     try {
-        const result = await query(
-            `DELETE FROM pages p USING funnels f WHERE p.id = $1 AND p.funnel_id = $2 AND f.id = p.funnel_id AND f.user_id = $3 RETURNING p.id`,
+        // Verify ownership
+        const check = await query(
+            'SELECT p.id FROM pages p JOIN funnels f ON p.funnel_id = f.id WHERE p.id = $1 AND p.funnel_id = $2 AND f.user_id = $3',
             [req.params.id, req.params.funnelId, req.user.id]
         );
-        if (result.rows.length === 0) return res.status(404).json({ error: 'Page not found' });
+        if (check.rows.length === 0) return res.status(404).json({ error: 'Page not found' });
+
+        const pageId = req.params.id;
+
+        // Nullify page_id FK refs that lack ON DELETE CASCADE
+        await query('UPDATE analytics_events SET page_id = NULL WHERE page_id = $1', [pageId]);
+        await query('UPDATE leads SET page_id = NULL WHERE page_id = $1', [pageId]);
+
+        // Now delete the page (page_versions cascades automatically)
+        await query('DELETE FROM pages WHERE id = $1', [pageId]);
+
         res.json({ message: 'Page deleted' });
     } catch (err) {
+        console.error('Delete page error:', err);
         res.status(500).json({ error: 'Failed to delete page' });
     }
 });
