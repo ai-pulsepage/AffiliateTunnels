@@ -10,7 +10,8 @@ import {
     MousePointerClick, Quote, List, Minus, LayoutTemplate, Mail, Package,
     ChevronUp, ChevronDown, Trash2, Plus, GripVertical,
     Bold, Italic, Underline, Strikethrough, AlignCenter, AlignRight,
-    Palette, Maximize2, Minimize2, Search, Monitor, Tablet, Smartphone
+    Palette, Maximize2, Minimize2, Search, Monitor, Tablet, Smartphone,
+    Columns
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -27,6 +28,7 @@ const BLOCK_TYPES = [
     { type: 'banner', label: 'Banner', icon: LayoutTemplate, html: '<div style="text-align:center;padding:20px;"><a href="#"><img src="" alt="Affiliate Banner" style="max-width:100%;border-radius:8px;border:1px solid #eee;"></a><p style="color:#999;font-size:11px;margin-top:8px;">Click to set banner image + affiliate link</p></div>' },
     { type: 'optin', label: 'Opt-in Form', icon: Mail, html: '<div style="text-align:center;padding:32px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:12px;color:#fff;margin:24px 0;"><h3 style="margin-bottom:8px;">Get Our Free Guide</h3><p style="margin-bottom:16px;opacity:0.9;font-size:14px;">Enter your email to receive exclusive tips.</p><div style="max-width:320px;margin:0 auto;"><input type="email" placeholder="Your email" style="width:100%;padding:12px;border:none;border-radius:6px;margin-bottom:8px;font-size:14px;"><button style="width:100%;padding:12px;background:#e63946;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">Send Me The Guide</button></div></div>' },
     { type: 'product', label: 'Product Card', icon: Package, html: '<div style="display:flex;gap:20px;padding:20px;border:2px solid #e63946;border-radius:12px;align-items:center;margin:24px 0;"><img src="" alt="Product" style="width:120px;height:120px;object-fit:cover;border-radius:8px;background:#f5f5f5;"><div><h3 style="margin-bottom:4px;">Product Name</h3><p style="color:#666;font-size:14px;margin-bottom:12px;">Brief description of what this product does.</p><a href="#" style="display:inline-block;padding:10px 24px;background:#e63946;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:14px;">Learn More →</a></div></div>' },
+    { type: 'columns', label: '2 Columns', icon: Columns, isColumns: true },
 ];
 
 
@@ -226,8 +228,26 @@ export default function TemplateEditor() {
                 }
                 // If it has a data-block-type, use it directly
                 if (child.getAttribute('data-block-type')) {
+                    const blockType = child.getAttribute('data-block-type');
+                    // Handle columns block
+                    if (blockType === 'columns') {
+                        const colDivs = Array.from(child.children).filter(c => c.classList?.contains('at-col') || c.style?.flex);
+                        const columns = colDivs.map(colDiv => {
+                            const widthMatch = colDiv.style?.flex?.match(/(\d+%)/);
+                            const width = widthMatch ? widthMatch[1] : '50%';
+                            const childBlocks = Array.from(colDiv.children).filter(cb => cb.getAttribute('data-block-type')).map(cb => ({
+                                id: cb.getAttribute('data-block-id') || genId(),
+                                type: cb.getAttribute('data-block-type'),
+                                html: cb.innerHTML,
+                                styles: extractStylesFromHtml(cb.outerHTML),
+                            }));
+                            return { width, blocks: childBlocks };
+                        });
+                        parsed.push({ id: child.getAttribute('data-block-id') || genId(), type: 'columns', columns, styles: { gap: '24px' } });
+                        continue;
+                    }
                     const wrapperStyles = extractStylesFromHtml(child.outerHTML);
-                    parsed.push({ id: child.getAttribute('data-block-id') || genId(), type: child.getAttribute('data-block-type'), html: child.innerHTML, styles: wrapperStyles });
+                    parsed.push({ id: child.getAttribute('data-block-id') || genId(), type: blockType, html: child.innerHTML, styles: wrapperStyles });
                     continue;
                 }
                 // Unwrap container/wrapper divs to pull out individual blocks
@@ -258,11 +278,23 @@ export default function TemplateEditor() {
 
     function selectTemplate(key) {
         const tpl = PAGE_TEMPLATES[key];
-        const newBlocks = tpl.blocks(ctaLink).map(b => ({
-            ...b,
-            id: genId(),
-            styles: b.styles || extractStylesFromHtml(b.html),
-        }));
+        const newBlocks = tpl.blocks(ctaLink).map(b => {
+            if (b.type === 'columns' && b.columns) {
+                return {
+                    ...b,
+                    id: genId(),
+                    columns: b.columns.map(col => ({
+                        ...col,
+                        blocks: col.blocks.map(cb => ({ ...cb, id: genId(), styles: cb.styles || extractStylesFromHtml(cb.html) })),
+                    })),
+                };
+            }
+            return {
+                ...b,
+                id: genId(),
+                styles: b.styles || extractStylesFromHtml(b.html),
+            };
+        });
         setBlocks(newBlocks);
         setShowTemplates(false);
     }
@@ -306,13 +338,25 @@ export default function TemplateEditor() {
 
     function blocksToHtml() {
         let html = blocks.map(b => {
+            if (b.type === 'columns' && b.columns) {
+                const gap = b.styles?.gap || '24px';
+                const colsHtml = b.columns.map(col => {
+                    const childHtml = (col.blocks || []).map(cb => {
+                        const cs = cb.styles || {};
+                        const cStyleStr = buildStyleString(cs);
+                        return `<div data-block-type="${cb.type}" data-block-id="${cb.id}"${cStyleStr ? ` style="${cStyleStr}"` : ''}>${cb.html}</div>`;
+                    }).join('\n');
+                    return `<div class="at-col" style="flex:0 0 ${col.width};min-width:0;">${childHtml}</div>`;
+                }).join('\n');
+                return `<div data-block-type="columns" data-block-id="${b.id}" class="at-columns" style="display:flex;gap:${gap};align-items:flex-start;">${colsHtml}</div>`;
+            }
             const s = b.styles || {};
             const styleStr = buildStyleString(s);
             const visClass = s.visibility === 'desktop' ? ' class="hide-on-mobile"' : s.visibility === 'mobile' ? ' class="hide-on-desktop"' : '';
             return `<div data-block-type="${b.type}" data-block-id="${b.id}"${visClass}${styleStr ? ` style="${styleStr}"` : ''}>${b.html}</div>`;
         }).join('\n');
         // Add responsive visibility CSS
-        html = `<style>.hide-on-mobile{display:block}@media(max-width:768px){.hide-on-mobile{display:none!important}.hide-on-desktop{display:block!important}}.hide-on-desktop{display:none}</style>\n` + html;
+        html = `<style>.hide-on-mobile{display:block}@media(max-width:768px){.hide-on-mobile{display:none!important}.hide-on-desktop{display:block!important}.at-columns{flex-direction:column!important}.at-col{flex:1 1 100%!important}}.hide-on-desktop{display:none}</style>\n` + html;
         if (gateEnabled) {
             html += gatePopupHtml(funnelId, pageId);
         }
@@ -338,9 +382,22 @@ export default function TemplateEditor() {
     }
 
     function addBlock(type, afterIndex = -1) {
-        const template = BLOCK_TYPES.find(b => b.type === type);
-        if (!template) return;
-        const newBlock = { id: genId(), type, html: template.html };
+        let newBlock;
+        if (type === 'columns') {
+            newBlock = {
+                id: genId(),
+                type: 'columns',
+                columns: [
+                    { width: '50%', blocks: [] },
+                    { width: '50%', blocks: [] },
+                ],
+                styles: { gap: '24px' },
+            };
+        } else {
+            const template = BLOCK_TYPES.find(b => b.type === type);
+            if (!template) return;
+            newBlock = { id: genId(), type, html: template.html };
+        }
         let insertIdx;
         setBlocks(prev => {
             const next = [...prev];
@@ -967,7 +1024,127 @@ export default function TemplateEditor() {
                                     )}
 
                                     {/* Block content */}
-                                    {block.type === 'optin' ? (
+                                    {block.type === 'columns' && block.columns ? (
+                                        /* ── COLUMNS BLOCK ── */
+                                        <div>
+                                            {/* Width presets toolbar */}
+                                            <div className="flex items-center gap-1 mb-2 justify-center">
+                                                <span className="text-[10px] text-gray-400 mr-1">Layout:</span>
+                                                {[
+                                                    { label: '50 / 50', widths: ['50%', '50%'] },
+                                                    { label: '40 / 60', widths: ['40%', '60%'] },
+                                                    { label: '60 / 40', widths: ['60%', '40%'] },
+                                                    { label: '30 / 70', widths: ['30%', '70%'] },
+                                                ].map(preset => (
+                                                    <button
+                                                        key={preset.label}
+                                                        onClick={() => {
+                                                            setBlocks(prev => prev.map((b, i) => i === idx ? {
+                                                                ...b,
+                                                                columns: b.columns.map((col, ci) => ({ ...col, width: preset.widths[ci] }))
+                                                            } : b));
+                                                        }}
+                                                        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${block.columns[0]?.width === preset.widths[0]
+                                                            ? 'bg-brand-500/20 text-brand-400 ring-1 ring-brand-500/30'
+                                                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                                            }`}
+                                                    >{preset.label}</button>
+                                                ))}
+                                            </div>
+                                            {/* Columns flex container */}
+                                            <div style={{ display: viewport === 'mobile' ? 'block' : 'flex', gap: block.styles?.gap || '24px', alignItems: 'flex-start' }}>
+                                                {block.columns.map((col, colIdx) => (
+                                                    <div
+                                                        key={colIdx}
+                                                        style={{ flex: `0 0 ${viewport === 'mobile' ? '100%' : col.width}`, minWidth: 0, marginBottom: viewport === 'mobile' ? '16px' : undefined }}
+                                                        className="border border-dashed border-gray-300 rounded-lg p-2 min-h-[60px]"
+                                                    >
+                                                        {/* Child blocks */}
+                                                        {col.blocks.map((child, childIdx) => (
+                                                            <div key={child.id} className="group/child relative mb-1">
+                                                                <div
+                                                                    contentEditable
+                                                                    suppressContentEditableWarning
+                                                                    dangerouslySetInnerHTML={{ __html: child.html }}
+                                                                    className="outline-none rounded transition-shadow hover:ring-1 hover:ring-blue-200"
+                                                                    onBlur={(e) => {
+                                                                        setBlocks(prev => prev.map((b, i) => {
+                                                                            if (i !== idx) return b;
+                                                                            const newCols = b.columns.map((c, ci) => {
+                                                                                if (ci !== colIdx) return c;
+                                                                                return { ...c, blocks: c.blocks.map((cb, cbi) => cbi === childIdx ? { ...cb, html: e.currentTarget.innerHTML } : cb) };
+                                                                            });
+                                                                            return { ...b, columns: newCols };
+                                                                        }));
+                                                                    }}
+                                                                    onClick={(e) => {
+                                                                        // Prevent link navigation in editor
+                                                                        const link = e.target.closest('a');
+                                                                        if (link) { e.preventDefault(); }
+                                                                        // Prevent media slot from doing nothing useful
+                                                                        const slot = e.target.closest('[data-media-slot]');
+                                                                        if (slot) { e.preventDefault(); setActiveBlockIdx(idx); }
+                                                                    }}
+                                                                    style={{ minHeight: '20px' }}
+                                                                />
+                                                                {/* Delete child block */}
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setBlocks(prev => prev.map((b, i) => {
+                                                                            if (i !== idx) return b;
+                                                                            const newCols = b.columns.map((c, ci) => {
+                                                                                if (ci !== colIdx) return c;
+                                                                                return { ...c, blocks: c.blocks.filter((_, cbi) => cbi !== childIdx) };
+                                                                            });
+                                                                            return { ...b, columns: newCols };
+                                                                        }));
+                                                                    }}
+                                                                    className="absolute -right-2 -top-2 p-0.5 bg-red-500 text-white rounded-full opacity-0 group-hover/child:opacity-100 transition-opacity z-10"
+                                                                    title="Remove"
+                                                                ><X className="w-3 h-3" /></button>
+                                                            </div>
+                                                        ))}
+                                                        {/* Add block to column */}
+                                                        <div className="relative group/add">
+                                                            <button
+                                                                className="w-full py-1.5 border border-dashed border-gray-300 rounded text-gray-400 hover:text-blue-500 hover:border-blue-400 text-xs flex items-center justify-center gap-1 transition-colors"
+                                                                onClick={(e) => {
+                                                                    // Toggle a simple dropdown
+                                                                    const dd = e.currentTarget.nextElementSibling;
+                                                                    dd.classList.toggle('hidden');
+                                                                }}
+                                                            ><Plus className="w-3 h-3" /> Add</button>
+                                                            <div className="hidden absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-lg shadow-xl mt-1 py-1 max-h-48 overflow-y-auto">
+                                                                {BLOCK_TYPES.filter(bt => bt.type !== 'columns').map(bt => (
+                                                                    <button
+                                                                        key={bt.type}
+                                                                        onClick={(e) => {
+                                                                            e.currentTarget.closest('.hidden, [class*="hidden"]')?.classList.add('hidden');
+                                                                            const template = BLOCK_TYPES.find(b => b.type === bt.type);
+                                                                            if (!template) return;
+                                                                            const newChild = { id: genId(), type: bt.type, html: template.html };
+                                                                            setBlocks(prev => prev.map((b, i) => {
+                                                                                if (i !== idx) return b;
+                                                                                const newCols = b.columns.map((c, ci) => {
+                                                                                    if (ci !== colIdx) return c;
+                                                                                    return { ...c, blocks: [...c.blocks, newChild] };
+                                                                                });
+                                                                                return { ...b, columns: newCols };
+                                                                            }));
+                                                                        }}
+                                                                        className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                                                                    >
+                                                                        <bt.icon className="w-3.5 h-3.5" />
+                                                                        {bt.label}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : block.type === 'optin' ? (
                                         /* Opt-in blocks: NOT contentEditable — form inputs conflict with contentEditable */
                                         <div
                                             className="outline-none rounded transition-shadow group-hover:ring-2 group-hover:ring-blue-200 relative cursor-pointer"

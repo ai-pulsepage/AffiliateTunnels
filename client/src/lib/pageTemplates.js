@@ -511,33 +511,33 @@ export const PAGE_TEMPLATES = {
         category: 'ad',
         traffic: ['native', 'display', 'facebook', 'tiktok'],
         structure: [
-            { role: 'hero_image', type: 'image' },
-            { role: 'headline', type: 'heading' },
-            { role: 'bullet_1', type: 'text' },
-            { role: 'bullet_2', type: 'text' },
-            { role: 'bullet_3', type: 'text' },
-            { role: 'cta', type: 'button' },
+            { role: 'columns_layout', type: 'columns' },
             { role: 'body', type: 'text' },
+            { role: 'disclosure', type: 'text' },
         ],
         blocks: (hoplink) => [
             {
-                type: 'image', html: '<div data-media-slot="hero" style="text-align:center;padding:60px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:16px;margin:0 0 28px;min-height:300px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid #e2e8f0;"><span style="color:#94a3b8;font-size:15px;">📸 Click to add product image</span></div>',
-                styles: { marginBottom: '28px' }
+                type: 'columns',
+                columns: [
+                    {
+                        width: '40%',
+                        blocks: [
+                            { type: 'image', html: '<div data-media-slot="hero" style="text-align:center;padding:40px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:16px;min-height:300px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid #e2e8f0;"><span style="color:#94a3b8;font-size:15px;">📸 Click to add product image</span></div>' },
+                        ],
+                    },
+                    {
+                        width: '60%',
+                        blocks: [
+                            { type: 'heading', html: '<h1 style="font-size:32px;font-weight:800;color:#0f172a;line-height:1.2;margin:0 0 16px;">Your Headline Goes Here — Grab Attention Fast</h1>' },
+                            { type: 'list', html: '<ul style="list-style:none;padding:0;font-size:16px;line-height:2.2;margin:0 0 24px;"><li>✅ First key benefit — what makes it unique</li><li>✅ Second benefit — why readers should care</li><li>✅ Third benefit — create urgency or desire here</li></ul>' },
+                            { type: 'button', html: `<div style="padding:8px 0;"><a href="${hoplink || '#'}" target="_blank" data-cta="true" style="display:inline-block;padding:18px 48px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:18px;font-weight:700;border-radius:12px;text-decoration:none;box-shadow:0 6px 20px rgba(37,99,235,0.3);">Get Started Now →</a></div>` },
+                        ],
+                    },
+                ],
+                styles: { gap: '36px' },
             },
             {
-                type: 'heading', html: '<h1 style="font-size:32px;font-weight:800;color:#0f172a;line-height:1.2;">Your Headline Goes Here — Grab Attention Fast</h1>',
-                styles: { fontSize: '32px', color: '#0f172a', marginBottom: '20px' }
-            },
-            {
-                type: 'list', html: '<ul style="list-style:none;padding:0;font-size:16px;line-height:2.2;"><li>✅ First key benefit — what makes it unique</li><li>✅ Second benefit — why readers should care</li><li>✅ Third benefit — create urgency or desire here</li></ul>',
-                styles: { fontSize: '16px', marginBottom: '24px' }
-            },
-            {
-                type: 'button', html: `<div style="text-align:center;padding:24px 0;"><a href="${hoplink || '#'}" target="_blank" data-cta="true" style="display:inline-block;padding:18px 48px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:18px;font-weight:700;border-radius:12px;text-decoration:none;box-shadow:0 6px 20px rgba(37,99,235,0.3);">Get Started Now →</a></div>`,
-                styles: { textAlign: 'center', marginBottom: '20px' }
-            },
-            {
-                type: 'text', html: '<p style="font-size:15px;color:#64748b;line-height:1.7;">Brief supporting text goes here. Explain the offer, add social proof, or include a personal note to build trust with your reader.</p>',
+                type: 'text', html: '<p style="font-size:15px;color:#64748b;line-height:1.7;margin-top:24px;">Brief supporting text goes here. Explain the offer, add social proof, or include a personal note to build trust with your reader.</p>',
                 styles: { fontSize: '15px', color: '#64748b', lineHeight: '1.7' }
             },
             {
