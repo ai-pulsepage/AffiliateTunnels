@@ -735,10 +735,7 @@ export default function TemplateEditor() {
                                         textAlign: block.styles.textAlign || undefined,
                                         lineHeight: block.styles.lineHeight || undefined,
                                     } : undefined}
-                                    draggable
-                                    onDragStart={e => handleDragStart(e, idx)}
                                     onDragOver={e => handleDragOver(e, idx)}
-                                    onDragEnd={handleDragEnd}
                                     onDrop={e => handleDrop(e, idx)}
                                     onClick={() => setActiveBlockIdx(idx)}
                                 >
@@ -746,9 +743,15 @@ export default function TemplateEditor() {
                                         <div className="absolute -top-1 left-0 right-0 h-0.5 bg-blue-500 rounded-full z-10" />
                                     )}
 
-                                    {/* Block toolbar — always accessible on hover, top-right corner */}
-                                    <div className="absolute -right-11 top-0 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-30 bg-white/90 rounded-lg shadow-md border border-gray-200 p-0.5">
-                                        <div className="p-1 cursor-grab active:cursor-grabbing" title="Drag to reorder">
+                                    {/* Block toolbar — always accessible on hover, right edge */}
+                                    <div className="absolute -right-12 top-0 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-30 bg-white/90 rounded-lg shadow-md border border-gray-200 p-0.5">
+                                        <div
+                                            className="p-1 cursor-grab active:cursor-grabbing"
+                                            title="Drag to reorder"
+                                            draggable
+                                            onDragStart={e => handleDragStart(e, idx)}
+                                            onDragEnd={handleDragEnd}
+                                        >
                                             <GripVertical className="w-3.5 h-3.5 text-gray-400" />
                                         </div>
                                         <button onClick={() => moveBlock(idx, -1)} className="p-1 hover:bg-gray-100 rounded" title="Move up">
@@ -782,15 +785,15 @@ export default function TemplateEditor() {
                                                     e.target.value = '';
                                                     if (editableEl) { updateBlockHtml(idx, editableEl.innerHTML); editableEl.focus(); }
                                                 }}
-                                                className="bg-white/10 text-gray-200 text-xs rounded px-1 py-1 border-none outline-none cursor-pointer"
+                                                className="bg-[#2a2d3e] text-white text-xs rounded px-1 py-1 border border-white/20 outline-none cursor-pointer"
                                                 defaultValue=""
                                             >
                                                 <option value="" disabled>Font</option>
-                                                <option value="Georgia, serif">Serif</option>
-                                                <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">Sans-serif</option>
-                                                <option value="'Courier New', monospace">Mono</option>
-                                                <option value="Impact, sans-serif">Impact</option>
-                                                <option value="'Comic Sans MS', cursive">Casual</option>
+                                                <option value="Georgia, serif" style={{ background: '#1e2030', color: '#fff' }}>Serif</option>
+                                                <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" style={{ background: '#1e2030', color: '#fff' }}>Sans-serif</option>
+                                                <option value="'Courier New', monospace" style={{ background: '#1e2030', color: '#fff' }}>Mono</option>
+                                                <option value="Impact, sans-serif" style={{ background: '#1e2030', color: '#fff' }}>Impact</option>
+                                                <option value="'Comic Sans MS', cursive" style={{ background: '#1e2030', color: '#fff' }}>Casual</option>
                                             </select>
                                             <select
                                                 onMouseDown={(e) => { e.stopPropagation(); }}
@@ -808,21 +811,21 @@ export default function TemplateEditor() {
                                                     e.target.value = '';
                                                     if (editableEl) { updateBlockHtml(idx, editableEl.innerHTML); editableEl.focus(); }
                                                 }}
-                                                className="bg-white/10 text-gray-200 text-xs rounded px-1 py-1 border-none outline-none cursor-pointer"
+                                                className="bg-[#2a2d3e] text-white text-xs rounded px-1 py-1 border border-white/20 outline-none cursor-pointer"
                                                 defaultValue=""
                                             >
                                                 <option value="" disabled>Size</option>
-                                                <option value="12px">12</option>
-                                                <option value="14px">14</option>
-                                                <option value="16px">16</option>
-                                                <option value="18px">18</option>
-                                                <option value="20px">20</option>
-                                                <option value="24px">24</option>
-                                                <option value="28px">28</option>
-                                                <option value="32px">32</option>
-                                                <option value="36px">36</option>
-                                                <option value="42px">42</option>
-                                                <option value="48px">48</option>
+                                                <option value="12px" style={{ background: '#1e2030', color: '#fff' }}>12</option>
+                                                <option value="14px" style={{ background: '#1e2030', color: '#fff' }}>14</option>
+                                                <option value="16px" style={{ background: '#1e2030', color: '#fff' }}>16</option>
+                                                <option value="18px" style={{ background: '#1e2030', color: '#fff' }}>18</option>
+                                                <option value="20px" style={{ background: '#1e2030', color: '#fff' }}>20</option>
+                                                <option value="24px" style={{ background: '#1e2030', color: '#fff' }}>24</option>
+                                                <option value="28px" style={{ background: '#1e2030', color: '#fff' }}>28</option>
+                                                <option value="32px" style={{ background: '#1e2030', color: '#fff' }}>32</option>
+                                                <option value="36px" style={{ background: '#1e2030', color: '#fff' }}>36</option>
+                                                <option value="42px" style={{ background: '#1e2030', color: '#fff' }}>42</option>
+                                                <option value="48px" style={{ background: '#1e2030', color: '#fff' }}>48</option>
                                             </select>
                                             <div className="w-px h-4 bg-white/10 mx-0.5" />
                                             <input
