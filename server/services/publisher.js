@@ -176,15 +176,99 @@ function generatePublishedHTML(page, funnel, pages) {
     .at-sbs-layout { display: flex; gap: 36px; align-items: flex-start; }
     .at-sbs-left { flex: 0 0 auto; width: 340px; }
     .at-sbs-right { flex: 1; min-width: 0; }
-    /* Responsive */
-    @media (max-width: 640px) {
-      .page-container { padding: 20px 16px 40px; }
-      .page-container h1 { font-size: 26px; }
-      .page-container h2 { font-size: 21px; }
-      .page-container p { font-size: 16px; }
+    /* ── TABLET ─────────────────────────────── */
+    @media (max-width: 768px) {
+      .page-container { padding: 24px 20px 40px; }
+      .page-container h1 { font-size: 28px !important; }
+      .page-container h2 { font-size: 22px !important; }
+      .page-container h3 { font-size: 18px !important; }
+      .page-container p { font-size: 16px !important; }
+      /* Collapse 3-col grids to 2-col */
+      .page-container [style*="grid-template-columns: repeat(3"] ,
+      .page-container [style*="grid-template-columns:repeat(3"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+      /* Reduce oversized inline padding */
+      .page-container [style*="padding:40px"] ,
+      .page-container [style*="padding: 40px"] {
+        padding: 24px !important;
+      }
+      .page-container [style*="padding:60px"] ,
+      .page-container [style*="padding: 60px"] {
+        padding: 28px !important;
+      }
+      /* Font sizes over 30px — scale down */
+      .page-container [style*="font-size:36px"] ,
+      .page-container [style*="font-size: 36px"] { font-size: 28px !important; }
+      .page-container [style*="font-size:38px"] ,
+      .page-container [style*="font-size: 38px"] { font-size: 28px !important; }
+      .page-container [style*="font-size:40px"] ,
+      .page-container [style*="font-size: 40px"] { font-size: 30px !important; }
+      .page-container [style*="font-size:42px"] ,
+      .page-container [style*="font-size: 42px"] { font-size: 30px !important; }
+      /* Tables: horizontal scroll */
+      .page-container table { font-size: 13px !important; }
+      .page-container [style*="overflow-x"] { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+      /* Side-by-side layout */
       .at-sbs-layout { flex-direction: column; gap: 24px; padding: 20px 16px !important; }
-      .at-sbs-left { width: 100%; }
-      .at-sbs-left img { max-width: 280px; margin: 0 auto; display: block; }
+      .at-sbs-left { width: 100% !important; }
+      .at-sbs-left img { max-width: 320px; margin: 0 auto; display: block; }
+    }
+
+    /* ── MOBILE ──────────────────────────────── */
+    @media (max-width: 480px) {
+      .page-container { padding: 16px 14px 32px; }
+      .page-container h1 { font-size: 24px !important; line-height: 1.25 !important; }
+      .page-container h2 { font-size: 20px !important; }
+      .page-container h3 { font-size: 17px !important; }
+      .page-container p { font-size: 15px !important; line-height: 1.7 !important; }
+      .page-container li { font-size: 15px !important; }
+      /* All grids to 1-col on mobile */
+      .page-container [style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+      }
+      /* Collapse all flex row layouts */
+      .page-container [style*="display:flex"][style*="gap"] {
+        flex-direction: column !important;
+      }
+      /* Buttons: full width on mobile */
+      .page-container a[style*="padding:18px"] ,
+      .page-container a[style*="padding:20px"] ,
+      .page-container a[style*="padding:22px"] {
+        display: block !important;
+        text-align: center !important;
+        padding-left: 20px !important;
+        padding-right: 20px !important;
+      }
+      /* Large font overrides */
+      .page-container [style*="font-size:32px"] { font-size: 24px !important; }
+      .page-container [style*="font-size:34px"] { font-size: 24px !important; }
+      .page-container [style*="font-size:36px"] { font-size: 24px !important; }
+      .page-container [style*="font-size:38px"] { font-size: 24px !important; }
+      .page-container [style*="font-size:40px"] { font-size: 22px !important; }
+      .page-container [style*="font-size:42px"] { font-size: 22px !important; }
+      .page-container [style*="font-size:28px"] { font-size: 22px !important; }
+      .page-container [style*="font-size:26px"] { font-size: 20px !important; }
+      .page-container [style*="font-size:24px"] { font-size: 20px !important; }
+      /* Reduce large paddings */
+      .page-container [style*="padding:36px"] { padding: 20px !important; }
+      .page-container [style*="padding:40px"] { padding: 20px !important; }
+      .page-container [style*="padding:60px"] { padding: 20px !important; }
+      .page-container [style*="padding:80px"] { padding: 20px !important; }
+      .page-container [style*="padding:100px"] { padding: 24px !important; }
+      /* Form inputs full-width */
+      .page-container form { max-width: 100% !important; }
+      .page-container form input,
+      .page-container form button { font-size: 16px !important; }
+      /* Countdown blocks — smaller */
+      .page-container [style*="min-width:72px"] { min-width: 56px !important; padding: 12px 14px !important; }
+      /* Max-width containers */
+      .page-container [style*="max-width:500px"] ,
+      .page-container [style*="max-width:520px"] ,
+      .page-container [style*="max-width:560px"] ,
+      .page-container [style*="max-width:600px"] {
+        max-width: 100% !important;
+      }
     }
     ${page.css_output || ''}
   </style>
@@ -360,6 +444,20 @@ function generateBlogHTML(post) {
     .blog-content ul, .blog-content ol { padding-left: 24px; margin-bottom: 20px; }
     .blog-content li { margin-bottom: 8px; }
     .blog-footer { text-align: center; padding: 24px; font-size: 12px; color: #888; border-top: 1px solid #eee; margin-top: 48px; font-family: -apple-system, sans-serif; }
+    @media (max-width: 768px) {
+      .blog-container { padding: 24px 20px; }
+      .blog-title { font-size: 28px; }
+      .blog-content { font-size: 16px; }
+      .blog-content h2 { font-size: 22px; }
+      .blog-content img { margin: 16px 0; }
+    }
+    @media (max-width: 480px) {
+      .blog-container { padding: 16px 14px; }
+      .blog-title { font-size: 24px; }
+      .blog-content { font-size: 15px; }
+      .blog-content h2 { font-size: 20px; }
+      .blog-content h3 { font-size: 18px; }
+    }
   </style>
 </head>
 <body>
@@ -450,6 +548,11 @@ function generateBlogIndexHTML(posts) {
     .blog-card-title { font-size: 18px; font-weight: 700; color: #111; line-height: 1.3; margin-bottom: 8px; }
     .blog-card-excerpt { font-size: 14px; color: #666; line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     .blog-card-date { font-size: 12px; color: #999; }
+    @media (max-width: 480px) {
+      .blog-index { padding: 24px 14px; }
+      .blog-index-header h1 { font-size: 28px; }
+      .blog-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
