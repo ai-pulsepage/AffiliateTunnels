@@ -881,7 +881,7 @@ export default function TemplateEditor() {
                         className={`mx-auto transition-all duration-300 ease-in-out ${viewport === 'desktop' ? 'py-10 px-8 pl-20' : viewport === 'tablet' ? 'py-6 px-4' : 'py-4 px-3'}`}
                         style={{
                             ...fontStyle,
-                            maxWidth: viewport === 'desktop' ? undefined : viewport === 'tablet' ? '480px' : '375px',
+                            maxWidth: viewport === 'desktop' ? '960px' : viewport === 'tablet' ? '480px' : '375px',
                             background: '#fff',
                             minHeight: 'calc(100% - 32px)',
                             boxShadow: '0 0 40px rgba(0,0,0,0.08)',
