@@ -1129,57 +1129,72 @@ export default function TemplateEditor() {
                                                         {/* Child blocks */}
                                                         {col.blocks.map((child, childIdx) => (
                                                             <div key={child.id} className="group/child relative mb-1">
-                                                                <div
-                                                                    contentEditable
-                                                                    suppressContentEditableWarning
-                                                                    dangerouslySetInnerHTML={{ __html: child.html || '' }}
-                                                                    className="outline-none rounded transition-shadow hover:ring-1 hover:ring-blue-200"
-                                                                    onBlur={(e) => {
-                                                                        setBlocks(prev => prev.map((b, i) => {
-                                                                            if (i !== idx) return b;
-                                                                            const newCols = b.columns.map((c, ci) => {
-                                                                                if (ci !== colIdx) return c;
-                                                                                return { ...c, blocks: c.blocks.map((cb, cbi) => cbi === childIdx ? { ...cb, html: e.currentTarget.innerHTML } : cb) };
-                                                                            });
-                                                                            return { ...b, columns: newCols };
-                                                                        }));
-                                                                    }}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        // Prevent link navigation in editor
-                                                                        const link = e.target.closest('a');
-                                                                        if (link) { e.preventDefault(); }
-                                                                        // Media slot — open media picker for this column child
-                                                                        const slot = e.target.closest('[data-media-slot]');
-                                                                        if (slot) {
+                                                                {['button', 'product', 'banner'].includes(child.type) ? (
+                                                                    /* CTA blocks inside columns: NOT contentEditable — click to edit link */
+                                                                    <div
+                                                                        dangerouslySetInnerHTML={{ __html: child.html || '' }}
+                                                                        className="outline-none rounded transition-shadow hover:ring-1 hover:ring-blue-200 cursor-pointer"
+                                                                        onClick={(e) => {
                                                                             e.preventDefault();
-                                                                            setMediaBlockIdx(idx);
-                                                                            setMediaColIdx(colIdx);
-                                                                            setMediaChildIdx(childIdx);
-                                                                            setMediaAccept('all');
-                                                                            setShowMediaPicker(true);
-                                                                            return;
-                                                                        }
-                                                                        // Image/video click — show resize controls
-                                                                        if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
-                                                                            e.preventDefault();
-                                                                            setResizeTarget({ blockIdx: idx, colIdx, childIdx, el: e.target });
-                                                                            return;
-                                                                        }
-                                                                        // CTA link click — open link editor for this column child
-                                                                        if (link) {
+                                                                            e.stopPropagation();
                                                                             handleLinkClick(idx, colIdx, childIdx);
-                                                                            return;
-                                                                        }
-                                                                        const btn = e.target.closest('button');
-                                                                        if (btn) {
-                                                                            e.preventDefault();
-                                                                            handleLinkClick(idx, colIdx, childIdx);
-                                                                            return;
-                                                                        }
-                                                                    }}
-                                                                    style={{ minHeight: '20px' }}
-                                                                />
+                                                                        }}
+                                                                        style={{ minHeight: '20px' }}
+                                                                    />
+                                                                ) : (
+                                                                    /* Text/heading/list/image blocks: contentEditable */
+                                                                    <div
+                                                                        contentEditable
+                                                                        suppressContentEditableWarning
+                                                                        dangerouslySetInnerHTML={{ __html: child.html || '' }}
+                                                                        className="outline-none rounded transition-shadow hover:ring-1 hover:ring-blue-200"
+                                                                        onBlur={(e) => {
+                                                                            setBlocks(prev => prev.map((b, i) => {
+                                                                                if (i !== idx) return b;
+                                                                                const newCols = b.columns.map((c, ci) => {
+                                                                                    if (ci !== colIdx) return c;
+                                                                                    return { ...c, blocks: c.blocks.map((cb, cbi) => cbi === childIdx ? { ...cb, html: e.currentTarget.innerHTML } : cb) };
+                                                                                });
+                                                                                return { ...b, columns: newCols };
+                                                                            }));
+                                                                        }}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            // Prevent link navigation in editor
+                                                                            const link = e.target.closest('a');
+                                                                            if (link) { e.preventDefault(); }
+                                                                            // Media slot — open media picker for this column child
+                                                                            const slot = e.target.closest('[data-media-slot]');
+                                                                            if (slot) {
+                                                                                e.preventDefault();
+                                                                                setMediaBlockIdx(idx);
+                                                                                setMediaColIdx(colIdx);
+                                                                                setMediaChildIdx(childIdx);
+                                                                                setMediaAccept('all');
+                                                                                setShowMediaPicker(true);
+                                                                                return;
+                                                                            }
+                                                                            // Image/video click — show resize controls
+                                                                            if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
+                                                                                e.preventDefault();
+                                                                                setResizeTarget({ blockIdx: idx, colIdx, childIdx, el: e.target });
+                                                                                return;
+                                                                            }
+                                                                            // CTA link click — open link editor for this column child
+                                                                            if (link) {
+                                                                                handleLinkClick(idx, colIdx, childIdx);
+                                                                                return;
+                                                                            }
+                                                                            const btn = e.target.closest('button');
+                                                                            if (btn) {
+                                                                                e.preventDefault();
+                                                                                handleLinkClick(idx, colIdx, childIdx);
+                                                                                return;
+                                                                            }
+                                                                        }}
+                                                                        style={{ minHeight: '20px' }}
+                                                                    />
+                                                                )}
                                                                 {/* Delete child block */}
                                                                 <button
                                                                     onClick={() => {
