@@ -303,15 +303,16 @@ ${plainText}
 Respond in JSON only: {"seo_title": "...", "seo_description": "..."}`;
 
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
-                        maxOutputTokens: 512,
+                        maxOutputTokens: 1024,
                         temperature: 0.7,
+                        responseMimeType: 'application/json',
                     },
                 }),
             }
@@ -333,18 +334,35 @@ Respond in JSON only: {"seo_title": "...", "seo_description": "..."}`;
 
         // Strip markdown code fences if present
         const cleaned = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            console.error('Gemini SEO: could not parse JSON from:', cleaned.substring(0, 300));
-            return res.status(500).json({ error: 'Failed to parse AI response' });
-        }
 
         let result;
         try {
-            result = JSON.parse(jsonMatch[0]);
-        } catch (parseErr) {
-            console.error('Gemini SEO: JSON parse error:', parseErr.message, jsonMatch[0].substring(0, 300));
-            return res.status(500).json({ error: 'AI response was not valid JSON. Try again.' });
+            // Try direct JSON parse first
+            result = JSON.parse(cleaned);
+        } catch (e1) {
+            // Try extracting JSON object with regex
+            const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                try {
+                    result = JSON.parse(jsonMatch[0]);
+                } catch (e2) {
+                    // Fallback: extract fields manually from truncated JSON
+                    const titleMatch = cleaned.match(/"seo_title"\s*:\s*"([^"]+)"/);
+                    const descMatch = cleaned.match(/"seo_description"\s*:\s*"([^"]+)"/);
+                    if (titleMatch || descMatch) {
+                        result = {
+                            seo_title: titleMatch?.[1] || '',
+                            seo_description: descMatch?.[1] || '',
+                        };
+                    } else {
+                        console.error('Gemini SEO: JSON parse error:', e2.message, cleaned.substring(0, 500));
+                        return res.status(500).json({ error: 'AI response was not valid JSON. Try again.' });
+                    }
+                }
+            } else {
+                console.error('Gemini SEO: could not find JSON in:', cleaned.substring(0, 500));
+                return res.status(500).json({ error: 'Failed to parse AI response. Try again.' });
+            }
         }
 
         res.json(result);

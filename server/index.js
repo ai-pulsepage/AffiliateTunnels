@@ -34,6 +34,9 @@ const blogRoutes = require('./routes/blog');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy (Railway, Docker, etc.) — required for express-rate-limit with X-Forwarded-For
+app.set('trust proxy', 1);
+
 // Security
 app.use(helmet({
     contentSecurityPolicy: false, // Flexible for embedded content
