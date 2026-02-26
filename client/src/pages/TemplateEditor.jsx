@@ -894,9 +894,10 @@ export default function TemplateEditor() {
                                             dangerouslySetInnerHTML={{ __html: block.html }}
                                             onFocus={() => setActiveBlockIdx(idx)}
                                             onBlur={(e) => {
-                                                // Don't trigger blur if focus moves to toolbar controls (select, input, button)
+                                                // Don't trigger blur if focus moves to toolbar or settings panel
                                                 const blockWrapper = e.currentTarget.closest('[data-block-idx]');
                                                 if (blockWrapper && blockWrapper.contains(e.relatedTarget)) return;
+                                                if (e.relatedTarget?.closest?.('[data-settings-panel]')) return;
                                                 updateBlockHtml(idx, e.currentTarget.innerHTML);
                                                 setTimeout(() => setActiveBlockIdx(prev => prev === idx ? null : prev), 150);
                                             }}
@@ -1045,16 +1046,14 @@ export default function TemplateEditor() {
                     </div>
                 </div>
 
-                {/* Block Settings Panel (right) */}
-                {activeBlockIdx != null && blocks[activeBlockIdx] && (
-                    <BlockSettingsPanel
-                        block={blocks[activeBlockIdx]}
-                        blockIdx={activeBlockIdx}
-                        onUpdateStyles={updateBlockStyles}
-                        onDuplicate={duplicateBlock}
-                        onClose={() => setActiveBlockIdx(null)}
-                    />
-                )}
+                {/* Block Settings Panel (right) — always rendered to prevent layout bounce */}
+                <BlockSettingsPanel
+                    block={activeBlockIdx != null ? blocks[activeBlockIdx] : null}
+                    blockIdx={activeBlockIdx}
+                    onUpdateStyles={updateBlockStyles}
+                    onDuplicate={duplicateBlock}
+                    onClose={() => setActiveBlockIdx(null)}
+                />
             </div>
 
             {/* Template Picker Modal */}

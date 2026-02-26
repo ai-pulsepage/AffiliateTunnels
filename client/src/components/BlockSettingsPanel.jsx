@@ -28,248 +28,267 @@ export default function BlockSettingsPanel({ block, blockIdx, onUpdateStyles, on
         onUpdateStyles(blockIdx, { ...styles, ...updates });
     }
 
-    if (!block) return null;
-
-    const isTextBlock = ['heading', 'text', 'quote', 'list'].includes(block.type);
-    const isButtonBlock = ['button', 'product', 'banner'].includes(block.type);
-    const isMediaBlock = ['image', 'video'].includes(block.type);
-
+    // Always render the panel container to prevent layout bounce
     return (
-        <div className="w-72 bg-[#13151e] border-l border-white/5 flex-shrink-0 flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-                <div className="flex items-center gap-2">
-                    <Settings className="w-3.5 h-3.5 text-brand-400" />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">
-                        {block.type} Settings
-                    </span>
+        <div
+            data-settings-panel
+            className="w-72 bg-[#13151e] border-l border-white/5 flex-shrink-0 flex flex-col overflow-hidden"
+            onMouseDown={e => {
+                // Prevent focus steal from contentEditable blocks
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') {
+                    e.preventDefault();
+                }
+            }}
+        >
+            {!block ? (
+                /* No block selected — placeholder */
+                <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+                    <Settings className="w-6 h-6 text-gray-600 mb-3" />
+                    <p className="text-xs text-gray-500">Click a block to edit its settings</p>
                 </div>
-                <button onClick={onClose} className="p-1 hover:bg-white/5 rounded-md transition-colors">
-                    <X className="w-3.5 h-3.5 text-gray-500" />
-                </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
-
-                {/* ─── BACKGROUND ───────────────────── */}
-                <SettingsSection title="Background" icon={<Palette className="w-3 h-3" />}>
-                    <ColorPicker
-                        label="Color"
-                        value={styles.backgroundColor || ''}
-                        onChange={val => updateStyle('backgroundColor', val)}
-                        placeholder="transparent"
-                    />
-                    <div className="mt-2">
-                        <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Border Radius</label>
-                        <div className="flex gap-1">
-                            {['0', '4', '8', '12', '16', '24'].map(r => (
-                                <button
-                                    key={r}
-                                    onClick={() => updateStyle('borderRadius', r === '0' ? '' : `${r}px`)}
-                                    className={`px-2 py-1 text-[11px] rounded transition-all ${(styles.borderRadius || '') === (r === '0' ? '' : `${r}px`)
-                                            ? 'bg-brand-500/30 text-brand-300 ring-1 ring-brand-500/50'
-                                            : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                                        }`}
-                                >{r === '0' ? '□' : `${r}`}</button>
-                            ))}
+            ) : (() => {
+                const isTextBlock = ['heading', 'text', 'quote', 'list'].includes(block.type);
+                const isButtonBlock = ['button', 'product', 'banner'].includes(block.type);
+                const isMediaBlock = ['image', 'video'].includes(block.type);
+                return (
+                    <>
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+                            <div className="flex items-center gap-2">
+                                <Settings className="w-3.5 h-3.5 text-brand-400" />
+                                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                                    {block.type} Settings
+                                </span>
+                            </div>
+                            <button onClick={onClose} className="p-1 hover:bg-white/5 rounded-md transition-colors">
+                                <X className="w-3.5 h-3.5 text-gray-500" />
+                            </button>
                         </div>
-                    </div>
-                    <div className="mt-2">
-                        <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Border</label>
-                        <div className="flex gap-1 items-center">
-                            <select
-                                value={styles.borderWidth || ''}
-                                onChange={e => updateStyle('borderWidth', e.target.value)}
-                                className="bg-white/5 text-gray-300 text-[11px] rounded px-1.5 py-1 border-none outline-none w-16"
-                            >
-                                <option value="">None</option>
-                                <option value="1px">1px</option>
-                                <option value="2px">2px</option>
-                                <option value="3px">3px</option>
-                            </select>
-                            {styles.borderWidth && (
+
+                        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
+
+                            {/* ─── BACKGROUND ───────────────────── */}
+                            <SettingsSection title="Background" icon={<Palette className="w-3 h-3" />}>
                                 <ColorPicker
-                                    value={styles.borderColor || '#e5e7eb'}
-                                    onChange={val => updateStyle('borderColor', val)}
-                                    compact
+                                    label="Color"
+                                    value={styles.backgroundColor || ''}
+                                    onChange={val => updateStyle('backgroundColor', val)}
+                                    placeholder="transparent"
                                 />
-                            )}
-                        </div>
-                    </div>
-                </SettingsSection>
-
-                {/* ─── SPACING ──────────────────────── */}
-                <SettingsSection title="Spacing" icon={<ArrowUpDown className="w-3 h-3" />}>
-                    <div className="bg-white/5 rounded-lg p-3 relative">
-                        <div className="text-[9px] text-gray-500 text-center mb-1 uppercase">Padding</div>
-                        {/* top */}
-                        <div className="flex justify-center mb-1">
-                            <SpacingInput
-                                value={styles.paddingTop || ''}
-                                onChange={val => updateStyle('paddingTop', val)}
-                                placeholder="0"
-                            />
-                        </div>
-                        {/* left + box + right */}
-                        <div className="flex items-center justify-center gap-2">
-                            <SpacingInput
-                                value={styles.paddingLeft || ''}
-                                onChange={val => updateStyle('paddingLeft', val)}
-                                placeholder="0"
-                            />
-                            <div className="w-16 h-10 bg-white/10 rounded border border-dashed border-white/20 flex items-center justify-center">
-                                <span className="text-[8px] text-gray-500">content</span>
-                            </div>
-                            <SpacingInput
-                                value={styles.paddingRight || ''}
-                                onChange={val => updateStyle('paddingRight', val)}
-                                placeholder="0"
-                            />
-                        </div>
-                        {/* bottom */}
-                        <div className="flex justify-center mt-1">
-                            <SpacingInput
-                                value={styles.paddingBottom || ''}
-                                onChange={val => updateStyle('paddingBottom', val)}
-                                placeholder="0"
-                            />
-                        </div>
-                    </div>
-                    <div className="mt-2">
-                        <div className="text-[9px] text-gray-500 uppercase mb-1">Margin Top / Bottom</div>
-                        <div className="flex gap-2">
-                            <SpacingInput
-                                value={styles.marginTop || ''}
-                                onChange={val => updateStyle('marginTop', val)}
-                                placeholder="0"
-                                label="Top"
-                            />
-                            <SpacingInput
-                                value={styles.marginBottom || ''}
-                                onChange={val => updateStyle('marginBottom', val)}
-                                placeholder="0"
-                                label="Bottom"
-                            />
-                        </div>
-                    </div>
-                </SettingsSection>
-
-                {/* ─── TYPOGRAPHY (text blocks) ──────── */}
-                {isTextBlock && (
-                    <SettingsSection title="Typography" icon={<Type className="w-3 h-3" />}>
-                        <div className="space-y-2">
-                            <div>
-                                <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Font Size</label>
-                                <select
-                                    value={styles.fontSize || ''}
-                                    onChange={e => updateStyle('fontSize', e.target.value ? `${e.target.value}px` : '')}
-                                    className="bg-white/5 text-gray-300 text-[11px] rounded px-2 py-1.5 border-none outline-none w-full"
-                                >
-                                    <option value="">Default</option>
-                                    {FONT_SIZES.map(s => (
-                                        <option key={s} value={s}>{s}px</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Text Color</label>
-                                <ColorPicker
-                                    value={styles.color || ''}
-                                    onChange={val => updateStyle('color', val)}
-                                    placeholder="default"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Text Align</label>
-                                <div className="flex gap-1">
-                                    {[
-                                        { val: '', icon: <AlignLeft className="w-3 h-3" />, label: 'Left' },
-                                        { val: 'center', icon: <AlignCenter className="w-3 h-3" />, label: 'Center' },
-                                        { val: 'right', icon: <AlignRight className="w-3 h-3" />, label: 'Right' },
-                                    ].map(a => (
-                                        <button
-                                            key={a.val}
-                                            onClick={() => updateStyle('textAlign', a.val)}
-                                            className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-[10px] transition-all ${(styles.textAlign || '') === a.val
+                                <div className="mt-2">
+                                    <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Border Radius</label>
+                                    <div className="flex gap-1">
+                                        {['0', '4', '8', '12', '16', '24'].map(r => (
+                                            <button
+                                                key={r}
+                                                onClick={() => updateStyle('borderRadius', r === '0' ? '' : `${r}px`)}
+                                                className={`px-2 py-1 text-[11px] rounded transition-all ${(styles.borderRadius || '') === (r === '0' ? '' : `${r}px`)
                                                     ? 'bg-brand-500/30 text-brand-300 ring-1 ring-brand-500/50'
-                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                                                    }`}
+                                            >{r === '0' ? '□' : `${r}`}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="mt-2">
+                                    <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Border</label>
+                                    <div className="flex gap-1 items-center">
+                                        <select
+                                            value={styles.borderWidth || ''}
+                                            onChange={e => updateStyle('borderWidth', e.target.value)}
+                                            className="bg-white/5 text-gray-300 text-[11px] rounded px-1.5 py-1 border-none outline-none w-16"
+                                        >
+                                            <option value="">None</option>
+                                            <option value="1px">1px</option>
+                                            <option value="2px">2px</option>
+                                            <option value="3px">3px</option>
+                                        </select>
+                                        {styles.borderWidth && (
+                                            <ColorPicker
+                                                value={styles.borderColor || '#e5e7eb'}
+                                                onChange={val => updateStyle('borderColor', val)}
+                                                compact
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            </SettingsSection>
+
+                            {/* ─── SPACING ──────────────────────── */}
+                            <SettingsSection title="Spacing" icon={<ArrowUpDown className="w-3 h-3" />}>
+                                <div className="bg-white/5 rounded-lg p-3 relative">
+                                    <div className="text-[9px] text-gray-500 text-center mb-1 uppercase">Padding</div>
+                                    {/* top */}
+                                    <div className="flex justify-center mb-1">
+                                        <SpacingInput
+                                            value={styles.paddingTop || ''}
+                                            onChange={val => updateStyle('paddingTop', val)}
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                    {/* left + box + right */}
+                                    <div className="flex items-center justify-center gap-2">
+                                        <SpacingInput
+                                            value={styles.paddingLeft || ''}
+                                            onChange={val => updateStyle('paddingLeft', val)}
+                                            placeholder="0"
+                                        />
+                                        <div className="w-16 h-10 bg-white/10 rounded border border-dashed border-white/20 flex items-center justify-center">
+                                            <span className="text-[8px] text-gray-500">content</span>
+                                        </div>
+                                        <SpacingInput
+                                            value={styles.paddingRight || ''}
+                                            onChange={val => updateStyle('paddingRight', val)}
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                    {/* bottom */}
+                                    <div className="flex justify-center mt-1">
+                                        <SpacingInput
+                                            value={styles.paddingBottom || ''}
+                                            onChange={val => updateStyle('paddingBottom', val)}
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="mt-2">
+                                    <div className="text-[9px] text-gray-500 uppercase mb-1">Margin Top / Bottom</div>
+                                    <div className="flex gap-2">
+                                        <SpacingInput
+                                            value={styles.marginTop || ''}
+                                            onChange={val => updateStyle('marginTop', val)}
+                                            placeholder="0"
+                                            label="Top"
+                                        />
+                                        <SpacingInput
+                                            value={styles.marginBottom || ''}
+                                            onChange={val => updateStyle('marginBottom', val)}
+                                            placeholder="0"
+                                            label="Bottom"
+                                        />
+                                    </div>
+                                </div>
+                            </SettingsSection>
+
+                            {/* ─── TYPOGRAPHY (text blocks) ──────── */}
+                            {isTextBlock && (
+                                <SettingsSection title="Typography" icon={<Type className="w-3 h-3" />}>
+                                    <div className="space-y-2">
+                                        <div>
+                                            <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Font Size</label>
+                                            <select
+                                                value={styles.fontSize || ''}
+                                                onChange={e => updateStyle('fontSize', e.target.value ? `${e.target.value}px` : '')}
+                                                className="bg-white/5 text-gray-300 text-[11px] rounded px-2 py-1.5 border-none outline-none w-full"
+                                            >
+                                                <option value="">Default</option>
+                                                {FONT_SIZES.map(s => (
+                                                    <option key={s} value={s}>{s}px</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Text Color</label>
+                                            <ColorPicker
+                                                value={styles.color || ''}
+                                                onChange={val => updateStyle('color', val)}
+                                                placeholder="default"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Text Align</label>
+                                            <div className="flex gap-1">
+                                                {[
+                                                    { val: '', icon: <AlignLeft className="w-3 h-3" />, label: 'Left' },
+                                                    { val: 'center', icon: <AlignCenter className="w-3 h-3" />, label: 'Center' },
+                                                    { val: 'right', icon: <AlignRight className="w-3 h-3" />, label: 'Right' },
+                                                ].map(a => (
+                                                    <button
+                                                        key={a.val}
+                                                        onClick={() => updateStyle('textAlign', a.val)}
+                                                        className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-[10px] transition-all ${(styles.textAlign || '') === a.val
+                                                            ? 'bg-brand-500/30 text-brand-300 ring-1 ring-brand-500/50'
+                                                            : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                                            }`}
+                                                        title={a.label}
+                                                    >{a.icon}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Line Height</label>
+                                            <select
+                                                value={styles.lineHeight || ''}
+                                                onChange={e => updateStyle('lineHeight', e.target.value)}
+                                                className="bg-white/5 text-gray-300 text-[11px] rounded px-2 py-1.5 border-none outline-none w-full"
+                                            >
+                                                <option value="">Default</option>
+                                                <option value="1">Tight (1.0)</option>
+                                                <option value="1.25">Snug (1.25)</option>
+                                                <option value="1.5">Normal (1.5)</option>
+                                                <option value="1.75">Relaxed (1.75)</option>
+                                                <option value="2">Loose (2.0)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </SettingsSection>
+                            )}
+
+                            {/* ─── BUTTON STYLES ─────────────────── */}
+                            {isButtonBlock && (
+                                <SettingsSection title="Button Style" icon={<Square className="w-3 h-3" />}>
+                                    <div className="space-y-2">
+                                        <ColorPicker
+                                            label="Button Color"
+                                            value={styles.buttonColor || ''}
+                                            onChange={val => updateStyle('buttonColor', val)}
+                                            placeholder="default"
+                                        />
+                                        <ColorPicker
+                                            label="Text Color"
+                                            value={styles.buttonTextColor || ''}
+                                            onChange={val => updateStyle('buttonTextColor', val)}
+                                            placeholder="default"
+                                        />
+                                    </div>
+                                </SettingsSection>
+                            )}
+
+                            {/* ─── VISIBILITY ────────────────────── */}
+                            <SettingsSection title="Visibility" icon={<Maximize2 className="w-3 h-3" />}>
+                                <div className="flex gap-2">
+                                    {[
+                                        { val: '', label: 'All Devices' },
+                                        { val: 'desktop', label: 'Desktop Only' },
+                                        { val: 'mobile', label: 'Mobile Only' },
+                                    ].map(v => (
+                                        <button
+                                            key={v.val}
+                                            onClick={() => updateStyle('visibility', v.val)}
+                                            className={`flex-1 py-1.5 rounded text-[10px] transition-all ${(styles.visibility || '') === v.val
+                                                ? 'bg-brand-500/30 text-brand-300 ring-1 ring-brand-500/50'
+                                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
                                                 }`}
-                                            title={a.label}
-                                        >{a.icon}</button>
+                                        >{v.label}</button>
                                     ))}
                                 </div>
-                            </div>
-                            <div>
-                                <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Line Height</label>
-                                <select
-                                    value={styles.lineHeight || ''}
-                                    onChange={e => updateStyle('lineHeight', e.target.value)}
-                                    className="bg-white/5 text-gray-300 text-[11px] rounded px-2 py-1.5 border-none outline-none w-full"
+                            </SettingsSection>
+
+                            {/* ─── ACTIONS ───────────────────────── */}
+                            <SettingsSection title="Actions">
+                                <button
+                                    onClick={() => onDuplicate(blockIdx)}
+                                    className="w-full flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg text-xs transition-colors"
                                 >
-                                    <option value="">Default</option>
-                                    <option value="1">Tight (1.0)</option>
-                                    <option value="1.25">Snug (1.25)</option>
-                                    <option value="1.5">Normal (1.5)</option>
-                                    <option value="1.75">Relaxed (1.75)</option>
-                                    <option value="2">Loose (2.0)</option>
-                                </select>
-                            </div>
+                                    <Copy className="w-3.5 h-3.5" />
+                                    Duplicate Block
+                                </button>
+                            </SettingsSection>
+
                         </div>
-                    </SettingsSection>
-                )}
-
-                {/* ─── BUTTON STYLES ─────────────────── */}
-                {isButtonBlock && (
-                    <SettingsSection title="Button Style" icon={<Square className="w-3 h-3" />}>
-                        <div className="space-y-2">
-                            <ColorPicker
-                                label="Button Color"
-                                value={styles.buttonColor || ''}
-                                onChange={val => updateStyle('buttonColor', val)}
-                                placeholder="default"
-                            />
-                            <ColorPicker
-                                label="Text Color"
-                                value={styles.buttonTextColor || ''}
-                                onChange={val => updateStyle('buttonTextColor', val)}
-                                placeholder="default"
-                            />
-                        </div>
-                    </SettingsSection>
-                )}
-
-                {/* ─── VISIBILITY ────────────────────── */}
-                <SettingsSection title="Visibility" icon={<Maximize2 className="w-3 h-3" />}>
-                    <div className="flex gap-2">
-                        {[
-                            { val: '', label: 'All Devices' },
-                            { val: 'desktop', label: 'Desktop Only' },
-                            { val: 'mobile', label: 'Mobile Only' },
-                        ].map(v => (
-                            <button
-                                key={v.val}
-                                onClick={() => updateStyle('visibility', v.val)}
-                                className={`flex-1 py-1.5 rounded text-[10px] transition-all ${(styles.visibility || '') === v.val
-                                        ? 'bg-brand-500/30 text-brand-300 ring-1 ring-brand-500/50'
-                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                                    }`}
-                            >{v.label}</button>
-                        ))}
-                    </div>
-                </SettingsSection>
-
-                {/* ─── ACTIONS ───────────────────────── */}
-                <SettingsSection title="Actions">
-                    <button
-                        onClick={() => onDuplicate(blockIdx)}
-                        className="w-full flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-lg text-xs transition-colors"
-                    >
-                        <Copy className="w-3.5 h-3.5" />
-                        Duplicate Block
-                    </button>
-                </SettingsSection>
-
-            </div>
+                    </>
+                );
+            })()}
         </div>
     );
 }
