@@ -941,8 +941,8 @@ export default function TemplateEditor() {
                                         <div className="absolute -top-1 left-0 right-0 h-0.5 bg-blue-500 rounded-full z-10" />
                                     )}
 
-                                    {/* Block toolbar — always accessible on hover, right edge */}
-                                    <div className="absolute -right-12 top-0 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-30 bg-white/90 rounded-lg shadow-md border border-gray-200 p-0.5">
+                                    {/* Block toolbar — always accessible on hover, left edge */}
+                                    <div className="absolute -left-12 top-0 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-30 bg-white/90 rounded-lg shadow-md border border-gray-200 p-0.5">
                                         <div
                                             className="p-1 cursor-grab active:cursor-grabbing"
                                             title="Drag to reorder"
@@ -1126,6 +1126,12 @@ export default function TemplateEditor() {
                                                                             setShowMediaPicker(true);
                                                                             return;
                                                                         }
+                                                                        // Image/video click — show resize controls
+                                                                        if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
+                                                                            e.preventDefault();
+                                                                            setResizeTarget({ blockIdx: idx, colIdx, childIdx, el: e.target });
+                                                                            return;
+                                                                        }
                                                                     }}
                                                                     style={{ minHeight: '20px' }}
                                                                 />
@@ -1232,7 +1238,7 @@ export default function TemplateEditor() {
                                                 const slot = e.target.closest('[data-media-slot]');
                                                 if (slot) {
                                                     e.preventDefault();
-                                                    handleMediaClick(idx);
+                                                    setMediaBlockIdx(idx); setMediaColIdx(null); setMediaChildIdx(null); setMediaAccept('all'); setShowMediaPicker(true);
                                                     return;
                                                 }
                                                 // Image/video click — show resize controls (but NOT media picker)
@@ -1278,7 +1284,22 @@ export default function TemplateEditor() {
                                                         resizeTarget.el.style.objectFit = 'contain';
                                                         resizeTarget.el.style.display = 'block';
                                                         resizeTarget.el.style.margin = w !== '100%' ? '0 auto' : '';
-                                                        updateBlockHtml(idx, resizeTarget.el.closest('[contenteditable]').innerHTML);
+                                                        // Save to correct block (column child or top-level)
+                                                        const editableEl = resizeTarget.el.closest('[contenteditable]');
+                                                        if (editableEl) {
+                                                            if (resizeTarget.colIdx != null && resizeTarget.childIdx != null) {
+                                                                setBlocks(prev => prev.map((b, i) => {
+                                                                    if (i !== idx) return b;
+                                                                    const newCols = b.columns.map((c, ci) => {
+                                                                        if (ci !== resizeTarget.colIdx) return c;
+                                                                        return { ...c, blocks: c.blocks.map((cb, cbi) => cbi === resizeTarget.childIdx ? { ...cb, html: editableEl.innerHTML } : cb) };
+                                                                    });
+                                                                    return { ...b, columns: newCols };
+                                                                }));
+                                                            } else {
+                                                                updateBlockHtml(idx, editableEl.innerHTML);
+                                                            }
+                                                        }
                                                     }}
                                                     className="px-2 py-0.5 text-[11px] rounded hover:bg-white/10 text-gray-300 hover:text-white"
                                                 >{w}</button>
@@ -1288,14 +1309,35 @@ export default function TemplateEditor() {
                                                 onClick={() => {
                                                     const br = resizeTarget.el.style.borderRadius;
                                                     resizeTarget.el.style.borderRadius = br === '50%' ? '8px' : br === '8px' ? '0' : '50%';
-                                                    updateBlockHtml(idx, resizeTarget.el.closest('[contenteditable]').innerHTML);
+                                                    const editableEl2 = resizeTarget.el.closest('[contenteditable]');
+                                                    if (editableEl2) {
+                                                        if (resizeTarget.colIdx != null && resizeTarget.childIdx != null) {
+                                                            setBlocks(prev => prev.map((b, i) => {
+                                                                if (i !== idx) return b;
+                                                                const newCols = b.columns.map((c, ci) => {
+                                                                    if (ci !== resizeTarget.colIdx) return c;
+                                                                    return { ...c, blocks: c.blocks.map((cb, cbi) => cbi === resizeTarget.childIdx ? { ...cb, html: editableEl2.innerHTML } : cb) };
+                                                                });
+                                                                return { ...b, columns: newCols };
+                                                            }));
+                                                        } else {
+                                                            updateBlockHtml(idx, editableEl2.innerHTML);
+                                                        }
+                                                    }
                                                 }}
                                                 className="px-2 py-0.5 text-[11px] rounded hover:bg-white/10 text-gray-300 hover:text-white"
                                                 title="Toggle rounded corners"
                                             >◐ Round</button>
                                             <div className="w-px h-4 bg-white/10 mx-1" />
                                             <button
-                                                onClick={() => handleMediaClick(idx)}
+                                                onClick={() => {
+                                                    const bIdx = resizeTarget?.blockIdx ?? idx;
+                                                    setMediaBlockIdx(bIdx);
+                                                    setMediaColIdx(resizeTarget?.colIdx ?? null);
+                                                    setMediaChildIdx(resizeTarget?.childIdx ?? null);
+                                                    setMediaAccept('all');
+                                                    setShowMediaPicker(true);
+                                                }}
                                                 className="px-2 py-0.5 text-[11px] rounded hover:bg-white/10 text-gray-300 hover:text-white"
                                                 title="Replace this image/video"
                                             >⟳ Replace</button>
