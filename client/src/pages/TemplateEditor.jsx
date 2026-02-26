@@ -457,6 +457,13 @@ export default function TemplateEditor() {
             const block = prev[idx];
             if (!block) return prev;
             const dup = { ...block, id: genId(), styles: block.styles ? { ...block.styles } : {} };
+            // Deep clone columns if present
+            if (dup.columns) {
+                dup.columns = dup.columns.map(col => ({
+                    ...col,
+                    blocks: col.blocks.map(cb => ({ ...cb, id: genId(), styles: cb.styles ? { ...cb.styles } : {} })),
+                }));
+            }
             const next = [...prev];
             next.splice(idx + 1, 0, dup);
             return next;
@@ -1183,7 +1190,7 @@ export default function TemplateEditor() {
                                         /* Opt-in blocks: NOT contentEditable — form inputs conflict with contentEditable */
                                         <div
                                             className="outline-none rounded transition-shadow group-hover:ring-2 group-hover:ring-blue-200 relative cursor-pointer"
-                                            dangerouslySetInnerHTML={{ __html: block.html }}
+                                            dangerouslySetInnerHTML={{ __html: block.html || '' }}
                                             onClick={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
@@ -1195,7 +1202,7 @@ export default function TemplateEditor() {
                                                 }
                                                 // Click on media slot
                                                 const slot = e.target.closest('[data-media-slot]');
-                                                if (slot) { handleMediaClick(idx); return; }
+                                                if (slot) { setMediaBlockIdx(idx); setMediaColIdx(null); setMediaChildIdx(null); setMediaAccept('all'); setShowMediaPicker(true); return; }
                                                 // Click on image
                                                 if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO') {
                                                     setResizeTarget({ blockIdx: idx, el: e.target });
@@ -1210,7 +1217,7 @@ export default function TemplateEditor() {
                                             className="outline-none rounded transition-shadow group-hover:ring-2 group-hover:ring-blue-200"
                                             contentEditable
                                             suppressContentEditableWarning
-                                            dangerouslySetInnerHTML={{ __html: block.html }}
+                                            dangerouslySetInnerHTML={{ __html: block.html || '' }}
                                             onFocus={() => setActiveBlockIdx(idx)}
                                             onBlur={(e) => {
                                                 // Don't trigger blur if focus moves to toolbar or settings panel
