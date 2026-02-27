@@ -269,4 +269,50 @@ router.get('/feature-flags', async (req, res) => {
     res.json({ flags: TIER_LIMITS });
 });
 
+// POST /api/admin/test-tiktok - Fire a test event to TikTok Events API
+router.post('/test-tiktok', async (req, res) => {
+    try {
+        const { getSetting } = require('../config/settings');
+        const accessToken = await getSetting('tiktok_events_api_token');
+        const pixelId = await getSetting('default_tiktok_pixel_id');
+
+        if (!accessToken) return res.status(400).json({ error: 'TikTok Events API token not configured' });
+        if (!pixelId) return res.status(400).json({ error: 'Default TikTok Pixel ID not configured' });
+
+        const payload = {
+            pixel_code: pixelId,
+            event: 'ViewContent',
+            event_id: `test_${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            context: {
+                user_agent: req.headers['user-agent'] || 'AffiliateTunnels Test',
+                ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || '',
+                page: { url: 'https://test.example.com/test-page', referrer: '' },
+            },
+            properties: {
+                contents: [{ content_id: 'test-001', content_type: 'product', content_name: 'Test Event' }],
+                value: 0,
+                currency: 'USD',
+            },
+        };
+
+        const response = await fetch('https://business-api.tiktok.com/open_api/v1.3/event/track/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Access-Token': accessToken },
+            body: JSON.stringify({ data: [payload] }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.code === 0) {
+            res.json({ success: true, message: 'Test event sent successfully!', response: result });
+        } else {
+            res.json({ success: false, message: 'TikTok API returned an error', response: result });
+        }
+    } catch (err) {
+        console.error('TikTok test error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

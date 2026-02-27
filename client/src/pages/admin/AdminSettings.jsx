@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { adminApi } from '../../lib/api';
-import { Save, Eye, EyeOff } from 'lucide-react';
+import { Save, Eye, EyeOff, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminSettings() {
@@ -9,6 +9,7 @@ export default function AdminSettings() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [revealed, setRevealed] = useState({});
+    const [testing, setTesting] = useState(false);
 
     useEffect(() => { loadSettings(); }, []);
 
@@ -88,6 +89,28 @@ export default function AdminSettings() {
                     </div>
                 </div>
             ))}
+
+            {/* TikTok Test Button */}
+            <div className="card">
+                <h2 className="font-semibold text-white mb-2">Test Integrations</h2>
+                <p className="text-xs text-gray-500 mb-4">Fire a test event to verify your TikTok Events API is connected.</p>
+                <button
+                    onClick={async () => {
+                        setTesting(true);
+                        try {
+                            const r = await adminApi.testTikTok();
+                            if (r.success) toast.success(r.message);
+                            else toast.error(r.message || 'TikTok API error');
+                        } catch (err) { toast.error(err.message); }
+                        finally { setTesting(false); }
+                    }}
+                    disabled={testing}
+                    className="btn-secondary flex items-center gap-2 text-sm"
+                >
+                    <Zap className="w-4 h-4" />
+                    {testing ? 'Sending...' : 'Test TikTok Events API'}
+                </button>
+            </div>
         </div>
     );
 }

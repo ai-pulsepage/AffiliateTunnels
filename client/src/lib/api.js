@@ -229,6 +229,7 @@ export const adminApi = {
     getStats: () => api('/admin/stats'),
     getHealth: () => api('/admin/health'),
     getBilling: () => api('/admin/billing'),
+    testTikTok: () => api('/admin/test-tiktok', { body: {} }),
 };
 
 // Templates

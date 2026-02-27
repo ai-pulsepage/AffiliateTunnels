@@ -61,6 +61,26 @@ function generatePublishedHTML(page, funnel, pages) {
         ;n.type="text/javascript",n.async=!0,n.src=r+"?sdkid="+e+"&lib="+t;e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
         ttq.load('${tiktokPixelId}');
         ttq.page();
+        ttq.track('ViewContent', {
+          contents: [{
+            content_id: "${page.id}",
+            content_type: "product",
+            content_name: "${(page.name || funnel.name || '').replace(/"/g, '\\"')}"
+          }],
+          value: 0,
+          currency: "USD"
+        });
+        window.__ttqConvert=function(email){
+          if(!email)return;
+          crypto.subtle.digest("SHA-256",new TextEncoder().encode(email.toLowerCase().trim())).then(function(h){
+            var ha=Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,"0")}).join("");
+            ttq.identify({email:ha,external_id:ha});
+            ttq.track("CompleteRegistration",{
+              contents:[{content_id:"${page.id}",content_type:"product",content_name:"${(page.name || funnel.name || '').replace(/"/g, '\\"')}"}],
+              value:0,currency:"USD"
+            });
+          });
+        };
       }(window, document, 'ttq');
     </script>` : '';
 
@@ -351,7 +371,8 @@ function generatePublishedHTML(page, funnel, pages) {
             var btn=form.querySelector("button[type=submit],button");
             if(btn){btn.disabled=true;btn.textContent="Submitting...";}
             fetch(baseUrl+"/api/tracking/lead",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
-            .then(function(){handleSuccess(form);}).catch(function(){handleSuccess(form);});
+            .then(function(){if(window.__ttqConvert)window.__ttqConvert(email);handleSuccess(form);})
+            .catch(function(){handleSuccess(form);});
           });
         });
         var btns=document.querySelectorAll(".page-container button");
@@ -368,7 +389,7 @@ function generatePublishedHTML(page, funnel, pages) {
             var data={funnel_id:fid,page_id:pid,email:email,name:nameInput?nameInput.value:"",consent_offer:true,consent_marketing:false};
             btn.disabled=true;btn.textContent="Submitting...";
             fetch(baseUrl+"/api/tracking/lead",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
-            .then(function(){handleSuccess(emailInput.closest("div")||container);})
+            .then(function(){if(window.__ttqConvert)window.__ttqConvert(email);handleSuccess(emailInput.closest("div")||container);})
             .catch(function(){handleSuccess(emailInput.closest("div")||container);});
           });
         });
