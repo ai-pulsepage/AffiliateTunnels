@@ -5,7 +5,7 @@ function generatePublishedHTML(page, funnel, pages) {
   const ga4Id = funnel.ga4_id || getSettingSync('default_ga4_id') || '';
   const fbPixelId = funnel.fb_pixel_id || getSettingSync('default_fb_pixel_id') || '';
   const gadsId = funnel.gads_id || getSettingSync('default_gads_id') || '';
-  const appBaseUrl = getSettingSync('app_base_url') || '';
+  const appBaseUrl = getSettingSync('app_base_url') || process.env.CLIENT_URL || '';
 
   // Compute next page URL for redirect after opt-in
   const sorted = [...pages].sort((a, b) => (a.step_order || 0) - (b.step_order || 0));
@@ -51,17 +51,18 @@ function generatePublishedHTML(page, funnel, pages) {
     </script>
     <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${fbPixelId}&ev=PageView&noscript=1"/></noscript>` : '';
 
-  const trackingScript = appBaseUrl ? `
+  const trackingScript = `
     <!-- AffiliateTunnels Tracking -->
     <script>
       (function(){
+        var baseUrl=${appBaseUrl ? `"${appBaseUrl}"` : 'window.location.origin'};
         var fid="${funnel.id}",pid="${page.id}";
         var vid=localStorage.getItem('at_vid')||crypto.randomUUID();
         localStorage.setItem('at_vid',vid);
         var sid=sessionStorage.getItem('at_sid')||crypto.randomUUID();
         sessionStorage.setItem('at_sid',sid);
         var u=new URL(location.href);
-        fetch("${appBaseUrl}/api/tracking/event",{method:"POST",headers:{"Content-Type":"application/json"},
+        fetch(baseUrl+"/api/tracking/event",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,
           body:JSON.stringify({funnel_id:fid,page_id:pid,event_type:"pageview",visitor_id:vid,session_id:sid,
             referrer:document.referrer,page_url:location.href,
             utm_source:u.searchParams.get("utm_source")||"",
@@ -71,7 +72,7 @@ function generatePublishedHTML(page, funnel, pages) {
         }).catch(function(){});
         document.addEventListener("click",function(e){
           var t=e.target.closest("a,button,[data-track]");
-          if(t){fetch("${appBaseUrl}/api/tracking/event",{method:"POST",headers:{"Content-Type":"application/json"},
+          if(t){fetch(baseUrl+"/api/tracking/event",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,
             body:JSON.stringify({funnel_id:fid,page_id:pid,event_type:"click",visitor_id:vid,session_id:sid,
               element_id:t.id||t.textContent.substring(0,50),page_url:location.href})
           }).catch(function(){});}
@@ -79,12 +80,12 @@ function generatePublishedHTML(page, funnel, pages) {
         var startTime=Date.now();
         window.addEventListener("beforeunload",function(){
           var seconds=Math.round((Date.now()-startTime)/1000);
-          navigator.sendBeacon("${appBaseUrl}/api/tracking/event",JSON.stringify({
+          navigator.sendBeacon(baseUrl+"/api/tracking/event",JSON.stringify({
             funnel_id:fid,page_id:pid,event_type:"bounce",visitor_id:vid,session_id:sid,
             time_on_page:seconds,page_url:location.href}));
         });
       })();
-    </script>` : '';
+    </script>`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
