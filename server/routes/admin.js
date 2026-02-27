@@ -280,26 +280,29 @@ router.post('/test-tiktok', async (req, res) => {
         if (!pixelId) return res.status(400).json({ error: 'Default TikTok Pixel ID not configured' });
 
         const payload = {
-            pixel_code: pixelId,
-            event: 'ViewContent',
-            event_id: `test_${Date.now()}`,
-            timestamp: new Date().toISOString(),
-            context: {
-                user_agent: req.headers['user-agent'] || 'AffiliateTunnels Test',
-                ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || '',
+            event_source: 'web',
+            event_source_id: pixelId,
+            data: [{
+                event: 'ViewContent',
+                event_id: `test_${Date.now()}`,
+                event_time: Math.floor(Date.now() / 1000),
+                user: {
+                    ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || '',
+                    user_agent: req.headers['user-agent'] || 'AffiliateTunnels Test',
+                },
                 page: { url: 'https://test.example.com/test-page', referrer: '' },
-            },
-            properties: {
-                contents: [{ content_id: 'test-001', content_type: 'product', content_name: 'Test Event' }],
-                value: 0,
-                currency: 'USD',
-            },
+                properties: {
+                    contents: [{ content_id: 'test-001', content_type: 'product', content_name: 'Test Event' }],
+                    value: 0,
+                    currency: 'USD',
+                },
+            }],
         };
 
         const response = await fetch('https://business-api.tiktok.com/open_api/v1.3/event/track/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Access-Token': accessToken },
-            body: JSON.stringify({ data: [payload] }),
+            body: JSON.stringify(payload),
         });
 
         const result = await response.json();
@@ -307,7 +310,7 @@ router.post('/test-tiktok', async (req, res) => {
         if (response.ok && result.code === 0) {
             res.json({ success: true, message: 'Test event sent successfully!', response: result });
         } else {
-            res.json({ success: false, message: 'TikTok API returned an error', response: result });
+            res.json({ success: false, message: result.message || 'TikTok API error', response: result });
         }
     } catch (err) {
         console.error('TikTok test error:', err);

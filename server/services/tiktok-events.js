@@ -38,19 +38,22 @@ async function forwardToTikTok(opts) {
         if (!tiktokEvent) return; // not a mapped event (e.g. bounce)
 
         const payload = {
-            pixel_code: opts.pixelCode,
-            event: tiktokEvent,
-            event_id: opts.eventId || `${opts.eventType}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            timestamp: new Date().toISOString(),
-            context: {
-                user_agent: opts.userAgent || '',
-                ip: opts.ip || '',
+            event_source: 'web',
+            event_source_id: opts.pixelCode,
+            data: [{
+                event: tiktokEvent,
+                event_id: opts.eventId || `${opts.eventType}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                event_time: Math.floor(Date.now() / 1000),
+                user: {
+                    ip: opts.ip || '',
+                    user_agent: opts.userAgent || '',
+                },
                 page: {
                     url: opts.pageUrl || '',
                     referrer: opts.referrer || '',
                 },
-            },
-            properties: opts.properties || {},
+                properties: opts.properties || {},
+            }],
         };
 
         const response = await fetch(TIKTOK_API_URL, {
@@ -59,7 +62,7 @@ async function forwardToTikTok(opts) {
                 'Content-Type': 'application/json',
                 'Access-Token': accessToken,
             },
-            body: JSON.stringify({ data: [payload] }),
+            body: JSON.stringify(payload),
             signal: AbortSignal.timeout(5000),
         });
 
