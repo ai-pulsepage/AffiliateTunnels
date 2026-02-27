@@ -38,7 +38,7 @@ export default function AdminSettings() {
         'Stripe': ['stripe_secret_key', 'stripe_publishable_key', 'stripe_webhook_secret', 'stripe_pro_price_id', 'stripe_agency_price_id'],
         'Cloudflare R2': ['r2_access_key', 'r2_secret_key', 'r2_bucket_name', 'r2_public_url', 'r2_endpoint'],
         'ClickBank': ['clickbank_secret_key', 'clickbank_clerk_api_key'],
-        'Tracking': ['default_ga4_id', 'default_fb_pixel_id'],
+        'Tracking': ['default_ga4_id', 'default_gads_id', 'default_fb_pixel_id', 'default_tiktok_pixel_id', 'tiktok_events_api_token'],
         'AI (Gemini)': ['gemini_api_key'],
         'Application': ['app_base_url', 'physical_address'],
     };
