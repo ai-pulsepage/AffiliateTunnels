@@ -130,7 +130,7 @@ router.get('/:id', async (req, res) => {
 // PUT /api/funnels/:id
 router.put('/:id', async (req, res) => {
     try {
-        const { name, slug, status, brand_colors, brand_fonts, seo_title, seo_description, og_image_url, ga4_id, gads_id, fb_pixel_id, traffic_source, affiliate_link } = req.body;
+        const { name, slug, status, brand_colors, brand_fonts, seo_title, seo_description, og_image_url, ga4_id, gads_id, fb_pixel_id, tiktok_pixel_id, traffic_source, affiliate_link } = req.body;
 
         const result = await query(
             `UPDATE funnels SET
@@ -145,11 +145,12 @@ router.put('/:id', async (req, res) => {
         ga4_id = COALESCE($9, ga4_id),
         gads_id = COALESCE($10, gads_id),
         fb_pixel_id = COALESCE($11, fb_pixel_id),
-        traffic_source = COALESCE($12, traffic_source),
-        affiliate_link = COALESCE($13, affiliate_link),
+        tiktok_pixel_id = COALESCE($12, tiktok_pixel_id),
+        traffic_source = COALESCE($13, traffic_source),
+        affiliate_link = COALESCE($14, affiliate_link),
         updated_at = NOW()
-       WHERE id = $14 AND user_id = $15 RETURNING *`,
-            [name, slug, status, JSON.stringify(brand_colors), JSON.stringify(brand_fonts), seo_title, seo_description, og_image_url, ga4_id, gads_id, fb_pixel_id, traffic_source, affiliate_link, req.params.id, req.user.id]
+       WHERE id = $15 AND user_id = $16 RETURNING *`,
+            [name, slug, status, JSON.stringify(brand_colors), JSON.stringify(brand_fonts), seo_title, seo_description, og_image_url, ga4_id, gads_id, fb_pixel_id, tiktok_pixel_id, traffic_source, affiliate_link, req.params.id, req.user.id]
         );
 
         if (result.rows.length === 0) {

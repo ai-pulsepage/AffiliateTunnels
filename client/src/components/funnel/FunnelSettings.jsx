@@ -18,6 +18,7 @@ export default function FunnelSettings({ funnel, onUpdate }) {
         ga4_id: '',
         gads_id: '',
         fb_pixel_id: '',
+        tiktok_pixel_id: '',
         brand_colors: { primary: '#6366f1', secondary: '#8b5cf6', accent: '#10b981' },
         brand_fonts: { heading: 'Inter', body: 'Inter' },
     });
@@ -36,6 +37,7 @@ export default function FunnelSettings({ funnel, onUpdate }) {
                 ga4_id: funnel.ga4_id || '',
                 gads_id: funnel.gads_id || '',
                 fb_pixel_id: funnel.fb_pixel_id || '',
+                tiktok_pixel_id: funnel.tiktok_pixel_id || '',
                 brand_colors: funnel.brand_colors || { primary: '#6366f1', secondary: '#8b5cf6', accent: '#10b981' },
                 brand_fonts: funnel.brand_fonts || { heading: 'Inter', body: 'Inter' },
             });
@@ -267,6 +269,10 @@ export default function FunnelSettings({ funnel, onUpdate }) {
                     <div>
                         <label className="block text-xs text-gray-400 mb-1.5">Facebook Pixel ID</label>
                         <input type="text" value={form.fb_pixel_id} onChange={e => updateField('fb_pixel_id', e.target.value)} className="input-field text-sm" placeholder="123456789" />
+                    </div>
+                    <div>
+                        <label className="block text-xs text-gray-400 mb-1.5">TikTok Pixel ID</label>
+                        <input type="text" value={form.tiktok_pixel_id} onChange={e => updateField('tiktok_pixel_id', e.target.value)} className="input-field text-sm" placeholder="D6GVBIBC77U0025UE2S0" />
                     </div>
                 </div>
             </div>
