@@ -1,6 +1,7 @@
 const express = require('express');
 const { query } = require('../config/db');
 const { trackingLimiter } = require('../middleware/rateLimiter');
+const { forwardToTikTok } = require('../services/tiktok-events');
 
 const router = express.Router();
 
@@ -28,6 +29,20 @@ router.post('/event', trackingLimiter, async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
             [funnel_id, page_id || null, variant_id || null, event_type, visitor_id || null, session_id || null, ip, deviceType, browser, os, referrer || null, utm_source || null, utm_medium || null, utm_campaign || null, page_url || null, element_id || null, time_on_page || null, JSON.stringify(metadata || {})]
         );
+
+        // Forward to TikTok Events API (fire-and-forget, non-blocking)
+        const tiktokPixelId = await getTikTokPixelId(funnel_id);
+        if (tiktokPixelId) {
+            forwardToTikTok({
+                pixelCode: tiktokPixelId,
+                eventType: event_type,
+                eventId: metadata?.event_id || null,
+                ip,
+                userAgent: ua,
+                pageUrl: page_url,
+                referrer,
+            }).catch(() => { }); // never block
+        }
 
         res.status(204).send();
     } catch (err) {
@@ -63,6 +78,18 @@ router.post('/lead', trackingLimiter, async (req, res) => {
        VALUES ($1, $2, 'form_submit', $3, $4, $5)`,
             [funnel_id, page_id || null, email.toLowerCase(), req.headers['referer'] || '', JSON.stringify({ email })]
         );
+
+        // Forward lead event to TikTok Events API
+        const tiktokPixelId = await getTikTokPixelId(funnel_id);
+        if (tiktokPixelId) {
+            forwardToTikTok({
+                pixelCode: tiktokPixelId,
+                eventType: 'form_submit',
+                ip,
+                userAgent: req.headers['user-agent'] || '',
+                pageUrl: req.headers['referer'] || '',
+            }).catch(() => { });
+        }
 
         // Trigger drip campaign enrollment
         if (result.rows.length > 0) {
@@ -141,6 +168,21 @@ function extractOS(ua) {
     if (/Android/i.test(ua)) return 'Android';
     if (/iOS|iPhone|iPad/i.test(ua)) return 'iOS';
     return 'Other';
+}
+
+// Cache funnel -> tiktok_pixel_id lookups (1-minute TTL)
+const tiktokPixelCache = new Map();
+async function getTikTokPixelId(funnelId) {
+    const cached = tiktokPixelCache.get(funnelId);
+    if (cached && Date.now() - cached.ts < 60000) return cached.val;
+    try {
+        const result = await query('SELECT tiktok_pixel_id FROM funnels WHERE id = $1', [funnelId]);
+        const val = result.rows[0]?.tiktok_pixel_id || null;
+        tiktokPixelCache.set(funnelId, { val, ts: Date.now() });
+        return val;
+    } catch {
+        return null;
+    }
 }
 
 module.exports = router;

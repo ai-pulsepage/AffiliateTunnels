@@ -75,20 +75,24 @@ function generatePublishedHTML(page, funnel, pages) {
         var sid=sessionStorage.getItem('at_sid')||crypto.randomUUID();
         sessionStorage.setItem('at_sid',sid);
         var u=new URL(location.href);
+        var eid=crypto.randomUUID();
         fetch(baseUrl+"/api/tracking/event",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,
           body:JSON.stringify({funnel_id:fid,page_id:pid,event_type:"pageview",visitor_id:vid,session_id:sid,
             referrer:document.referrer,page_url:location.href,
             utm_source:u.searchParams.get("utm_source")||"",
             utm_medium:u.searchParams.get("utm_medium")||"",
-            utm_campaign:u.searchParams.get("utm_campaign")||""
+            utm_campaign:u.searchParams.get("utm_campaign")||"",
+            metadata:{event_id:eid}
           })
         }).catch(function(){});
         document.addEventListener("click",function(e){
           var t=e.target.closest("a,button,[data-track]");
-          if(t){fetch(baseUrl+"/api/tracking/event",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,
-            body:JSON.stringify({funnel_id:fid,page_id:pid,event_type:"click",visitor_id:vid,session_id:sid,
-              element_id:t.id||t.textContent.substring(0,50),page_url:location.href})
-          }).catch(function(){});}
+          if(t){var cid=crypto.randomUUID();
+            fetch(baseUrl+"/api/tracking/event",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,
+              body:JSON.stringify({funnel_id:fid,page_id:pid,event_type:"click",visitor_id:vid,session_id:sid,
+                element_id:t.id||t.textContent.substring(0,50),page_url:location.href,
+                metadata:{event_id:cid}})
+            }).catch(function(){});}
         });
         var startTime=Date.now();
         window.addEventListener("beforeunload",function(){
