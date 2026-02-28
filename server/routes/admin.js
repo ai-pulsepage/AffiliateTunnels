@@ -293,8 +293,6 @@ router.post('/test-tiktok', async (req, res) => {
                 page: { url: 'https://test.example.com/test-page', referrer: '' },
                 properties: {
                     contents: [{ content_id: 'test-001', content_type: 'product', content_name: 'Test Event' }],
-                    value: 0,
-                    currency: 'USD',
                 },
             }],
         };

@@ -66,9 +66,7 @@ function generatePublishedHTML(page, funnel, pages) {
             content_id: "${page.id}",
             content_type: "product",
             content_name: "${(page.name || funnel.name || '').replace(/"/g, '\\"')}"
-          }],
-          value: 0,
-          currency: "USD"
+          }]
         });
         window.__ttqConvert=function(email){
           if(!email)return;
@@ -76,8 +74,7 @@ function generatePublishedHTML(page, funnel, pages) {
             var ha=Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,"0")}).join("");
             ttq.identify({email:ha,external_id:ha});
             ttq.track("CompleteRegistration",{
-              contents:[{content_id:"${page.id}",content_type:"product",content_name:"${(page.name || funnel.name || '').replace(/"/g, '\\"')}"}],
-              value:0,currency:"USD"
+              contents:[{content_id:"${page.id}",content_type:"product",content_name:"${(page.name || funnel.name || '').replace(/"/g, '\\"')}"}]
             });
           });
         };
