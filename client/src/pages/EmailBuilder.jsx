@@ -98,7 +98,6 @@ export default function EmailBuilder() {
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0; padding:0; background:#f8fafc; font-family:Georgia, 'Times New Roman', serif;">
   <div style="max-width:600px; margin:0 auto; padding:32px 24px;">
-<p style="color:#475569; font-size:16px; line-height:1.8;">Hey {{name}},</p>
 ${paragraphs}
 ${ctaHtml}
 <p style="color:#94a3b8; font-size:12px; margin-top:40px; text-align:center; border-top:1px solid #e2e8f0; padding-top:20px;">
@@ -120,7 +119,7 @@ ${ctaHtml}
         if (mode === 'quick') {
             const html = convertQuickToHtml();
             finalData.html_content = html;
-            finalData.text_content = `Hey {{name}},\n\n${quickBody}\n\n${quickCtaText}: ${quickCtaLink}`;
+            finalData.text_content = `${quickBody}\n\n${quickCtaText}: ${quickCtaLink}`;
         }
 
         if (!finalData.html_content) {
