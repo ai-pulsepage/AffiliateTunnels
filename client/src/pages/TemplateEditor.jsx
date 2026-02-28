@@ -713,6 +713,8 @@ export default function TemplateEditor() {
             }
 
             toast('Writing content...');
+            // Always send current blocks as template context so AI matches the visual design
+            const currentTemplateHtml = blocksToHtml();
             const payload = {
                 productName: productName || aiForm.productName,
                 productDescription: productInfo || aiForm.productDescription,
@@ -720,10 +722,11 @@ export default function TemplateEditor() {
                 style: aiForm.style,
                 productIntel,
                 customDirection: aiForm.customDirection || '',
+                templateHtml: currentTemplateHtml || '',
             };
 
             if (aiTab === 'improve') {
-                payload.existingContent = blocksToHtml();
+                payload.existingContent = currentTemplateHtml;
             }
 
             const result = await aiApi.generatePage(payload);

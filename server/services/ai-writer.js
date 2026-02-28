@@ -660,7 +660,7 @@ OUTPUT: Return ONLY the single <div class="at-sbs-layout"> element. No markdown,
 }
 
 // ─── Pass 2: Generate page content ─────────────────────────────
-async function generateArticlePage({ productName, productDescription, affiliateLink, style = 'review_article', emailSwipes = '', existingContent = '', productIntel = null, customDirection = '' }) {
+async function generateArticlePage({ productName, productDescription, affiliateLink, style = 'review_article', emailSwipes = '', existingContent = '', productIntel = null, customDirection = '', templateHtml = '' }) {
    const apiKey = process.env.GEMINI_API_KEY || await getSetting('gemini_api_key');
    if (!apiKey) throw new Error('Gemini API key not configured. Add it in Admin Settings.');
 
@@ -669,7 +669,7 @@ async function generateArticlePage({ productName, productDescription, affiliateL
    const year = today.getFullYear();
    const productContext = buildProductContext(productName, productDescription, productIntel);
 
-   const promptArgs = { productContext, affiliateLink, dateStr, year, emailSwipes, existingContent };
+   const promptArgs = { productContext, affiliateLink, dateStr, year, emailSwipes, existingContent, templateHtml };
 
    // Pick the right prompt builder based on style
    let prompt;
@@ -733,6 +733,11 @@ async function generateArticlePage({ productName, productDescription, affiliateL
             maxTokens = 32768;
             break;
       }
+   }
+
+   // Inject template design context so AI matches the visual design
+   if (templateHtml && templateHtml.trim().length > 100) {
+      prompt += `\n\nTEMPLATE DESIGN CONTEXT — The user has selected a template with specific visual design. Study the following HTML carefully and MATCH its CSS styling patterns in your output. Replicate the same gradients, background colors, border-radius values, box-shadows, glassmorphism effects, font sizes, color palette, and layout patterns. Your generated HTML should feel like it belongs to this exact same design system:\n\n${templateHtml.substring(0, 8000)}`;
    }
 
    // Append custom direction if user provided one
