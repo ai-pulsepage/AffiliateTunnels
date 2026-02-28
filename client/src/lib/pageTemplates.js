@@ -3,9 +3,12 @@
  * Each template has: name, desc, emoji, category, traffic[], structure[], blocks(hoplink)
  * Structure metadata is used by AI writer to match output to template layout
  */
+import { PREMIUM_TEMPLATES } from './premiumTemplates';
 
 // ─── TEMPLATE CATEGORIES ──────────────────────
 export const TEMPLATE_CATEGORIES = [
+    { id: 'hero', label: '✨ Visual Hero', emoji: '🌟', desc: 'Modern visual landing pages with gradient heroes and split layouts' },
+    { id: 'funnel', label: '✨ Conversion', emoji: '💰', desc: 'Offer stacks, pricing cards, and conversion-focused designs' },
     { id: 'bridge', label: 'Bridge / Review', emoji: '📰', desc: 'Pre-sell articles that warm up traffic before the offer' },
     { id: 'listicle', label: 'Listicle', emoji: '📝', desc: 'Numbered benefit articles for native & SEO traffic' },
     { id: 'social', label: 'Social Bridge', emoji: '📱', desc: 'Short punchy pages for social media traffic' },
@@ -14,7 +17,6 @@ export const TEMPLATE_CATEGORIES = [
     { id: 'vsl', label: 'VSL Page', emoji: '🎬', desc: 'Video sales letter with minimal distraction' },
     { id: 'comparison', label: 'Comparison', emoji: '⚖️', desc: 'Product comparison with verdict' },
     { id: 'squeeze', label: 'Squeeze Page', emoji: '🎯', desc: 'Ultra-focused email capture' },
-    { id: 'ad', label: 'Ad Creative', emoji: '📢', desc: 'Split-layout ad-style pages for native, display & social' },
 ];
 
 // ─── TEMPLATES ────────────────────────────────
@@ -176,31 +178,6 @@ export const PAGE_TEMPLATES = {
         ],
     },
 
-    listicle_comparison: {
-        name: 'Comparison Chart',
-        desc: 'Side-by-side comparison table with verdict',
-        emoji: '⚖️',
-        category: 'listicle',
-        traffic: ['seo', 'native'],
-        structure: [
-            { role: 'headline', type: 'heading' },
-            { role: 'intro', type: 'text' },
-            { role: 'comparison_table', type: 'text' },
-            { role: 'body', type: 'text' },
-            { role: 'verdict', type: 'text' },
-            { role: 'cta', type: 'button' },
-            { role: 'disclosure', type: 'text' },
-        ],
-        blocks: (hoplink) => [
-            { type: 'heading', html: '<h1 style="font-size:32px;font-weight:800;color:#0f172a;text-align:center;margin:0 0 16px;">[Product] vs. The Competition: Which One Actually Works?</h1>' },
-            { type: 'text', html: '<p style="font-size:18px;color:#64748b;text-align:center;max-width:600px;margin:0 auto 32px;">We tested the top 3 options side-by-side. Here\'s what the data reveals.</p>' },
-            { type: 'text', html: '<div style="overflow-x:auto;margin:24px 0;"><table style="width:100%;border-collapse:collapse;font-size:15px;"><thead><tr style="background:#0f172a;color:#fff;"><th style="padding:14px 20px;text-align:left;border-radius:8px 0 0 0;">Feature</th><th style="padding:14px 20px;text-align:center;background:#2563eb;">⭐ Our Pick</th><th style="padding:14px 20px;text-align:center;">Option B</th><th style="padding:14px 20px;text-align:center;border-radius:0 8px 0 0;">Option C</th></tr></thead><tbody><tr style="background:#f8fafc;"><td style="padding:12px 20px;font-weight:600;">Clinically Proven</td><td style="padding:12px 20px;text-align:center;color:#16a34a;font-weight:700;">✅ Yes</td><td style="padding:12px 20px;text-align:center;color:#dc2626;">❌ No</td><td style="padding:12px 20px;text-align:center;color:#f59e0b;">⚠️ Limited</td></tr><tr><td style="padding:12px 20px;font-weight:600;">Natural Ingredients</td><td style="padding:12px 20px;text-align:center;color:#16a34a;font-weight:700;">✅ 100%</td><td style="padding:12px 20px;text-align:center;color:#f59e0b;">⚠️ Partial</td><td style="padding:12px 20px;text-align:center;color:#16a34a;">✅ Yes</td></tr><tr style="background:#f8fafc;"><td style="padding:12px 20px;font-weight:600;">Money-Back Guarantee</td><td style="padding:12px 20px;text-align:center;color:#16a34a;font-weight:700;">✅ 60 Days</td><td style="padding:12px 20px;text-align:center;">30 Days</td><td style="padding:12px 20px;text-align:center;color:#dc2626;">❌ None</td></tr><tr><td style="padding:12px 20px;font-weight:600;">Free Shipping</td><td style="padding:12px 20px;text-align:center;color:#16a34a;font-weight:700;">✅ Yes</td><td style="padding:12px 20px;text-align:center;color:#dc2626;">❌ No</td><td style="padding:12px 20px;text-align:center;color:#16a34a;">✅ Yes</td></tr><tr style="background:#f8fafc;"><td style="padding:12px 20px;font-weight:600;">Our Rating</td><td style="padding:12px 20px;text-align:center;font-weight:800;color:#2563eb;">9.5/10</td><td style="padding:12px 20px;text-align:center;">6.2/10</td><td style="padding:12px 20px;text-align:center;">7.1/10</td></tr></tbody></table></div>' },
-            { type: 'text', html: '<div style="font-size:17px;line-height:1.8;color:#475569;"><p>After thorough testing, the results were clear. While all three products had their merits, only one consistently delivered on its promises across the board.</p><p style="margin-top:16px;">The key differentiator was the quality of ingredients and the clinical backing — something the competition simply couldn\'t match.</p></div>' },
-            { type: 'text', html: '<div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:16px;padding:28px;margin:24px 0;border:2px solid #93c5fd;"><h3 style="font-size:22px;font-weight:700;color:#1e40af;margin:0 0 12px;">🏆 Our Verdict: Clear Winner</h3><p style="font-size:16px;color:#475569;line-height:1.7;margin:0;">Based on clinical evidence, value, and user satisfaction, this product stands head and shoulders above the competition. With a 60-day guarantee, there\'s zero risk in trying it yourself.</p></div>' },
-            { type: 'button', html: `<div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:16px;padding:40px;text-align:center;margin:36px 0;"><p style="font-size:24px;color:#fff;font-weight:700;margin:0 0 24px;">Try the #1 Rated Option Risk-Free</p><a href="${hoplink}" style="display:inline-block;padding:18px 56px;background:#fff;color:#1d4ed8;font-size:18px;font-weight:700;border-radius:12px;text-decoration:none;">See Today's Best Price →</a></div>` },
-            { type: 'text', html: '<p style="font-size:12px;color:#9ca3af;text-align:center;margin-top:32px;">This is an advertisement. Individual results may vary.</p>' },
-        ],
-    },
 
     // ═══════════════════════════════════════════
     // SOCIAL BRIDGE (2 variations)
@@ -500,50 +477,10 @@ export const PAGE_TEMPLATES = {
         ],
     },
 
-    // ═══════════════════════════════════════════
-    // AD CREATIVE
-    // ═══════════════════════════════════════════
+    // ad_side_by_side retired — replaced by funnel_side_by_side in premium templates
 
-    ad_side_by_side: {
-        name: 'Side-by-Side',
-        desc: 'Product image left (600×800), headline + bullets + CTA on right',
-        emoji: '📢',
-        category: 'ad',
-        traffic: ['native', 'display', 'facebook', 'tiktok'],
-        structure: [
-            { role: 'columns_layout', type: 'columns' },
-            { role: 'body', type: 'text' },
-            { role: 'disclosure', type: 'text' },
-        ],
-        blocks: (hoplink) => [
-            {
-                type: 'columns',
-                columns: [
-                    {
-                        width: '40%',
-                        blocks: [
-                            { type: 'image', html: '<div data-media-slot="hero" style="text-align:center;padding:40px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border-radius:16px;min-height:300px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid #e2e8f0;"><span style="color:#94a3b8;font-size:15px;">📸 Click to add product image</span></div>' },
-                        ],
-                    },
-                    {
-                        width: '60%',
-                        blocks: [
-                            { type: 'heading', html: '<h1 style="font-size:32px;font-weight:800;color:#0f172a;line-height:1.2;margin:0 0 16px;">Your Headline Goes Here — Grab Attention Fast</h1>' },
-                            { type: 'list', html: '<ul style="list-style:none;padding:0;font-size:16px;line-height:2.2;margin:0 0 24px;"><li>✅ First key benefit — what makes it unique</li><li>✅ Second benefit — why readers should care</li><li>✅ Third benefit — create urgency or desire here</li></ul>' },
-                            { type: 'button', html: `<div style="padding:8px 0;"><a href="${hoplink || '#'}" target="_blank" data-cta="true" style="display:inline-block;padding:18px 48px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:18px;font-weight:700;border-radius:12px;text-decoration:none;box-shadow:0 6px 20px rgba(37,99,235,0.3);">Get Started Now →</a></div>` },
-                        ],
-                    },
-                ],
-                styles: { gap: '36px' },
-            },
-            {
-                type: 'text', html: '<p style="font-size:15px;color:#64748b;line-height:1.7;margin-top:24px;">Brief supporting text goes here. Explain the offer, add social proof, or include a personal note to build trust with your reader.</p>',
-                styles: { fontSize: '15px', color: '#64748b', lineHeight: '1.7' }
-            },
-            {
-                type: 'text', html: '<p style="font-size:12px;color:#9ca3af;text-align:center;margin-top:24px;">This is an advertisement. Individual results may vary.</p>',
-                styles: { fontSize: '12px', color: '#9ca3af', textAlign: 'center', marginTop: '24px' }
-            },
-        ],
-    },
+    // ═══════════════════════════════════════════
+    // ✨ PREMIUM TEMPLATES (imported)
+    // ═══════════════════════════════════════════
+    ...PREMIUM_TEMPLATES,
 };

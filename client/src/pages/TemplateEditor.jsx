@@ -372,9 +372,12 @@ export default function TemplateEditor() {
 
     function buildStyleString(s) {
         const parts = [];
-        if (s.backgroundColor) parts.push(`background-color:${s.backgroundColor}`);
+        if (s.background) parts.push(`background:${s.background}`);
+        else if (s.backgroundColor) parts.push(`background-color:${s.backgroundColor}`);
         if (s.borderRadius) parts.push(`border-radius:${s.borderRadius}`);
         if (s.borderWidth) parts.push(`border:${s.borderWidth} solid ${s.borderColor || '#e5e7eb'}`);
+        if (s.boxShadow) parts.push(`box-shadow:${s.boxShadow}`);
+        if (s.backdropFilter) parts.push(`backdrop-filter:${s.backdropFilter};-webkit-backdrop-filter:${s.backdropFilter}`);
         if (s.paddingTop) parts.push(`padding-top:${s.paddingTop}`);
         if (s.paddingRight) parts.push(`padding-right:${s.paddingRight}`);
         if (s.paddingBottom) parts.push(`padding-bottom:${s.paddingBottom}`);
@@ -956,8 +959,11 @@ export default function TemplateEditor() {
                                     className={`group relative ${dragIdx === idx ? 'opacity-40' : ''} ${activeBlockIdx === idx ? 'ring-2 ring-brand-500/40 rounded-lg' : ''}`}
                                     style={block.styles ? {
                                         backgroundColor: block.styles.backgroundColor || undefined,
+                                        background: block.styles.background || undefined,
                                         borderRadius: block.styles.borderRadius || undefined,
                                         border: block.styles.borderWidth ? `${block.styles.borderWidth} solid ${block.styles.borderColor || '#e5e7eb'}` : undefined,
+                                        boxShadow: block.styles.boxShadow || undefined,
+                                        backdropFilter: block.styles.backdropFilter || undefined,
                                         paddingTop: block.styles.paddingTop || undefined,
                                         paddingRight: block.styles.paddingRight || undefined,
                                         paddingBottom: block.styles.paddingBottom || undefined,

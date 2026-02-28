@@ -77,8 +77,8 @@ export default function BlockSettingsPanel({ block, blockIdx, onUpdateStyles, on
                                 />
                                 <div className="mt-2">
                                     <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Border Radius</label>
-                                    <div className="flex gap-1">
-                                        {['0', '4', '8', '12', '16', '24'].map(r => (
+                                    <div className="flex gap-1 flex-wrap">
+                                        {['0', '4', '8', '12', '16', '24', '32', '9999'].map(r => (
                                             <button
                                                 key={r}
                                                 onClick={() => updateStyle('borderRadius', r === '0' ? '' : `${r}px`)}
@@ -86,7 +86,7 @@ export default function BlockSettingsPanel({ block, blockIdx, onUpdateStyles, on
                                                     ? 'bg-brand-500/30 text-brand-300 ring-1 ring-brand-500/50'
                                                     : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
                                                     }`}
-                                            >{r === '0' ? '□' : `${r}`}</button>
+                                            >{r === '0' ? '□' : r === '9999' ? '●' : `${r}`}</button>
                                         ))}
                                     </div>
                                 </div>
@@ -111,6 +111,88 @@ export default function BlockSettingsPanel({ block, blockIdx, onUpdateStyles, on
                                             />
                                         )}
                                     </div>
+                                </div>
+
+                                {/* Box Shadow */}
+                                <div className="mt-2">
+                                    <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Box Shadow</label>
+                                    <div className="flex gap-1 flex-wrap">
+                                        {[
+                                            { label: 'None', value: '' },
+                                            { label: 'sm', value: '0 1px 3px rgba(0,0,0,0.12)' },
+                                            { label: 'md', value: '0 4px 12px rgba(0,0,0,0.1)' },
+                                            { label: 'lg', value: '0 8px 32px rgba(0,0,0,0.12)' },
+                                            { label: '✨', value: '0 0 24px rgba(99,102,241,0.3)' },
+                                        ].map(s => (
+                                            <button
+                                                key={s.label}
+                                                onClick={() => updateStyle('boxShadow', s.value)}
+                                                className={`px-2 py-1 text-[11px] rounded transition-all ${(styles.boxShadow || '') === s.value
+                                                    ? 'bg-brand-500/30 text-brand-300 ring-1 ring-brand-500/50'
+                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                                                    }`}
+                                            >{s.label}</button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Gradient Background */}
+                                <div className="mt-2">
+                                    <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Gradient</label>
+                                    <div className="flex gap-2 items-center">
+                                        <input
+                                            type="color"
+                                            value={styles.gradientStart || '#6366f1'}
+                                            onChange={e => {
+                                                const start = e.target.value;
+                                                const end = styles.gradientEnd || '#8b5cf6';
+                                                updateStyles({
+                                                    gradientStart: start,
+                                                    background: `linear-gradient(135deg, ${start}, ${end})`,
+                                                });
+                                            }}
+                                            className="w-7 h-7 rounded cursor-pointer border-none bg-transparent"
+                                            title="Start"
+                                        />
+                                        <span className="text-[10px] text-gray-500">→</span>
+                                        <input
+                                            type="color"
+                                            value={styles.gradientEnd || '#8b5cf6'}
+                                            onChange={e => {
+                                                const end = e.target.value;
+                                                const start = styles.gradientStart || '#6366f1';
+                                                updateStyles({
+                                                    gradientEnd: end,
+                                                    background: `linear-gradient(135deg, ${start}, ${end})`,
+                                                });
+                                            }}
+                                            className="w-7 h-7 rounded cursor-pointer border-none bg-transparent"
+                                            title="End"
+                                        />
+                                        {styles.background && styles.background.includes('gradient') && (
+                                            <button
+                                                onClick={() => updateStyles({ background: '', gradientStart: '', gradientEnd: '' })}
+                                                className="text-[10px] text-red-400 hover:text-red-300 ml-auto"
+                                            >Clear</button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Glassmorphism Preset */}
+                                <div className="mt-2">
+                                    <button
+                                        onClick={() => updateStyles({
+                                            background: 'rgba(255,255,255,0.08)',
+                                            backdropFilter: 'blur(12px)',
+                                            borderWidth: '1px',
+                                            borderColor: 'rgba(255,255,255,0.15)',
+                                            borderRadius: '16px',
+                                            boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
+                                        })}
+                                        className="w-full px-3 py-1.5 text-[11px] rounded-lg bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-300 hover:from-indigo-500/30 hover:to-purple-500/30 transition-all border border-indigo-500/20"
+                                    >
+                                        ✨ Apply Glassmorphism
+                                    </button>
                                 </div>
                             </SettingsSection>
 
