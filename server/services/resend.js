@@ -7,6 +7,24 @@ function getResendClient() {
     return new Resend(apiKey);
 }
 
+/**
+ * Constrain all <img> tags in email HTML to max 600px width.
+ * Ensures images don't break email layouts across clients.
+ */
+function applyEmailImageGuardrails(html) {
+    if (!html) return html;
+    return html.replace(/<img\b([^>]*)>/gi, (match, attrs) => {
+        // Remove any existing width/height/style attributes to avoid conflicts
+        let cleanAttrs = attrs
+            .replace(/\s*width\s*=\s*["']?[^"'\s>]*["']?/gi, '')
+            .replace(/\s*height\s*=\s*["']?[^"'\s>]*["']?/gi, '')
+            .replace(/\s*style\s*=\s*["'][^"']*["']/gi, '')
+            .trim();
+        // Add email-safe image styling
+        return `<img ${cleanAttrs} style="max-width:600px;width:100%;height:auto;display:block;margin:0 auto;" />`;
+    });
+}
+
 async function sendEmail({ to, subject, html, text, from, replyTo, tags, leadId, funnelId }) {
     const client = getResendClient();
     if (!client) {
@@ -21,9 +39,9 @@ async function sendEmail({ to, subject, html, text, from, replyTo, tags, leadId,
     const recipientEmail = Array.isArray(to) ? to[0] : to;
     const unsubUrl = appBase ? `${appBase}/api/emails/unsubscribe?email=${encodeURIComponent(recipientEmail)}&funnel_id=${funnelId || ''}` : '';
 
-    // Append unsubscribe footer to HTML if not already present
-    let finalHtml = html;
-    if (html && unsubUrl && !html.includes('unsubscribe')) {
+    // Apply image guardrails (max 600px, block display)
+    let finalHtml = applyEmailImageGuardrails(html);
+    if (finalHtml && unsubUrl && !finalHtml.includes('unsubscribe')) {
         finalHtml += `<div style="text-align:center;padding:20px;font-size:12px;color:#999;border-top:1px solid #eee;margin-top:30px;"><a href="${unsubUrl}" style="color:#999;">Unsubscribe</a></div>`;
     }
 
@@ -62,8 +80,8 @@ async function sendBatchEmails(emails) {
     const formatted = emails.map(e => {
         const recipientEmail = Array.isArray(e.to) ? e.to[0] : e.to;
         const unsubUrl = appBase ? `${appBase}/api/emails/unsubscribe?email=${encodeURIComponent(recipientEmail)}&funnel_id=${e.funnelId || ''}` : '';
-        let finalHtml = e.html;
-        if (e.html && unsubUrl && !e.html.includes('unsubscribe')) {
+        let finalHtml = applyEmailImageGuardrails(e.html);
+        if (finalHtml && unsubUrl && !finalHtml.includes('unsubscribe')) {
             finalHtml += `<div style="text-align:center;padding:20px;font-size:12px;color:#999;border-top:1px solid #eee;margin-top:30px;"><a href="${unsubUrl}" style="color:#999;">Unsubscribe</a></div>`;
         }
         const payload = {
