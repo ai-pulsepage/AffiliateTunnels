@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { emailApi, funnelApi } from '../lib/api';
+import { emailApi, funnelApi, mediaApi } from '../lib/api';
 import { Link } from 'react-router-dom';
-import { Plus, Trash2, Mail, Pencil, Copy, Eye, X, Code2, FileText, Wand2, Send } from 'lucide-react';
+import { Plus, Trash2, Mail, Pencil, Copy, Eye, X, Code2, FileText, Wand2, Send, ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const CATEGORIES = ['affiliate', 'welcome', 'followup', 'promo', 'newsletter'];
@@ -22,6 +22,9 @@ export default function EmailBuilder() {
     const [filter, setFilter] = useState('');
     const [funnelFilter, setFunnelFilter] = useState('');
     const [mode, setMode] = useState('quick'); // 'quick' or 'advanced'
+    const [showMediaPicker, setShowMediaPicker] = useState(false);
+    const [mediaFiles, setMediaFiles] = useState([]);
+    const [mediaLoading, setMediaLoading] = useState(false);
 
     // Quick Create fields
     const [quickFromName, setQuickFromName] = useState('');
@@ -166,6 +169,28 @@ ${ctaHtml}
         } else {
             setEditing(prev => ({ ...prev, html_content: prev.html_content + tag }));
         }
+    }
+
+    async function openMediaPicker() {
+        setShowMediaPicker(true);
+        setMediaLoading(true);
+        try {
+            const d = await mediaApi.list({ page: 1 });
+            const images = (d.files || []).filter(f => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(f.filename));
+            setMediaFiles(images);
+        } catch (err) { toast.error('Failed to load media'); }
+        finally { setMediaLoading(false); }
+    }
+
+    function insertImage(file) {
+        const imgTag = `<img src="${file.url}" alt="${file.filename}" />`;
+        if (mode === 'quick') {
+            setQuickBody(prev => prev + '\n' + imgTag + '\n');
+        } else {
+            setEditing(prev => ({ ...prev, html_content: prev.html_content + '\n' + imgTag + '\n' }));
+        }
+        setShowMediaPicker(false);
+        toast.success('Image inserted');
     }
 
     let filtered = filter ? templates.filter(t => t.category === filter) : templates;
@@ -357,6 +382,9 @@ ${ctaHtml}
                                         <span className="text-[10px] text-gray-500 font-normal">— just paste your copy</span>
                                     </label>
                                     <div className="flex gap-1">
+                                        <button onClick={openMediaPicker} className="text-[10px] px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-md hover:bg-emerald-500/20 transition-colors flex items-center gap-1">
+                                            <ImageIcon className="w-3 h-3" /> Image
+                                        </button>
                                         {MERGE_TAGS.slice(0, 2).map(m => (
                                             <button key={m.tag} onClick={() => insertMergeTag(m.tag)} className="text-[10px] px-2 py-1 bg-brand-500/10 text-brand-400 rounded-md hover:bg-brand-500/20 transition-colors" title={m.label}>
                                                 {m.tag}
@@ -436,6 +464,9 @@ Doctors are SHOCKED. A clinical nutritionist just discovered...
                                         <Code2 className="w-4 h-4" /> HTML Content
                                     </label>
                                     <div className="flex gap-1">
+                                        <button onClick={openMediaPicker} className="text-[10px] px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-md hover:bg-emerald-500/20 transition-colors flex items-center gap-1">
+                                            <ImageIcon className="w-3 h-3" /> Image
+                                        </button>
                                         {MERGE_TAGS.slice(0, 3).map(m => (
                                             <button key={m.tag} onClick={() => insertMergeTag(m.tag)} className="text-[10px] px-2 py-1 bg-brand-500/10 text-brand-400 rounded-md hover:bg-brand-500/20 transition-colors" title={m.label}>
                                                 {m.tag}
@@ -497,6 +528,51 @@ Doctors are SHOCKED. A clinical nutritionist just discovered...
                     </div>
                 </div>
             </div>
+
+            {/* Media Picker Modal */}
+            {showMediaPicker && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowMediaPicker(false)}>
+                    <div className="bg-surface-900 border border-white/10 rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
+                            <h2 className="font-semibold text-white flex items-center gap-2">
+                                <ImageIcon className="w-4 h-4 text-emerald-400" /> Insert Image from Media
+                            </h2>
+                            <button onClick={() => setShowMediaPicker(false)} className="p-1 hover:bg-white/5 rounded-lg">
+                                <X className="w-4 h-4 text-gray-400" />
+                            </button>
+                        </div>
+                        <div className="p-5 overflow-y-auto max-h-[65vh]">
+                            {mediaLoading ? (
+                                <div className="grid grid-cols-3 gap-3">
+                                    {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="aspect-square bg-surface-800 animate-pulse rounded-lg" />)}
+                                </div>
+                            ) : mediaFiles.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <ImageIcon className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                                    <p className="text-gray-400">No images in your media library.</p>
+                                    <p className="text-sm text-gray-600 mt-1">Go to Media to upload images first.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-3 gap-3">
+                                    {mediaFiles.map(file => (
+                                        <button
+                                            key={file.id}
+                                            onClick={() => insertImage(file)}
+                                            className="group relative aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-emerald-500 transition-all"
+                                        >
+                                            <img src={file.url} alt={file.filename} className="w-full h-full object-cover" />
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                                                <span className="text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-600 px-3 py-1.5 rounded-lg">Insert</span>
+                                            </div>
+                                            <p className="absolute bottom-0 left-0 right-0 bg-black/60 text-[10px] text-gray-300 px-2 py-1 truncate">{file.filename}</p>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
