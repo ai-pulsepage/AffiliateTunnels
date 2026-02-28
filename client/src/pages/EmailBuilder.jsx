@@ -25,6 +25,7 @@ export default function EmailBuilder() {
     const [showMediaPicker, setShowMediaPicker] = useState(false);
     const [mediaFiles, setMediaFiles] = useState([]);
     const [mediaLoading, setMediaLoading] = useState(false);
+    const [mediaFunnelFilter, setMediaFunnelFilter] = useState('');
 
     // Quick Create fields
     const [quickFromName, setQuickFromName] = useState('');
@@ -170,19 +171,21 @@ ${ctaHtml}
         }
     }
 
-    async function openMediaPicker() {
+    async function openMediaPicker(funnelId) {
         setShowMediaPicker(true);
         setMediaLoading(true);
         try {
-            const d = await mediaApi.list({ page: 1 });
-            const images = (d.files || []).filter(f => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(f.filename));
+            const opts = { page: 1 };
+            if (funnelId) opts.funnel_id = funnelId;
+            const d = await mediaApi.list(opts);
+            const images = (d.media || []).filter(f => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(f.filename));
             setMediaFiles(images);
         } catch (err) { toast.error('Failed to load media'); }
         finally { setMediaLoading(false); }
     }
 
     function insertImage(file) {
-        const imgTag = `<img src="${file.url}" alt="${file.filename}" />`;
+        const imgTag = `<img src="${file.file_url}" alt="${file.filename}" />`;
         if (mode === 'quick') {
             setQuickBody(prev => prev + '\n' + imgTag + '\n');
         } else {
@@ -536,9 +539,21 @@ Doctors are SHOCKED. A clinical nutritionist just discovered...
                             <h2 className="font-semibold text-white flex items-center gap-2">
                                 <ImageIcon className="w-4 h-4 text-emerald-400" /> Insert Image from Media
                             </h2>
-                            <button onClick={() => setShowMediaPicker(false)} className="p-1 hover:bg-white/5 rounded-lg">
-                                <X className="w-4 h-4 text-gray-400" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                {funnels.length > 0 && (
+                                    <select
+                                        value={mediaFunnelFilter}
+                                        onChange={e => { setMediaFunnelFilter(e.target.value); openMediaPicker(e.target.value || undefined); }}
+                                        className="bg-surface-800 border border-white/10 text-gray-300 text-xs rounded-lg px-2 py-1.5 focus:outline-none"
+                                    >
+                                        <option value="">All Media</option>
+                                        {funnels.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                    </select>
+                                )}
+                                <button onClick={() => setShowMediaPicker(false)} className="p-1 hover:bg-white/5 rounded-lg">
+                                    <X className="w-4 h-4 text-gray-400" />
+                                </button>
+                            </div>
                         </div>
                         <div className="p-5 overflow-y-auto max-h-[65vh]">
                             {mediaLoading ? (
@@ -559,7 +574,7 @@ Doctors are SHOCKED. A clinical nutritionist just discovered...
                                             onClick={() => insertImage(file)}
                                             className="group relative aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-emerald-500 transition-all"
                                         >
-                                            <img src={file.url} alt={file.filename} className="w-full h-full object-cover" />
+                                            <img src={file.file_url} alt={file.filename} className="w-full h-full object-cover" />
                                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
                                                 <span className="text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-600 px-3 py-1.5 rounded-lg">Insert</span>
                                             </div>
