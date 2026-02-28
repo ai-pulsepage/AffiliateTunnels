@@ -306,6 +306,17 @@ function generatePublishedHTML(page, funnel, pages) {
         max-width: 100% !important;
       }
     }
+    /* ── ENTRANCE ANIMATIONS ──────────────────── */
+    [data-animate]{opacity:0;transition:opacity 0.6s ease,transform 0.6s ease;}
+    [data-animate].at-visible{opacity:1;transform:none!important;}
+    [data-animate="fade-up"]{transform:translateY(32px);}
+    [data-animate="fade-down"]{transform:translateY(-32px);}
+    [data-animate="fade-left"]{transform:translateX(32px);}
+    [data-animate="fade-right"]{transform:translateX(-32px);}
+    [data-animate="zoom-in"]{transform:scale(0.92);}
+    /* ── FAQ ACCORDION ────────────────────────── */
+    [data-faq] > div.open > div:last-child{max-height:200px;}
+    [data-faq] > div.open > button span:last-child{display:inline-block;transform:rotate(45deg);}
     ${page.css_output || ''}
   </style>
 </head>
@@ -319,6 +330,45 @@ function generatePublishedHTML(page, funnel, pages) {
     ${physicalAddress ? `<p style="margin-top:8px;">${physicalAddress}</p>` : ''}
   </div>
   ${trackingScript}
+  <!-- Entrance Animations: IntersectionObserver -->
+  <script>
+    (function(){
+      var els=document.querySelectorAll("[data-animate]");
+      if(!els.length)return;
+      var io=new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if(e.isIntersecting){
+            var d=parseInt(e.target.getAttribute("data-animate-delay")||"0",10);
+            if(d>0){setTimeout(function(){e.target.classList.add("at-visible");},d);}
+            else{e.target.classList.add("at-visible");}
+            io.unobserve(e.target);
+          }
+        });
+      },{threshold:0.1});
+      els.forEach(function(el){io.observe(el);});
+    })();
+  </script>
+  <!-- Countdown Timer -->
+  <script>
+    (function(){
+      var cd=document.querySelector("[data-countdown]");
+      if(!cd)return;
+      var hrs=parseInt(cd.getAttribute("data-countdown")||"24",10);
+      var key="at_cd_"+location.pathname;
+      var end=localStorage.getItem(key);
+      if(!end||parseInt(end,10)<Date.now()){end=Date.now()+hrs*3600000;localStorage.setItem(key,end);}
+      else{end=parseInt(end,10);}
+      var hEl=cd.querySelector("[data-cd-hours]"),mEl=cd.querySelector("[data-cd-mins]"),sEl=cd.querySelector("[data-cd-secs]");
+      if(!hEl||!mEl||!sEl)return;
+      setInterval(function(){
+        var r=Math.max(0,end-Date.now());
+        var h=Math.floor(r/3600000),m=Math.floor((r%3600000)/60000),s=Math.floor((r%60000)/1000);
+        hEl.textContent=String(h).padStart(2,"0");
+        mEl.textContent=String(m).padStart(2,"0");
+        sEl.textContent=String(s).padStart(2,"0");
+      },1000);
+    })();
+  </script>
   <!-- Parameter Passthrough: forward ad platform params to affiliate links -->
   <script>
     (function(){

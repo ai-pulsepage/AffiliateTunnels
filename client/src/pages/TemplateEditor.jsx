@@ -2,6 +2,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { funnelApi, publishApi, aiApi } from '../lib/api';
 import { PAGE_TEMPLATES, TEMPLATE_CATEGORIES } from '../lib/pageTemplates';
+import { SECTION_LIBRARY, SECTION_CATEGORIES } from '../lib/sectionLibrary';
 import MediaPicker from '../components/MediaPicker';
 import BlockSettingsPanel from '../components/BlockSettingsPanel';
 import {
@@ -11,7 +12,7 @@ import {
     ChevronUp, ChevronDown, Trash2, Plus, GripVertical,
     Bold, Italic, Underline, Strikethrough, AlignCenter, AlignRight,
     Palette, Maximize2, Minimize2, Search, Monitor, Tablet, Smartphone,
-    Columns
+    Columns, Shield, Timer, HelpCircle, BarChart3, DollarSign, LayoutDashboard
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -29,6 +30,11 @@ const BLOCK_TYPES = [
     { type: 'optin', label: 'Opt-in Form', icon: Mail, html: '<div style="text-align:center;padding:32px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:12px;color:#fff;margin:24px 0;"><h3 style="margin-bottom:8px;">Get Our Free Guide</h3><p style="margin-bottom:16px;opacity:0.9;font-size:14px;">Enter your email to receive exclusive tips.</p><div style="max-width:320px;margin:0 auto;"><input type="email" placeholder="Your email" style="width:100%;padding:12px;border:none;border-radius:6px;margin-bottom:8px;font-size:14px;"><button style="width:100%;padding:12px;background:#e63946;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">Send Me The Guide</button></div></div>' },
     { type: 'product', label: 'Product Card', icon: Package, html: '<div style="display:flex;gap:20px;padding:20px;border:2px solid #e63946;border-radius:12px;align-items:center;margin:24px 0;"><img src="" alt="Product" style="width:120px;height:120px;object-fit:cover;border-radius:8px;background:#f5f5f5;"><div><h3 style="margin-bottom:4px;">Product Name</h3><p style="color:#666;font-size:14px;margin-bottom:12px;">Brief description of what this product does.</p><a href="#" style="display:inline-block;padding:10px 24px;background:#e63946;color:#fff;text-decoration:none;border-radius:6px;font-weight:700;font-size:14px;">Learn More →</a></div></div>' },
     { type: 'columns', label: '2 Columns', icon: Columns, isColumns: true },
+    { type: 'trust', label: 'Trust Strip', icon: Shield, html: '<div style="display:flex;justify-content:center;gap:32px;flex-wrap:wrap;padding:20px 0;"><span style="font-size:13px;color:#64748b;font-weight:600;">🔬 Clinically Tested</span><span style="font-size:13px;color:#64748b;font-weight:600;">⭐ 4.9/5 Rating</span><span style="font-size:13px;color:#64748b;font-weight:600;">🛡️ 60-Day Guarantee</span><span style="font-size:13px;color:#64748b;font-weight:600;">📦 Free Shipping</span></div>' },
+    { type: 'stats', label: 'Stat Counter', icon: BarChart3, html: '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0;"><div style="text-align:center;padding:24px;background:#f8fafc;border-radius:16px;border:1px solid #e2e8f0;"><p style="font-size:36px;font-weight:800;color:#4f46e5;margin:0;">94%</p><p style="font-size:13px;color:#64748b;margin:4px 0 0;">Satisfaction Rate</p></div><div style="text-align:center;padding:24px;background:#f8fafc;border-radius:16px;border:1px solid #e2e8f0;"><p style="font-size:36px;font-weight:800;color:#16a34a;margin:0;">50K+</p><p style="font-size:13px;color:#64748b;margin:4px 0 0;">Happy Customers</p></div><div style="text-align:center;padding:24px;background:#f8fafc;border-radius:16px;border:1px solid #e2e8f0;"><p style="font-size:36px;font-weight:800;color:#dc2626;margin:0;">14 Days</p><p style="font-size:13px;color:#64748b;margin:4px 0 0;">Avg. Time to Results</p></div></div>' },
+    { type: 'countdown', label: 'Countdown', icon: Timer, html: '<div style="text-align:center;padding:28px;background:linear-gradient(135deg,#dc2626,#b91c1c);border-radius:16px;margin:24px 0;"><p style="font-size:18px;color:#fff;font-weight:700;margin:0 0 16px;">⏰ This Offer Expires In:</p><div data-countdown="24" style="display:flex;justify-content:center;gap:12px;"><div style="background:rgba(0,0,0,0.3);padding:16px 20px;border-radius:12px;min-width:72px;"><p style="font-size:32px;font-weight:800;color:#fff;margin:0;" data-cd-hours>23</p><p style="font-size:10px;color:rgba(255,255,255,0.7);margin:4px 0 0;text-transform:uppercase;">Hours</p></div><div style="background:rgba(0,0,0,0.3);padding:16px 20px;border-radius:12px;min-width:72px;"><p style="font-size:32px;font-weight:800;color:#fff;margin:0;" data-cd-mins>59</p><p style="font-size:10px;color:rgba(255,255,255,0.7);margin:4px 0 0;text-transform:uppercase;">Minutes</p></div><div style="background:rgba(0,0,0,0.3);padding:16px 20px;border-radius:12px;min-width:72px;"><p style="font-size:32px;font-weight:800;color:#fff;margin:0;" data-cd-secs>59</p><p style="font-size:10px;color:rgba(255,255,255,0.7);margin:4px 0 0;text-transform:uppercase;">Seconds</p></div></div></div>' },
+    { type: 'pricing', label: 'Pricing Card', icon: DollarSign, html: '<div style="max-width:380px;margin:24px auto;padding:32px;border-radius:20px;border:2px solid #e0e7ff;text-align:center;position:relative;background:#fff;"><div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;font-size:12px;font-weight:700;padding:6px 20px;border-radius:50px;">MOST POPULAR</div><h3 style="font-size:24px;font-weight:700;color:#0f172a;margin:12px 0 4px;">Premium Plan</h3><p style="font-size:14px;color:#64748b;margin:0 0 20px;">Everything you need to get started</p><p style="margin:0 0 4px;"><span style="font-size:14px;color:#94a3b8;text-decoration:line-through;">$97/mo</span></p><p style="font-size:48px;font-weight:800;color:#0f172a;margin:0 0 20px;">$49<span style="font-size:16px;color:#64748b;font-weight:400;">/mo</span></p><div style="text-align:left;margin:0 0 24px;"><p style="padding:8px 0;font-size:15px;color:#334155;border-bottom:1px solid #f1f5f9;">✅ Full access to all features</p><p style="padding:8px 0;font-size:15px;color:#334155;border-bottom:1px solid #f1f5f9;">✅ Priority support</p><p style="padding:8px 0;font-size:15px;color:#334155;border-bottom:1px solid #f1f5f9;">✅ 30-day money-back guarantee</p><p style="padding:8px 0;font-size:15px;color:#334155;">✅ Free updates forever</p></div><a href="#" style="display:block;padding:16px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;font-size:18px;font-weight:700;border-radius:50px;text-decoration:none;">Get Started →</a></div>' },
+    { type: 'faq', label: 'FAQ', icon: HelpCircle, html: '<div style="max-width:640px;margin:24px auto;"><h2 style="text-align:center;font-size:28px;font-weight:700;color:#0f172a;margin:0 0 24px;">Frequently Asked Questions</h2><div data-faq style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;"><div style="border-bottom:1px solid #e2e8f0;"><button onclick="this.parentElement.classList.toggle(\'open\')" style="width:100%;padding:18px 20px;background:none;border:none;text-align:left;font-size:16px;font-weight:600;color:#0f172a;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">How does this product work? <span style="font-size:20px;transition:transform 0.2s;">+</span></button><div style="max-height:0;overflow:hidden;transition:max-height 0.3s ease;"><p style="padding:0 20px 18px;font-size:15px;color:#64748b;margin:0;">Our product uses a scientifically-backed formula to deliver results naturally. Most users see noticeable improvements within 14 days.</p></div></div><div style="border-bottom:1px solid #e2e8f0;"><button onclick="this.parentElement.classList.toggle(\'open\')" style="width:100%;padding:18px 20px;background:none;border:none;text-align:left;font-size:16px;font-weight:600;color:#0f172a;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">Is there a money-back guarantee? <span style="font-size:20px;transition:transform 0.2s;">+</span></button><div style="max-height:0;overflow:hidden;transition:max-height 0.3s ease;"><p style="padding:0 20px 18px;font-size:15px;color:#64748b;margin:0;">Yes! We offer a full 60-day money-back guarantee. If you\'re not satisfied for any reason, simply contact us for a full refund.</p></div></div><div><button onclick="this.parentElement.classList.toggle(\'open\')" style="width:100%;padding:18px 20px;background:none;border:none;text-align:left;font-size:16px;font-weight:600;color:#0f172a;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">How long does shipping take? <span style="font-size:20px;transition:transform 0.2s;">+</span></button><div style="max-height:0;overflow:hidden;transition:max-height 0.3s ease;"><p style="padding:0 20px 18px;font-size:15px;color:#64748b;margin:0;">We offer free standard shipping (5-7 business days) and expedited shipping (2-3 business days) for a small fee.</p></div></div></div></div>' },
 ];
 
 
@@ -360,7 +366,9 @@ export default function TemplateEditor() {
             const s = b.styles || {};
             const styleStr = buildStyleString(s);
             const visClass = s.visibility === 'desktop' ? ' class="hide-on-mobile"' : s.visibility === 'mobile' ? ' class="hide-on-desktop"' : '';
-            return `<div data-block-type="${b.type}" data-block-id="${b.id}"${visClass}${styleStr ? ` style="${styleStr}"` : ''}>${b.html}</div>`;
+            const animAttr = s.animation ? ` data-animate="${s.animation}"` : '';
+            const animDelay = s.animation && s.animationDelay ? ` data-animate-delay="${s.animationDelay}"` : '';
+            return `<div data-block-type="${b.type}" data-block-id="${b.id}"${visClass}${animAttr}${animDelay}${styleStr ? ` style="${styleStr}"` : ''}>${b.html}</div>`;
         }).join('\n');
         // Add responsive visibility CSS
         html = `<style>.hide-on-mobile{display:block}@media(max-width:768px){.hide-on-mobile{display:none!important}.hide-on-desktop{display:block!important}.at-columns{flex-direction:column!important}.at-col{flex:1 1 100%!important}}.hide-on-desktop{display:none}</style>\n` + html;
@@ -880,6 +888,47 @@ export default function TemplateEditor() {
                             <span>{bt.label}</span>
                         </button>
                     ))}
+
+                    {/* Section Library */}
+                    <div className="mt-4 border-t border-white/5 pt-3">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider px-2 mb-2 flex items-center gap-1.5">
+                            <LayoutDashboard className="w-3 h-3" /> Sections
+                        </p>
+                        {SECTION_CATEGORIES.map(cat => {
+                            const sections = SECTION_LIBRARY.filter(s => s.category === cat.id);
+                            if (!sections.length) return null;
+                            return (
+                                <div key={cat.id} className="mb-1">
+                                    <p className="text-[9px] text-gray-600 px-2 py-1 uppercase tracking-wider">{cat.label}</p>
+                                    {sections.map(section => (
+                                        <button
+                                            key={section.id}
+                                            title={section.desc}
+                                            onClick={() => {
+                                                const newBlocks = section.blocks.map(b => ({
+                                                    ...b,
+                                                    id: genId(),
+                                                    styles: b.styles ? { ...b.styles } : {},
+                                                }));
+                                                setBlocks(prev => {
+                                                    const next = [...prev];
+                                                    const insertAt = activeBlockIdx != null ? activeBlockIdx + 1 : next.length;
+                                                    next.splice(insertAt, 0, ...newBlocks);
+                                                    return next;
+                                                });
+                                                setHasUnsaved(true);
+                                                toast.success(`Inserted: ${section.name}`);
+                                            }}
+                                            className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg text-[11px] text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                                        >
+                                            <span className="flex-shrink-0">{section.emoji}</span>
+                                            <span className="truncate">{section.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto" style={{ background: '#f0f1f3' }}>

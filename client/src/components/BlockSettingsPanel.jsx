@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
     X, Type, AlignLeft, AlignCenter, AlignRight, Palette,
     Square, Maximize2, Copy, Settings, ChevronDown, ChevronUp,
-    Link2, Image, ArrowUpDown
+    Link2, Image, ArrowUpDown, Sparkles
 } from 'lucide-react';
 
 // ─── COLOR PRESETS ────────────────────────────
@@ -194,6 +194,55 @@ export default function BlockSettingsPanel({ block, blockIdx, onUpdateStyles, on
                                         ✨ Apply Glassmorphism
                                     </button>
                                 </div>
+                            </SettingsSection>
+
+                            {/* ─── ANIMATION ───────────────────── */}
+                            <SettingsSection title="Animation" icon={<Sparkles className="w-3 h-3" />}>
+                                <div>
+                                    <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Entrance Effect</label>
+                                    <div className="flex gap-1 flex-wrap">
+                                        {[
+                                            { label: 'None', value: '' },
+                                            { label: '↑ Up', value: 'fade-up' },
+                                            { label: '↓ Down', value: 'fade-down' },
+                                            { label: '← Left', value: 'fade-left' },
+                                            { label: '→ Right', value: 'fade-right' },
+                                            { label: '⛶ Zoom', value: 'zoom-in' },
+                                        ].map(a => (
+                                            <button
+                                                key={a.label}
+                                                onClick={() => updateStyle('animation', a.value)}
+                                                className={`px-2 py-1 text-[11px] rounded transition-all ${(styles.animation || '') === a.value
+                                                    ? 'bg-brand-500/30 text-brand-300 ring-1 ring-brand-500/50'
+                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                                                    }`}
+                                            >{a.label}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                                {styles.animation && (
+                                    <div className="mt-2">
+                                        <label className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 block">Delay</label>
+                                        <div className="flex gap-1">
+                                            {[
+                                                { label: 'None', value: '' },
+                                                { label: '0.1s', value: '100' },
+                                                { label: '0.2s', value: '200' },
+                                                { label: '0.3s', value: '300' },
+                                                { label: '0.5s', value: '500' },
+                                            ].map(d => (
+                                                <button
+                                                    key={d.label}
+                                                    onClick={() => updateStyle('animationDelay', d.value)}
+                                                    className={`px-2 py-1 text-[11px] rounded transition-all ${(styles.animationDelay || '') === d.value
+                                                        ? 'bg-brand-500/30 text-brand-300 ring-1 ring-brand-500/50'
+                                                        : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                                                        }`}
+                                                >{d.label}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </SettingsSection>
 
                             {/* ─── SPACING ──────────────────────── */}
