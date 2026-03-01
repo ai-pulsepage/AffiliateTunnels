@@ -151,7 +151,11 @@ router.post('/upload', (req, res, next) => {
 // GET /api/media
 router.get('/', async (req, res) => {
     try {
-        const { page = 1, limit = 50, folder_id, funnel_id } = req.query;
+        const { page = 1, limit = 50 } = req.query;
+        // Validate UUID params — ignore if they're not valid UUIDs (e.g. [object Object])
+        const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const folder_id = typeof req.query.folder_id === 'string' && UUID_RE.test(req.query.folder_id) ? req.query.folder_id : null;
+        const funnel_id = typeof req.query.funnel_id === 'string' && UUID_RE.test(req.query.funnel_id) ? req.query.funnel_id : null;
         const offset = (page - 1) * limit;
 
         let where = 'WHERE m.user_id = $1';
