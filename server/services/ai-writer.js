@@ -121,6 +121,34 @@ CRITICAL HTML OUTPUT RULES (BLOCK EDITOR):
 7. Do NOT use markdown — output raw HTML only
 8. Do NOT wrap output in code fences
 
+═══════════════════════════════════════════
+PROS/CONS HTML REFERENCE — USE THIS EXACT FORMAT:
+═══════════════════════════════════════════
+When creating a Pros & Cons section, ALWAYS use this exact HTML structure. Each item is a single-column card. NEVER use CSS grid or two-column layouts for pros/cons — they break on mobile and cause indentation issues.
+
+For PROS, output ONE top-level <div> like this:
+<div style="margin:24px 0;">
+  <h3 style="font-size:20px;font-weight:700;color:#16a34a;margin:0 0 16px;">✅ The Upsides</h3>
+  <div style="padding:14px 18px;background:#f0fdf4;border-radius:10px;border-left:4px solid #22c55e;margin:0 0 10px;">
+    <p style="margin:0;font-size:15px;color:#1e293b;"><strong>Benefit Name</strong> — Description of why this matters and what it does for the user.</p>
+  </div>
+  <div style="padding:14px 18px;background:#f0fdf4;border-radius:10px;border-left:4px solid #22c55e;margin:0 0 10px;">
+    <p style="margin:0;font-size:15px;color:#1e293b;"><strong>Another Benefit</strong> — Concise explanation.</p>
+  </div>
+  <!-- repeat for each pro -->
+</div>
+
+For CONS, output ONE top-level <div> like this:
+<div style="margin:24px 0;">
+  <h3 style="font-size:20px;font-weight:700;color:#d97706;margin:0 0 16px;">⚠️ Considerations</h3>
+  <div style="padding:14px 18px;background:#fffbeb;border-radius:10px;border-left:4px solid #f59e0b;margin:0 0 10px;">
+    <p style="margin:0;font-size:15px;color:#1e293b;"><strong>Limitation Name</strong> — Honest explanation of the limitation.</p>
+  </div>
+  <!-- repeat for each con -->
+</div>
+
+IMPORTANT: Do NOT use display:grid, display:flex, or any multi-column layout for pros/cons items. Each item is a full-width card stacked vertically.
+
 OUTPUT: Return ONLY the HTML elements. No markdown, no explanation, no code fences.`;
 }
 
@@ -192,20 +220,22 @@ Write a COMPLETE, long-form review article with the following structure. EACH nu
 
 31. <h2> — "Pros & Cons"
 
-32. <div> — Pros and cons listed. Use green checkmarks ✅ for pros, yellow ⚠️ for cons. Be balanced.
+32. <div> — Pros section. Follow the PROS/CONS HTML REFERENCE from the rules section EXACTLY. Use full-width stacked cards with border-left: 4px solid #22c55e, green #f0fdf4 background. Each item has <strong>Label</strong> — description in one <p> tag. NEVER use a grid or two-column layout.
 
-33. <h2> — "Pricing & Value" (if pricing data available)
+33. <div> — Cons section. Same card format but amber colors (border-left: #f59e0b, background: #fffbeb). Be genuinely balanced — include 3-5 real cons.
 
-34. <p> — Pricing overview paragraph. Mention the guarantee prominently.
+34. <h2> — "Pricing & Value" (if pricing data available)
 
-35. FINAL CTA — Output as a top-level element:
+35. <p> — Pricing overview paragraph. Mention the guarantee prominently.
+
+36. FINAL CTA — Output as a top-level element:
 <div style="background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:12px;padding:36px;text-align:center;margin:36px 0;">
   <p style="font-size:22px;color:#fff;font-weight:700;margin:0 0 10px;">Ready to Try [Product] Risk-Free?</p>
   <p style="font-size:15px;color:rgba(255,255,255,0.85);margin:0 0 20px;">[Mention guarantee] • [Mention best deal]</p>
   <a href="${affiliateLink}" style="display:inline-block;padding:18px 56px;background:#fff;color:#d97706;font-size:18px;font-weight:700;border-radius:10px;text-decoration:none;">Visit Official Website →</a>
 </div>
 
-36. <p> — Affiliate disclaimer footer in very small gray text.
+37. <p> — Affiliate disclaimer footer in very small gray text.
 
 REMINDERS:
 - Write 3000+ words. Be thorough and detailed. Use ALL the product intelligence provided.
