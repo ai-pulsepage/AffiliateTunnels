@@ -97,7 +97,10 @@ export default function FunnelDetail() {
             await funnelApi.deletePage(id, pageId);
             setPages(prev => prev.filter(p => p.id !== pageId));
             toast.success('Page deleted');
-        } catch (err) { toast.error(err.message); }
+        } catch (err) {
+            console.error('Delete page error:', err);
+            toast.error('Delete page failed: ' + (err.message || 'Unknown error'));
+        }
     }
 
     async function handleDeleteFunnel() {
@@ -106,7 +109,10 @@ export default function FunnelDetail() {
             await funnelApi.delete(id);
             toast.success('Funnel deleted');
             navigate('/funnels');
-        } catch (err) { toast.error(err.message); }
+        } catch (err) {
+            console.error('Delete funnel error:', err);
+            toast.error('Delete funnel failed: ' + (err.message || 'Unknown error'));
+        }
     }
 
     async function handlePublishPage(pageId) {

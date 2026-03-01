@@ -46,7 +46,9 @@ export default function Funnels() {
         } catch (err) { toast.error(err.message); }
     }
 
-    async function handleDuplicate(id) {
+    async function handleDuplicate(e, id) {
+        e.stopPropagation();
+        e.preventDefault();
         try {
             const data = await funnelApi.duplicate(id);
             toast.success('Funnel duplicated!');
@@ -54,13 +56,18 @@ export default function Funnels() {
         } catch (err) { toast.error(err.message); }
     }
 
-    async function handleDelete(id) {
+    async function handleDelete(e, id) {
+        e.stopPropagation();
+        e.preventDefault();
         if (!confirm('Delete this funnel and all its pages?')) return;
         try {
             await funnelApi.delete(id);
             setFunnels(prev => prev.filter(f => f.id !== id));
             toast.success('Funnel deleted');
-        } catch (err) { toast.error(err.message); }
+        } catch (err) {
+            console.error('Delete funnel error:', err);
+            toast.error('Delete failed: ' + (err.message || 'Unknown error'));
+        }
     }
 
     const filtered = funnels.filter(f => f.name.toLowerCase().includes(search.toLowerCase()));
@@ -108,8 +115,8 @@ export default function Funnels() {
                                             type="button"
                                             onClick={() => setNewTrafficSource(src.key)}
                                             className={`text-left px-3 py-2.5 rounded-xl border transition-all ${newTrafficSource === src.key
-                                                    ? 'border-brand-500 bg-brand-500/10 ring-1 ring-brand-500/30'
-                                                    : 'border-white/5 hover:border-white/15 bg-white/[0.02] hover:bg-white/[0.04]'
+                                                ? 'border-brand-500 bg-brand-500/10 ring-1 ring-brand-500/30'
+                                                : 'border-white/5 hover:border-white/15 bg-white/[0.02] hover:bg-white/[0.04]'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-2">
@@ -162,11 +169,11 @@ export default function Funnels() {
                                         <span className="text-xs text-gray-600">· /{funnel.slug}</span>
                                     </div>
                                 </Link>
-                                <div className="absolute top-4 right-12 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => handleDuplicate(funnel.id)} className="p-1.5 hover:bg-white/10 rounded-lg" title="Duplicate">
+                                <div className="absolute top-4 right-12 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                    <button onClick={(e) => handleDuplicate(e, funnel.id)} className="p-1.5 hover:bg-white/10 rounded-lg" title="Duplicate">
                                         <Copy className="w-3.5 h-3.5 text-gray-400" />
                                     </button>
-                                    <button onClick={() => handleDelete(funnel.id)} className="p-1.5 hover:bg-red-500/10 rounded-lg" title="Delete">
+                                    <button onClick={(e) => handleDelete(e, funnel.id)} className="p-1.5 hover:bg-red-500/10 rounded-lg" title="Delete">
                                         <Trash2 className="w-3.5 h-3.5 text-red-400" />
                                     </button>
                                 </div>

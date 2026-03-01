@@ -199,7 +199,10 @@ router.delete('/:id', async (req, res) => {
         res.json({ message: 'Funnel deleted' });
     } catch (err) {
         console.error('Delete funnel error:', err);
-        res.status(500).json({ error: 'Failed to delete funnel' });
+        const msg = err.message && err.message.includes('violates foreign key')
+            ? 'Cannot delete: another record still references this funnel. Error: ' + err.message
+            : 'Failed to delete funnel: ' + (err.message || 'Unknown error');
+        res.status(500).json({ error: msg });
     }
 });
 
@@ -396,7 +399,10 @@ router.delete('/:funnelId/pages/:id', async (req, res) => {
         res.json({ message: 'Page deleted' });
     } catch (err) {
         console.error('Delete page error:', err);
-        res.status(500).json({ error: 'Failed to delete page' });
+        const msg = err.message && err.message.includes('violates foreign key')
+            ? 'Cannot delete: another record still references this page. Error: ' + err.message
+            : 'Failed to delete page: ' + (err.message || 'Unknown error');
+        res.status(500).json({ error: msg });
     }
 });
 
