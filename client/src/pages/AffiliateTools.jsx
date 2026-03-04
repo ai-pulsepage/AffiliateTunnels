@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { affiliateApi, clickbankApi } from '../lib/api';
+import { affiliateApi, clickbankApi, storefrontApi } from '../lib/api';
 import {
     Link2, Plus, Trash2, Copy, ExternalLink, Search, DollarSign,
-    FileText, Image, Video, Upload, Eye, BarChart3, MousePointerClick
+    FileText, Image, Video, Upload, Eye, BarChart3, MousePointerClick,
+    Store, Settings, FolderPlus, Package, EyeOff, Palette, Tag, GripVertical, Edit2, Check, X as XIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -16,7 +17,7 @@ const CONTENT_TYPES = [
 ];
 
 export default function AffiliateTools() {
-    const [tab, setTab] = useState('hoplinks');
+    const [tab, setTab] = useState('storefront');
     const [hopLinks, setHopLinks] = useState([]);
     const [cloakedLinks, setCloakedLinks] = useState([]);
     const [content, setContent] = useState([]);
@@ -73,6 +74,7 @@ export default function AffiliateTools() {
     }
 
     const tabs = [
+        { id: 'storefront', label: 'Storefront', icon: Store },
         { id: 'hoplinks', label: 'HopLinks', count: hopLinks.length },
         { id: 'cloaked', label: 'Cloaked Links', count: cloakedLinks.length },
         { id: 'content', label: 'Content Library', count: content.length },
@@ -86,9 +88,9 @@ export default function AffiliateTools() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-white">Affiliate Tools</h1>
-                    <p className="text-sm text-gray-500 mt-1">Manage your ClickBank affiliate assets</p>
+                    <p className="text-sm text-gray-500 mt-1">Manage your storefront, links, and affiliate assets</p>
                 </div>
-                {tab !== 'sales' && (
+                {tab !== 'sales' && tab !== 'storefront' && (
                     <button onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
                         <Plus className="w-4 h-4" /> Create
                     </button>
@@ -106,8 +108,11 @@ export default function AffiliateTools() {
                 ))}
             </div>
 
-            {loading ? <div className="card animate-pulse h-48" /> : (
+            {loading && tab !== 'storefront' ? <div className="card animate-pulse h-48" /> : (
                 <>
+                    {/* ── Storefront Tab ── */}
+                    {tab === 'storefront' && <StorefrontManager />}
+
                     {/* ── HopLinks Tab ── */}
                     {tab === 'hoplinks' && (
                         hopLinks.length === 0 ? (
@@ -295,6 +300,455 @@ export default function AffiliateTools() {
         </div>
     );
 }
+
+// ═══════════════════════════════════════════════════════════
+// Storefront Manager — Full admin panel for the public showcase
+// ═══════════════════════════════════════════════════════════
+
+function StorefrontManager() {
+    const [subTab, setSubTab] = useState('products');
+    const [settings, setSettings] = useState(null);
+    const [categories, setCategories] = useState([]);
+    const [showcaseItems, setShowcaseItems] = useState([]);
+    const [publishedPages, setPublishedPages] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [showAddProduct, setShowAddProduct] = useState(false);
+
+    useEffect(() => { loadAll(); }, []);
+
+    async function loadAll() {
+        setLoading(true);
+        try {
+            const [s, c, items, pages] = await Promise.all([
+                storefrontApi.getSettings(),
+                storefrontApi.listCategories(),
+                storefrontApi.listShowcase(),
+                storefrontApi.listPublishedPages(),
+            ]);
+            setSettings(s.settings || {});
+            setCategories(c.categories || []);
+            setShowcaseItems(items.items || []);
+            setPublishedPages(pages.pages || []);
+        } catch (err) { toast.error(err.message); }
+        finally { setLoading(false); }
+    }
+
+    // ─── Settings ───
+    async function saveSettings() {
+        setSaving(true);
+        try {
+            const res = await storefrontApi.updateSettings(settings);
+            setSettings(res.settings);
+            toast.success('Storefront settings saved!');
+        } catch (err) { toast.error(err.message); }
+        finally { setSaving(false); }
+    }
+
+    // ─── Categories ───
+    async function addCategory() {
+        if (!newCategoryName.trim()) return;
+        try {
+            const res = await storefrontApi.createCategory(newCategoryName.trim());
+            setCategories(p => [...p, res.category]);
+            setNewCategoryName('');
+            toast.success('Category added!');
+        } catch (err) { toast.error(err.message); }
+    }
+
+    async function deleteCategory(id) {
+        if (!confirm('Delete this category? Products in it will become uncategorized.')) return;
+        try {
+            await storefrontApi.deleteCategory(id);
+            setCategories(p => p.filter(c => c.id !== id));
+            toast.success('Category deleted');
+        } catch (err) { toast.error(err.message); }
+    }
+
+    // ─── Showcase Items ───
+    async function addToShowcase(page, categoryId) {
+        try {
+            const res = await storefrontApi.addToShowcase({
+                page_id: page.id,
+                category_id: categoryId || null,
+                display_title: page.seo_title || page.name,
+                display_desc: '',
+                card_image_url: page.og_image_url || '',
+            });
+            setShowcaseItems(p => [...p, { ...res.item, page_name: page.name, funnel_name: page.funnel_name }]);
+            toast.success('Added to storefront!');
+        } catch (err) { toast.error(err.message); }
+    }
+
+    async function updateShowcaseItem(id, data) {
+        try {
+            const res = await storefrontApi.updateShowcase(id, data);
+            setShowcaseItems(p => p.map(i => i.id === id ? { ...i, ...res.item } : i));
+        } catch (err) { toast.error(err.message); }
+    }
+
+    async function removeFromShowcase(id) {
+        if (!confirm('Remove from storefront?')) return;
+        try {
+            await storefrontApi.removeFromShowcase(id);
+            setShowcaseItems(p => p.filter(i => i.id !== id));
+            toast.success('Removed from storefront');
+        } catch (err) { toast.error(err.message); }
+    }
+
+    if (loading) return <div className="card animate-pulse h-64" />;
+
+    const subTabs = [
+        { id: 'products', label: 'Showcase Products', icon: Package },
+        { id: 'categories', label: 'Categories', icon: Tag },
+        { id: 'settings', label: 'Branding', icon: Palette },
+    ];
+
+    // Pages not yet in showcase
+    const availablePages = publishedPages.filter(p => !p.showcase_id);
+
+    return (
+        <div className="space-y-5">
+            {/* Storefront preview link */}
+            <div className="card bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-500/20">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="font-semibold text-white flex items-center gap-2">
+                            <Store className="w-4 h-4 text-indigo-400" />
+                            Public Storefront
+                        </h3>
+                        <p className="text-sm text-gray-400 mt-1">
+                            This is what distributors and visitors see at <span className="text-white font-medium">dealfindai.com</span>
+                        </p>
+                    </div>
+                    <a href="/?mode=storefront" target="_blank" rel="noopener" className="btn-secondary flex items-center gap-2 text-sm">
+                        <Eye className="w-3.5 h-3.5" /> Preview
+                    </a>
+                </div>
+            </div>
+
+            {/* Sub-tabs */}
+            <div className="flex gap-2">
+                {subTabs.map(t => (
+                    <button key={t.id} onClick={() => setSubTab(t.id)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${subTab === t.id
+                            ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/20'
+                            : 'bg-surface-800 text-gray-400 hover:text-white hover:bg-surface-700'}`}>
+                        <t.icon className="w-3.5 h-3.5" /> {t.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* ── Products Sub-Tab ── */}
+            {subTab === 'products' && (
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-400">
+                            {showcaseItems.length} product{showcaseItems.length !== 1 ? 's' : ''} on storefront
+                        </p>
+                        <button onClick={() => setShowAddProduct(true)} className="btn-primary flex items-center gap-2 text-sm">
+                            <Plus className="w-4 h-4" /> Add Product
+                        </button>
+                    </div>
+
+                    {showcaseItems.length === 0 ? (
+                        <EmptyState icon={Package} text="No products on your storefront yet. Add published landing pages to display them publicly." />
+                    ) : (
+                        <div className="space-y-3">
+                            {showcaseItems.map(item => (
+                                <ShowcaseItemCard
+                                    key={item.id}
+                                    item={item}
+                                    categories={categories}
+                                    onUpdate={updateShowcaseItem}
+                                    onRemove={removeFromShowcase}
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Add Product Modal */}
+                    {showAddProduct && (
+                        <AddProductModal
+                            pages={availablePages}
+                            categories={categories}
+                            onAdd={addToShowcase}
+                            onClose={() => setShowAddProduct(false)}
+                        />
+                    )}
+                </div>
+            )}
+
+            {/* ── Categories Sub-Tab ── */}
+            {subTab === 'categories' && (
+                <div className="space-y-4">
+                    {/* Add category */}
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={newCategoryName}
+                            onChange={e => setNewCategoryName(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && addCategory()}
+                            className="input-field flex-1"
+                            placeholder="New category name (e.g. Saunas & Spas)"
+                        />
+                        <button onClick={addCategory} className="btn-primary flex items-center gap-2">
+                            <FolderPlus className="w-4 h-4" /> Add
+                        </button>
+                    </div>
+
+                    <p className="text-xs text-gray-500">
+                        Categories only appear on the storefront when they contain visible products.
+                    </p>
+
+                    {categories.length === 0 ? (
+                        <EmptyState icon={Tag} text="No categories yet. Create categories to organize your storefront products." />
+                    ) : (
+                        <div className="space-y-2">
+                            {categories.map(cat => {
+                                const itemCount = showcaseItems.filter(i => i.category_id === cat.id).length;
+                                return (
+                                    <div key={cat.id} className="card flex items-center justify-between py-3 group">
+                                        <div className="flex items-center gap-3">
+                                            <Tag className="w-4 h-4 text-brand-400" />
+                                            <div>
+                                                <p className="font-medium text-white">{cat.name}</p>
+                                                <p className="text-xs text-gray-500">{itemCount} product{itemCount !== 1 ? 's' : ''} · /{cat.slug}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {itemCount > 0 && (
+                                                <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                                    Visible
+                                                </span>
+                                            )}
+                                            {itemCount === 0 && (
+                                                <span className="text-xs bg-gray-500/10 text-gray-500 px-2 py-0.5 rounded-full border border-gray-500/20">
+                                                    Hidden (empty)
+                                                </span>
+                                            )}
+                                            <button onClick={() => deleteCategory(cat.id)} className="p-1.5 hover:bg-red-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── Settings Sub-Tab ── */}
+            {subTab === 'settings' && settings && (
+                <div className="card space-y-5">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <Palette className="w-5 h-5 text-brand-400" />
+                        Storefront Branding
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm text-gray-300 mb-1">Brand Name</label>
+                            <input type="text" value={settings.brand_name || ''} onChange={e => setSettings(p => ({ ...p, brand_name: e.target.value }))} className="input-field" placeholder="DealFindAI" />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-gray-300 mb-1">Accent Color</label>
+                            <div className="flex gap-2">
+                                <input type="color" value={settings.accent_color || '#6366f1'} onChange={e => setSettings(p => ({ ...p, accent_color: e.target.value }))} className="w-10 h-10 rounded-lg border border-white/10 cursor-pointer" />
+                                <input type="text" value={settings.accent_color || '#6366f1'} onChange={e => setSettings(p => ({ ...p, accent_color: e.target.value }))} className="input-field flex-1" placeholder="#6366f1" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm text-gray-300 mb-1">Hero Headline</label>
+                        <input type="text" value={settings.hero_headline || ''} onChange={e => setSettings(p => ({ ...p, hero_headline: e.target.value }))} className="input-field" placeholder="Premium Products, Curated For You" />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm text-gray-300 mb-1">Hero Subtitle</label>
+                        <textarea value={settings.hero_subtitle || ''} onChange={e => setSettings(p => ({ ...p, hero_subtitle: e.target.value }))} className="input-field h-20" placeholder="We empower the future of AI and product marketing..." />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm text-gray-300 mb-1">Logo URL</label>
+                        <input type="url" value={settings.logo_url || ''} onChange={e => setSettings(p => ({ ...p, logo_url: e.target.value }))} className="input-field" placeholder="https://..." />
+                        <p className="text-xs text-gray-600 mt-1">Upload your logo to Media Library first, then paste the URL here.</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm text-gray-300 mb-1">Footer Text</label>
+                        <input type="text" value={settings.footer_text || ''} onChange={e => setSettings(p => ({ ...p, footer_text: e.target.value }))} className="input-field" placeholder="© DealFindAI. All rights reserved." />
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                        <button onClick={saveSettings} disabled={saving} className="btn-primary">
+                            {saving ? 'Saving...' : 'Save Branding'}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Showcase Item Card — inline editing for title, desc, category, visibility
+// ═══════════════════════════════════════════════════════════
+
+function ShowcaseItemCard({ item, categories, onUpdate, onRemove }) {
+    const [editing, setEditing] = useState(false);
+    const [form, setForm] = useState({
+        display_title: item.display_title || '',
+        display_desc: item.display_desc || '',
+        category_id: item.category_id || '',
+        price_label: item.price_label || '',
+        card_image_url: item.card_image_url || '',
+    });
+
+    function save() {
+        onUpdate(item.id, form);
+        setEditing(false);
+        toast.success('Updated');
+    }
+
+    return (
+        <div className="card group">
+            <div className="flex gap-4">
+                {/* Thumbnail */}
+                <div className="w-24 h-16 rounded-lg bg-surface-800 overflow-hidden flex-shrink-0">
+                    {(item.card_image_url || item.og_image_url) ? (
+                        <img src={item.card_image_url || item.og_image_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-600">
+                            <Image className="w-5 h-5" />
+                        </div>
+                    )}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                    {editing ? (
+                        <div className="space-y-2">
+                            <input type="text" value={form.display_title} onChange={e => setForm(p => ({ ...p, display_title: e.target.value }))} className="input-field text-sm" placeholder="Display title" />
+                            <input type="text" value={form.display_desc} onChange={e => setForm(p => ({ ...p, display_desc: e.target.value }))} className="input-field text-sm" placeholder="Short description" />
+                            <div className="flex gap-2">
+                                <select value={form.category_id} onChange={e => setForm(p => ({ ...p, category_id: e.target.value }))} className="input-field text-sm flex-1">
+                                    <option value="">No category</option>
+                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                                <input type="text" value={form.price_label} onChange={e => setForm(p => ({ ...p, price_label: e.target.value }))} className="input-field text-sm w-32" placeholder="Price label" />
+                            </div>
+                            <input type="url" value={form.card_image_url} onChange={e => setForm(p => ({ ...p, card_image_url: e.target.value }))} className="input-field text-sm" placeholder="Card image URL" />
+                            <div className="flex gap-2">
+                                <button onClick={save} className="btn-primary text-xs flex items-center gap-1"><Check className="w-3 h-3" /> Save</button>
+                                <button onClick={() => setEditing(false)} className="btn-secondary text-xs">Cancel</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-medium text-white truncate">{item.display_title || item.page_name}</h3>
+                                {item.category_name && (
+                                    <span className="text-[10px] bg-brand-500/10 text-brand-400 px-2 py-0.5 rounded-full border border-brand-500/20">
+                                        {item.category_name}
+                                    </span>
+                                )}
+                                {item.price_label && (
+                                    <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full">
+                                        {item.price_label}
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-0.5 truncate">{item.display_desc || `From: ${item.funnel_name}`}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${item.is_published
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                    : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                                    }`}>
+                                    {item.is_published !== false ? 'Published' : 'Page Unpublished'}
+                                </span>
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* Actions */}
+                {!editing && (
+                    <div className="flex items-start gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => onUpdate(item.id, { is_visible: !item.is_visible })} className="p-2 hover:bg-white/10 rounded-lg" title={item.is_visible ? 'Hide' : 'Show'}>
+                            {item.is_visible !== false ? <Eye className="w-3.5 h-3.5 text-gray-400" /> : <EyeOff className="w-3.5 h-3.5 text-yellow-400" />}
+                        </button>
+                        <button onClick={() => setEditing(true)} className="p-2 hover:bg-white/10 rounded-lg" title="Edit">
+                            <Edit2 className="w-3.5 h-3.5 text-gray-400" />
+                        </button>
+                        <button onClick={() => onRemove(item.id)} className="p-2 hover:bg-red-500/10 rounded-lg" title="Remove">
+                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Add Product Modal — pick from published pages
+// ═══════════════════════════════════════════════════════════
+
+function AddProductModal({ pages, categories, onAdd, onClose }) {
+    const [selectedCategory, setSelectedCategory] = useState('');
+
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
+            <div className="card w-full max-w-lg max-h-[80vh] flex flex-col animate-slide-in-right" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-white">Add to Storefront</h2>
+                    <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg">
+                        <XIcon className="w-4 h-4 text-gray-400" />
+                    </button>
+                </div>
+
+                {categories.length > 0 && (
+                    <div className="mb-4">
+                        <label className="block text-sm text-gray-300 mb-1">Assign to Category</label>
+                        <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="input-field">
+                            <option value="">No category</option>
+                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                )}
+
+                <div className="flex-1 overflow-y-auto space-y-2">
+                    {pages.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            <Package className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                            <p className="text-sm">No published pages available. Publish a landing page first.</p>
+                        </div>
+                    ) : (
+                        pages.map(page => (
+                            <div key={page.id} className="flex items-center justify-between py-3 px-4 bg-surface-800 rounded-xl hover:bg-surface-700 transition-colors">
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-white text-sm truncate">{page.seo_title || page.name}</p>
+                                    <p className="text-xs text-gray-500">{page.funnel_name}</p>
+                                </div>
+                                <button
+                                    onClick={() => { onAdd(page, selectedCategory); onClose(); }}
+                                    className="btn-primary text-xs flex items-center gap-1 ml-3"
+                                >
+                                    <Plus className="w-3 h-3" /> Add
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 
 function EmptyState({ icon: Icon, text }) {
     return (

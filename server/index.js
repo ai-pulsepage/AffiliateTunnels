@@ -30,6 +30,7 @@ const templateRoutes = require('./routes/templates');
 const affiliateRoutes = require('./routes/affiliate');
 const aiRoutes = require('./routes/ai');
 const blogRoutes = require('./routes/blog');
+const storefrontRoutes = require('./routes/storefront');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -73,6 +74,7 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/affiliate', affiliateRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/blog', blogRoutes);
+app.use('/api/storefront', storefrontRoutes);
 
 // === Public Routes ===
 
@@ -147,13 +149,97 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', uptime: process.uptime() });
 });
 
-// Serve React app in production
+// Serve React app or Storefront based on host
 if (process.env.NODE_ENV === 'production') {
     const clientPath = path.join(__dirname, '../client/dist');
     app.use(express.static(clientPath));
-    app.get('*', (req, res) => {
-        if (!req.path.startsWith('/api') && !req.path.startsWith('/go/') && !req.path.startsWith('/p/')) {
-            res.sendFile(path.join(clientPath, 'index.html'));
+    app.get('*', async (req, res, next) => {
+        if (req.path.startsWith('/api') || req.path.startsWith('/go/') || req.path.startsWith('/p/')) {
+            return next();
+        }
+
+        // Host-based routing: if NOT on app.* subdomain, serve storefront
+        const host = (req.hostname || '').toLowerCase();
+        const isAppSubdomain = host.startsWith('app.');
+        const isStorefrontMode = req.query.mode === 'storefront'; // dev override
+
+        if (!isAppSubdomain && !isStorefrontMode) {
+            // Root domain → serve the public storefront
+            try {
+                const { query: dbQuery } = require('./config/db');
+                const { generateStorefrontHTML } = require('./services/storefront');
+                const { getSettingSync } = require('./config/settings');
+
+                const settingsResult = await dbQuery('SELECT * FROM storefront_settings LIMIT 1');
+                const settings = settingsResult.rows[0] || {};
+                const catResult = await dbQuery('SELECT * FROM showcase_categories ORDER BY sort_order, name');
+                const itemsResult = await dbQuery(
+                    `SELECT si.*, p.slug AS page_slug, f.slug AS funnel_slug, p.seo_title, p.og_image_url
+                     FROM showcase_items si
+                     JOIN pages p ON si.page_id = p.id
+                     JOIN funnels f ON p.funnel_id = f.id
+                     WHERE si.is_visible = true AND p.is_published = true
+                     ORDER BY si.sort_order, si.created_at DESC`
+                );
+
+                const appBaseUrl = getSettingSync('app_base_url') || '';
+                const items = itemsResult.rows.map(item => ({
+                    ...item,
+                    page_url: appBaseUrl
+                        ? `${appBaseUrl}/p/${item.funnel_slug}/${item.page_slug}`
+                        : `/p/${item.funnel_slug}/${item.page_slug}`,
+                    card_image_url: item.card_image_url || item.og_image_url || '',
+                }));
+
+                const html = generateStorefrontHTML(settings, catResult.rows, items);
+                res.setHeader('Content-Type', 'text/html');
+                res.setHeader('Cache-Control', 'public, max-age=60');
+                return res.send(html);
+            } catch (err) {
+                console.error('Storefront render error:', err);
+                // Fall through to SPA
+            }
+        }
+
+        // app.* subdomain or fallback → serve React SPA
+        res.sendFile(path.join(clientPath, 'index.html'));
+    });
+} else {
+    // Development: add storefront route at / with ?mode=storefront
+    app.get('/', async (req, res, next) => {
+        if (req.query.mode !== 'storefront') return next();
+        try {
+            const { query: dbQuery } = require('./config/db');
+            const { generateStorefrontHTML } = require('./services/storefront');
+            const { getSettingSync } = require('./config/settings');
+
+            const settingsResult = await dbQuery('SELECT * FROM storefront_settings LIMIT 1');
+            const settings = settingsResult.rows[0] || {};
+            const catResult = await dbQuery('SELECT * FROM showcase_categories ORDER BY sort_order, name');
+            const itemsResult = await dbQuery(
+                `SELECT si.*, p.slug AS page_slug, f.slug AS funnel_slug, p.seo_title, p.og_image_url
+                 FROM showcase_items si
+                 JOIN pages p ON si.page_id = p.id
+                 JOIN funnels f ON p.funnel_id = f.id
+                 WHERE si.is_visible = true AND p.is_published = true
+                 ORDER BY si.sort_order, si.created_at DESC`
+            );
+
+            const appBaseUrl = getSettingSync('app_base_url') || '';
+            const items = itemsResult.rows.map(item => ({
+                ...item,
+                page_url: appBaseUrl
+                    ? `${appBaseUrl}/p/${item.funnel_slug}/${item.page_slug}`
+                    : `/p/${item.funnel_slug}/${item.page_slug}`,
+                card_image_url: item.card_image_url || item.og_image_url || '',
+            }));
+
+            const html = generateStorefrontHTML(settings, catResult.rows, items);
+            res.setHeader('Content-Type', 'text/html');
+            return res.send(html);
+        } catch (err) {
+            console.error('Storefront dev render error:', err);
+            next();
         }
     });
 }

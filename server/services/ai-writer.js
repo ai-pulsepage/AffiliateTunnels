@@ -689,6 +689,75 @@ IMPORTANT RULES:
 OUTPUT: Return ONLY the single <div class="at-sbs-layout"> element. No markdown, no explanation, no code fences.`;
 }
 
+function buildProductReviewPrompt({ productContext, affiliateLink, dateStr, year }) {
+   return `You are an expert product reviewer creating a standalone, shareable product review page optimized for Pinterest, TikTok, and social media sharing. This should look like a premium lifestyle product showcase — clean, beautiful, and immediately shareable.
+
+TODAY'S DATE: ${dateStr}
+CURRENT YEAR: ${year}
+AFFILIATE LINK: ${affiliateLink}
+
+${productContext}
+
+Write a COMPLETE product review page (1500-2000 words). Each numbered item must be its OWN separate top-level HTML element:
+
+1. <div> — Category badge. Centered, pill-shaped, uppercase.
+   Style: text-align:center;margin:0 0 16px;
+   Inside: <span style="display:inline-block;padding:6px 18px;background:#f0fdf4;color:#16a34a;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;border-radius:100px;border:1px solid #bbf7d0;">PRODUCT REVIEW</span>
+
+2. <h1> — Bold, Pinterest-worthy headline. Should be the kind of title that gets pinned.
+   Style: font-size:34px;font-weight:900;text-align:center;line-height:1.2;color:#111;margin:0 0 12px;
+   Example: "[Product Name]: The Ultimate Review (Is It Worth It?)"
+
+3. <p> — Rating stars + short verdict. Centered.
+   Style: text-align:center;font-size:18px;color:#666;margin:0 0 24px;
+   Example: "⭐⭐⭐⭐⭐ 4.8/5 — Our Top Pick for [Category]"
+
+4. <div data-media-slot="hero" style="margin:0 0 28px;border-radius:16px;overflow:hidden;background:#f8f8f8;min-height:280px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add product image</span></div>
+
+5-6. <p> — Brief intro (2 paragraphs). Why you're reviewing this product, who it's for. Personal, authentic tone.
+   Style: font-size:17px;line-height:1.8;color:#444;margin:0 0 16px;
+
+7. <h2> — "Quick Overview"
+
+8. <div> — Quick specs card. Clean info card.
+   Style: background:#f8fafc;border-radius:12px;padding:24px;margin:0 0 28px;
+   Inside: A mini table with key details (Brand, Price Range, Best For, Rating, Where to Buy). Use clean rows.
+
+9. <h2> — "What We Love About [Product]"
+
+10-12. <p> — Detailed review paragraphs (3 separate elements). Cover quality, features, design, value. Use real product intelligence.
+
+13. <div> — Pros section. Follow the PROS/CONS HTML REFERENCE from the rules section EXACTLY.
+
+14. <div> — Cons section. Same format, amber colors. Be honest.
+
+15. <div data-media-slot="mid" style="margin:24px 0;border-radius:12px;overflow:hidden;background:#f5f5f5;min-height:180px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add image</span></div>
+
+16. <h2> — "Who Is This Best For?"
+
+17. <ul> — Bullet list of ideal customer profiles. Use emoji markers.
+   Style: list-style:none;padding:0;font-size:16px;line-height:2;
+
+18. <h2> — "The Verdict"
+
+19. <p> — Final recommendation paragraph. Honest, specific.
+
+20. <div> — Final CTA block. Premium gradient.
+   Style: background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:16px;padding:36px;text-align:center;margin:32px 0;
+   Inside: headline (22px, white), subtitle (15px, white/85%), and CTA button:
+   <a href="${affiliateLink}" style="display:inline-block;padding:18px 56px;background:#fff;color:#6366f1;font-size:18px;font-weight:700;border-radius:12px;text-decoration:none;box-shadow:0 4px 16px rgba(99,102,241,0.3);">Shop Now →</a>
+
+21. <p> — Affiliate disclaimer. Tiny centered gray text.
+
+CRITICAL:
+- This must look BEAUTIFUL when shared on Pinterest or social media
+- The OG image (hero) should be the focal point visually
+- Keep the tone conversational and authentic — like a real person's review
+- Use ALL product intelligence data available
+- Short paragraphs, scannable layout, mobile-first
+${sharedBlockRules()}`;
+}
+
 // ─── Pass 2: Generate page content ─────────────────────────────
 async function generateArticlePage({ productName, productDescription, affiliateLink, style = 'review_article', emailSwipes = '', existingContent = '', productIntel = null, customDirection = '', templateHtml = '' }) {
    const apiKey = process.env.GEMINI_API_KEY || await getSetting('gemini_api_key');
@@ -751,6 +820,11 @@ async function generateArticlePage({ productName, productDescription, affiliateL
          case 'ad_side_by_side':
             prompt = buildSideBySidePrompt(promptArgs);
             maxTokens = 4096;
+            break;
+         case 'product_review':
+         case 'product_review_social':
+            prompt = buildProductReviewPrompt(promptArgs);
+            maxTokens = 16384;
             break;
          case 'advertorial':
          case 'health_review':

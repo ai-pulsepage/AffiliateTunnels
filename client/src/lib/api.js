@@ -280,6 +280,25 @@ export const aiApi = {
     generateSeo: (content) => api('/ai/generate-seo', { body: { content } }),
 };
 
+// Storefront (Showcase)
+export const storefrontApi = {
+    // Settings
+    getSettings: () => api('/storefront/settings'),
+    updateSettings: (data) => api('/storefront/settings', { body: data, method: 'PUT' }),
+    // Categories
+    listCategories: () => api('/storefront/categories'),
+    createCategory: (name) => api('/storefront/categories', { body: { name } }),
+    updateCategory: (id, data) => api(`/storefront/categories/${id}`, { body: data, method: 'PUT' }),
+    deleteCategory: (id) => api(`/storefront/categories/${id}`, { method: 'DELETE' }),
+    // Showcase items
+    listShowcase: () => api('/storefront/showcase'),
+    addToShowcase: (data) => api('/storefront/showcase', { body: data }),
+    updateShowcase: (id, data) => api(`/storefront/showcase/${id}`, { body: data, method: 'PUT' }),
+    removeFromShowcase: (id) => api(`/storefront/showcase/${id}`, { method: 'DELETE' }),
+    // Published pages (for picker)
+    listPublishedPages: () => api('/storefront/published-pages'),
+};
+
 // Blog
 export const blogApi = {
     list: (params = {}) => { const qs = new URLSearchParams(params).toString(); return api(`/blog${qs ? '?' + qs : ''}`); },
