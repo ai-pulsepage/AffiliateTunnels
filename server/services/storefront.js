@@ -346,6 +346,7 @@ function generateStorefrontHTML(settings, categories, items) {
         });
     })();
     </script>
+    <script type="text/javascript" src="http://classic.avantlink.com/affiliate_app_confirm.php?mode=js&authResponse=15493e3b9670c8396b808af5c75f62d424018c7f"></script>
 </body>
 </html>`;
 }
