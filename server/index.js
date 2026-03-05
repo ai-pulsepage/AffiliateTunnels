@@ -163,8 +163,12 @@ if (process.env.NODE_ENV === 'production') {
         const isWww = host.startsWith('www.');
         const RESERVED = ['app', 'www', 'mail', 'api', 'admin', 'ftp', 'smtp', 'pop', 'imap', 'ns1', 'ns2'];
 
-        // Extract subdomain: e.g. "spas" from "spas.dealfindai.com"
-        const parts = host.split('.');
+        // Cloudflare Worker sends original host via header for wildcard subdomain routing
+        const originalHost = (req.headers['x-original-host'] || '').toLowerCase();
+        const effectiveHost = originalHost || host;
+
+        // Extract subdomain from the effective host (Cloudflare header takes priority)
+        const parts = effectiveHost.split('.');
         const subdomain = parts.length >= 3 ? parts[0] : null;
         const isReserved = subdomain && RESERVED.includes(subdomain);
         const isMicrositeCandidate = subdomain && !isReserved;
