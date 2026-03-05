@@ -152,6 +152,56 @@ app.get('/api/health', (req, res) => {
 // Serve React app or Storefront based on host
 if (process.env.NODE_ENV === 'production') {
     const clientPath = path.join(__dirname, '../client/dist');
+
+    // Intercept Cloudflare Worker requests BEFORE static middleware
+    // Without this, express.static serves index.html for microsite root requests
+    app.use(async (req, res, next) => {
+        const originalHost = (req.headers['x-original-host'] || '').toLowerCase();
+        if (!originalHost) return next(); // Not from Cloudflare Worker, proceed normally
+
+        const parts = originalHost.split('.');
+        const subdomain = parts.length >= 3 ? parts[0] : null;
+        const RESERVED = ['app', 'www', 'mail', 'api', 'admin', 'ftp', 'smtp', 'pop', 'imap', 'ns1', 'ns2'];
+        if (!subdomain || RESERVED.includes(subdomain)) return next();
+
+        // Skip API/page/link routes
+        if (req.path.startsWith('/api') || req.path.startsWith('/go/') || req.path.startsWith('/p/')) {
+            return next();
+        }
+
+        try {
+            const { query: dbQuery } = require('./config/db');
+            const { generateMicrositeHTML } = require('./services/storefront');
+
+            const msResult = await dbQuery(
+                'SELECT * FROM microsites WHERE subdomain = $1 AND is_active = true LIMIT 1',
+                [subdomain]
+            );
+            const microsite = msResult.rows[0];
+            if (!microsite) return res.status(404).send('<h1 style="font-family:sans-serif;text-align:center;margin-top:100px;color:#666">Microsite not found</h1>');
+
+            const productsResult = await dbQuery(
+                'SELECT * FROM microsite_products WHERE microsite_id = $1 ORDER BY sort_order, created_at',
+                [microsite.id]
+            );
+
+            if (productsResult.rows.length === 0) {
+                return res.status(200).send('<h1 style="font-family:sans-serif;text-align:center;margin-top:100px;color:#666">Coming soon</h1>');
+            }
+
+            const pathSlug = req.path.replace(/^\//, '').replace(/\/$/, '') || null;
+            const html = generateMicrositeHTML(microsite, productsResult.rows, pathSlug);
+            if (!html) return res.status(404).send('<h1 style="font-family:sans-serif;text-align:center;margin-top:100px;color:#666">Product not found</h1>');
+
+            res.setHeader('Content-Type', 'text/html');
+            res.setHeader('Cache-Control', 'public, max-age=60');
+            return res.send(html);
+        } catch (err) {
+            console.error('Microsite Worker intercept error:', err);
+            return next();
+        }
+    });
+
     app.use(express.static(clientPath));
     app.get('*', async (req, res, next) => {
         if (req.path.startsWith('/api') || req.path.startsWith('/go/') || req.path.startsWith('/p/')) {
