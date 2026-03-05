@@ -111,37 +111,51 @@ router.post('/scrape-product', authenticate, async (req, res) => {
         const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']*)/i);
         const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)/i);
 
-        // Extract images
+        // Extract images — prioritize structured data over generic img tags
         const images = [];
         const seenUrls = new Set();
 
-        // OG image (best quality, most representative)
+        // 1. Try JSON-LD structured data (Shopify, WooCommerce, most e-commerce)
+        const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+        let jsonLdMatch;
+        while ((jsonLdMatch = jsonLdRegex.exec(html)) !== null) {
+            try {
+                const ld = JSON.parse(jsonLdMatch[1]);
+                const products = ld['@type'] === 'Product' ? [ld] : (ld['@graph'] || []).filter(n => n['@type'] === 'Product');
+                for (const prod of products) {
+                    const ldImages = Array.isArray(prod.image) ? prod.image : (prod.image ? [prod.image] : []);
+                    for (const img of ldImages) {
+                        const imgUrl = resolveUrl(typeof img === 'string' ? img : img.url || img.contentUrl || '', parsedUrl);
+                        if (imgUrl && !seenUrls.has(imgUrl)) { images.push(imgUrl); seenUrls.add(imgUrl); }
+                    }
+                }
+            } catch { /* ignore malformed JSON-LD */ }
+        }
+
+        // 2. OG image (best quality, most representative)
         const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)/i);
         if (ogImageMatch?.[1]) {
             const imgUrl = resolveUrl(ogImageMatch[1], parsedUrl);
             if (imgUrl && !seenUrls.has(imgUrl)) { images.push(imgUrl); seenUrls.add(imgUrl); }
         }
 
-        // Product images from img tags
-        const imgRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
-        let imgMatch;
-        while ((imgMatch = imgRegex.exec(html)) !== null && images.length < 10) {
-            const src = imgMatch[0];
-            const imgUrl = resolveUrl(imgMatch[1], parsedUrl);
-            if (!imgUrl || seenUrls.has(imgUrl)) continue;
-            // Filter out tiny icons, tracking pixels, logos by URL patterns
-            const lower = imgUrl.toLowerCase();
-            if (lower.includes('icon') || lower.includes('logo') || lower.includes('favicon') ||
-                lower.includes('pixel') || lower.includes('tracker') || lower.includes('badge') ||
-                lower.includes('spacer') || lower.includes('1x1') || lower.endsWith('.svg') ||
-                lower.includes('data:image')) continue;
-            // Check for size attributes suggesting tiny images
-            const widthMatch = src.match(/width=["']?(\d+)/i);
-            const heightMatch = src.match(/height=["']?(\d+)/i);
-            if (widthMatch && parseInt(widthMatch[1]) < 50) continue;
-            if (heightMatch && parseInt(heightMatch[1]) < 50) continue;
-            images.push(imgUrl);
-            seenUrls.add(imgUrl);
+        // 3. Only if we have 0-1 images, try product-section img tags (conservative)
+        if (images.length <= 1) {
+            // Look for images inside product-related containers only
+            const productSectionMatch = html.match(/<(?:div|section)[^>]*(?:class|id)=["'][^"']*(?:product-media|product-gallery|product-images|ProductMedia|gallery|media-gallery)[^"']*["'][^>]*>([\s\S]*?)(?:<\/(?:div|section)>)/i);
+            const searchHtml = productSectionMatch ? productSectionMatch[0] : '';
+            if (searchHtml) {
+                const imgRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
+                let imgTag;
+                while ((imgTag = imgRegex.exec(searchHtml)) !== null && images.length < 6) {
+                    const imgUrl = resolveUrl(imgTag[1], parsedUrl);
+                    if (!imgUrl || seenUrls.has(imgUrl)) continue;
+                    const lower = imgUrl.toLowerCase();
+                    if (lower.includes('icon') || lower.includes('logo') || lower.includes('badge') || lower.endsWith('.svg')) continue;
+                    images.push(imgUrl);
+                    seenUrls.add(imgUrl);
+                }
+            }
         }
 
         const productName = title || ogTitleMatch?.[1] || 'Unknown Product';
