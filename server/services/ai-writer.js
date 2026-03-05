@@ -21,32 +21,35 @@ Extract and return a JSON object with these fields (use null if not found):
 {
   "productName": "exact product name",
   "brand": "brand name",
-  "tagline": "main marketing tagline",
+  "tagline": "main marketing tagline (max 10 words)",
   "description": "2-3 sentence summary of what the product does",
   "targetAudience": "who this product is for",
   "keyFeatures": ["top 4-6 key features as short phrases, e.g. 'Thermally Modified Pine Exterior'"],
   "specifications": {"Dimension Name": "value", "Material": "value", "Weight": "value"},
   "sellingPoints": [
-    {"icon": "💰", "title": "short title", "detail": "brief detail"},
-    {"icon": "🚚", "title": "Free Shipping", "detail": "Ships to your door at no extra cost"}
+    {"icon": "emoji", "title": "2-3 word title", "detail": "max 8 words"}
   ],
   "financing": {"available": true, "provider": "Affirm", "monthlyFrom": "$312/mo", "apr": "0% APR"},
-  "medicalDiscount": {"eligible": true, "type": "HSA/FSA", "savings": "Save an average of 30%"},
-  "shipping": "Free Shipping or shipping details",
-  "warranty": "warranty details",
-  "deliveryTime": "delivery timeline",
+  "medicalDiscount": {"eligible": true, "type": "HSA/FSA", "savings": "Save up to 30%"},
+  "shipping": "max 6 words, e.g. 'Free curbside shipping'",
+  "warranty": "max 6 words, e.g. 'Limited lifetime warranty'",
+  "deliveryTime": "e.g. '12-14 weeks'",
   "pricing": [{"tier": "package name", "totalPrice": "$XX"}],
-  "guarantee": "money-back guarantee details",
-  "bonuses": ["any free bonuses or included items mentioned"],
+  "guarantee": "money-back guarantee detail, max 8 words",
+  "bonuses": ["short bonus name, e.g. 'Free 6kW Harvia Heater'"],
   "problemItSolves": "the core problem this product addresses",
   "uniqueAngle": "what makes this different from competitors"
 }
 
-IMPORTANT: 
-- sellingPoints: extract ALL notable selling points (financing, discounts, medical benefits, shipping, warranty, certifications, included items). Use relevant emojis.
+CRITICAL RULES:
+- ALL badge text MUST be extremely short. Title: 2-3 words. Detail: max 8 words. No paragraphs.
+- warranty and shipping fields: keep to MAX 6 WORDS. e.g. "Limited lifetime warranty" NOT a full paragraph.
+- sellingPoints should NOT duplicate financing, shipping, warranty, or delivery — those have dedicated fields.
+- sellingPoints should capture OTHER selling points like: certifications, eco-friendly, satisfaction guarantee, customer support, included accessories.
+- If the product page has little info, infer reasonable selling points from the product type.
 - specifications: extract physical specs like dimensions, weight, materials, capacity, power.
 - keyFeatures: extract the top product features as short, scannable phrases.
-- Keep all lists to maximum 6 items. Keep all text fields concise.
+- Keep all lists to maximum 6 items.
 Return ONLY valid JSON.`;
 
    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;

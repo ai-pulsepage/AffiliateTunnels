@@ -437,29 +437,46 @@ function buildSingleProductPage(product, microsite, accent) {
 
     // Build selling points badges (financing, HSA/FSA, shipping, warranty, etc.)
     const badges = [];
+    const usedKeywords = new Set(); // Track keywords to prevent duplicates
+
+    const truncate = (s, max = 50) => s && s.length > max ? s.substring(0, max).trim() + '…' : s;
+
     if (intel.financing && intel.financing.available) {
         const f = intel.financing;
         badges.push({ icon: '💳', title: f.apr || '0% APR', detail: `${f.monthlyFrom ? `As low as ${f.monthlyFrom}` : 'Financing available'}${f.provider ? ` with ${f.provider}` : ''}` });
+        usedKeywords.add('financ').add('apr').add('affirm');
     }
     if (intel.medicalDiscount && intel.medicalDiscount.eligible) {
         const m = intel.medicalDiscount;
-        badges.push({ icon: '🏥', title: m.type || 'HSA/FSA Eligible', detail: m.savings || 'Use your health savings' });
+        badges.push({ icon: '🏥', title: m.type || 'HSA/FSA Eligible', detail: truncate(m.savings || 'Use your health savings') });
+        usedKeywords.add('hsa').add('fsa').add('medical');
     }
-    if (intel.shipping) badges.push({ icon: '🚚', title: 'Shipping', detail: escapeHtml(intel.shipping) });
-    if (intel.warranty) badges.push({ icon: '🛡️', title: 'Warranty', detail: escapeHtml(intel.warranty) });
-    if (intel.deliveryTime) badges.push({ icon: '📦', title: 'Delivery', detail: escapeHtml(intel.deliveryTime) });
-    // Add selling points from the AI extraction
+    if (intel.shipping) {
+        badges.push({ icon: '🚚', title: 'Shipping', detail: truncate(intel.shipping) });
+        usedKeywords.add('ship').add('curbside').add('delivery');
+    }
+    if (intel.warranty) {
+        badges.push({ icon: '🛡️', title: 'Warranty', detail: truncate(intel.warranty) });
+        usedKeywords.add('warrant');
+    }
+    if (intel.deliveryTime) {
+        badges.push({ icon: '📦', title: 'Delivery', detail: truncate(intel.deliveryTime) });
+        usedKeywords.add('deliver').add('weeks');
+    }
+    // Add extra selling points, skipping any that overlap with dedicated fields
     if (intel.sellingPoints && Array.isArray(intel.sellingPoints)) {
         for (const sp of intel.sellingPoints.slice(0, 6)) {
             if (!sp.title) continue;
-            // Skip if we already have a badge with similar title
-            const existing = badges.find(b => b.title.toLowerCase().includes(sp.title.toLowerCase().substring(0, 6)));
-            if (!existing) badges.push({ icon: sp.icon || '✨', title: escapeHtml(sp.title), detail: escapeHtml(sp.detail || '') });
+            const lower = (sp.title + ' ' + (sp.detail || '')).toLowerCase();
+            const isDuplicate = [...usedKeywords].some(kw => lower.includes(kw));
+            if (!isDuplicate) {
+                badges.push({ icon: sp.icon || '✨', title: escapeHtml(sp.title), detail: truncate(escapeHtml(sp.detail || '')) });
+            }
         }
     }
     if (intel.bonuses && Array.isArray(intel.bonuses)) {
-        for (const bonus of intel.bonuses.slice(0, 3)) {
-            if (bonus) badges.push({ icon: '🎁', title: 'Included', detail: escapeHtml(typeof bonus === 'string' ? bonus : bonus.name || '') });
+        for (const bonus of intel.bonuses.slice(0, 2)) {
+            if (bonus) badges.push({ icon: '🎁', title: 'Included', detail: truncate(escapeHtml(typeof bonus === 'string' ? bonus : bonus.name || '')) });
         }
     }
     const badgesHtml = badges.length > 0 ? badges.slice(0, 6).map(b =>
