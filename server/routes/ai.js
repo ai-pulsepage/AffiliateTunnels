@@ -139,19 +139,47 @@ router.post('/scrape-product', authenticate, async (req, res) => {
             if (imgUrl && !seenUrls.has(imgUrl)) { images.push(imgUrl); seenUrls.add(imgUrl); }
         }
 
-        // 3. Only if we have 0-1 images, try product-section img tags (conservative)
-        if (images.length <= 1) {
-            // Look for images inside product-related containers only
-            const productSectionMatch = html.match(/<(?:div|section)[^>]*(?:class|id)=["'][^"']*(?:product-media|product-gallery|product-images|ProductMedia|gallery|media-gallery)[^"']*["'][^>]*>([\s\S]*?)(?:<\/(?:div|section)>)/i);
-            const searchHtml = productSectionMatch ? productSectionMatch[0] : '';
-            if (searchHtml) {
-                const imgRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
-                let imgTag;
-                while ((imgTag = imgRegex.exec(searchHtml)) !== null && images.length < 6) {
-                    const imgUrl = resolveUrl(imgTag[1], parsedUrl);
+        // 3. If few images, scan the product section of the page (before recommendations)
+        if (images.length <= 2) {
+            // Cut content before "you might also like" / "related products" / recommendation sections
+            let productHtml = html;
+            const cutPatterns = [
+                /you\s*might\s*also\s*like/i, /related\s*products/i, /customers\s*also\s*bought/i,
+                /recommended\s*for\s*you/i, /recently\s*viewed/i, /similar\s*products/i,
+            ];
+            for (const pattern of cutPatterns) {
+                const idx = productHtml.search(pattern);
+                if (idx > 0) { productHtml = productHtml.substring(0, idx); break; }
+            }
+
+            // Extract from img src, srcset, and data-src (common in Shopify lazy loading)
+            const imgPatterns = [
+                /(?:srcset|data-srcset)=["']([^"']+)["']/gi,
+                /<img[^>]*(?:src|data-src)=["']([^"']+)["'][^>]*>/gi,
+            ];
+            for (const pattern of imgPatterns) {
+                let match;
+                while ((match = pattern.exec(productHtml)) !== null && images.length < 6) {
+                    // srcset may have multiple URLs — take the highest res
+                    const srcset = match[1];
+                    let bestUrl = srcset;
+                    if (srcset.includes(',')) {
+                        // Parse srcset: "url 200w, url2 400w" → take largest
+                        const candidates = srcset.split(',').map(s => s.trim().split(/\s+/));
+                        const sorted = candidates.sort((a, b) => parseInt(b[1] || '0') - parseInt(a[1] || '0'));
+                        bestUrl = sorted[0]?.[0] || srcset;
+                    }
+                    const imgUrl = resolveUrl(bestUrl.trim(), parsedUrl);
                     if (!imgUrl || seenUrls.has(imgUrl)) continue;
                     const lower = imgUrl.toLowerCase();
-                    if (lower.includes('icon') || lower.includes('logo') || lower.includes('badge') || lower.endsWith('.svg')) continue;
+                    // Filter out non-product images
+                    if (lower.includes('icon') || lower.includes('logo') || lower.includes('badge') ||
+                        lower.includes('favicon') || lower.includes('payment') || lower.includes('trust') ||
+                        lower.endsWith('.svg') || lower.includes('data:image') ||
+                        lower.includes('1x1') || lower.includes('spacer')) continue;
+                    // Skip tiny images by URL hints (Shopify CDN uses width param)
+                    const widthParam = lower.match(/width=(\d+)/);
+                    if (widthParam && parseInt(widthParam[1]) < 100) continue;
                     images.push(imgUrl);
                     seenUrls.add(imgUrl);
                 }

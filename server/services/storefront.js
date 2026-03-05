@@ -435,6 +435,37 @@ function buildSingleProductPage(product, microsite, accent) {
         `<div class="feature"><span class="feature-icon">✓</span><span>${escapeHtml(typeof f === 'string' ? f : f.name || f.feature || '')}</span></div>`
     ).join('');
 
+    // Build selling points badges (financing, HSA/FSA, shipping, warranty, etc.)
+    const badges = [];
+    if (intel.financing && intel.financing.available) {
+        const f = intel.financing;
+        badges.push({ icon: '💳', title: f.apr || '0% APR', detail: `${f.monthlyFrom ? `As low as ${f.monthlyFrom}` : 'Financing available'}${f.provider ? ` with ${f.provider}` : ''}` });
+    }
+    if (intel.medicalDiscount && intel.medicalDiscount.eligible) {
+        const m = intel.medicalDiscount;
+        badges.push({ icon: '🏥', title: m.type || 'HSA/FSA Eligible', detail: m.savings || 'Use your health savings' });
+    }
+    if (intel.shipping) badges.push({ icon: '🚚', title: 'Shipping', detail: escapeHtml(intel.shipping) });
+    if (intel.warranty) badges.push({ icon: '🛡️', title: 'Warranty', detail: escapeHtml(intel.warranty) });
+    if (intel.deliveryTime) badges.push({ icon: '📦', title: 'Delivery', detail: escapeHtml(intel.deliveryTime) });
+    // Add selling points from the AI extraction
+    if (intel.sellingPoints && Array.isArray(intel.sellingPoints)) {
+        for (const sp of intel.sellingPoints.slice(0, 6)) {
+            if (!sp.title) continue;
+            // Skip if we already have a badge with similar title
+            const existing = badges.find(b => b.title.toLowerCase().includes(sp.title.toLowerCase().substring(0, 6)));
+            if (!existing) badges.push({ icon: sp.icon || '✨', title: escapeHtml(sp.title), detail: escapeHtml(sp.detail || '') });
+        }
+    }
+    if (intel.bonuses && Array.isArray(intel.bonuses)) {
+        for (const bonus of intel.bonuses.slice(0, 3)) {
+            if (bonus) badges.push({ icon: '🎁', title: 'Included', detail: escapeHtml(typeof bonus === 'string' ? bonus : bonus.name || '') });
+        }
+    }
+    const badgesHtml = badges.length > 0 ? badges.slice(0, 6).map(b =>
+        `<div class="badge"><span class="badge-icon">${b.icon}</span><div><span class="badge-title">${b.title}</span><span class="badge-detail">${b.detail}</span></div></div>`
+    ).join('') : '';
+
     // Email popup
     const popupHtml = microsite.optin_enabled ? buildEmailPopup(microsite, accent) : '';
 
@@ -503,6 +534,14 @@ body{font-family:'Inter',system-ui,sans-serif;background:#fafafa;color:#1a1a2e;l
 .feature{display:flex;align-items:center;gap:14px;padding:24px 28px;border-right:1px solid rgba(0,0,0,0.05);font-size:14px;font-weight:500;color:#333}
 .feature:last-child{border-right:none}
 .feature-icon{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent-h),transparent);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0}
+
+/* Selling Point Badges */
+.badges{display:flex;flex-wrap:wrap;gap:10px}
+.badge{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#f8f8fc;border:1px solid rgba(0,0,0,0.06);border-radius:12px;flex:1 1 calc(50% - 5px);min-width:180px;transition:all .2s}
+.badge:hover{border-color:var(--accent-h);background:#f0f0ff}
+.badge-icon{font-size:20px;flex-shrink:0}
+.badge-title{display:block;font-size:13px;font-weight:700;color:#0f0f23}
+.badge-detail{display:block;font-size:12px;color:#666;line-height:1.3}
 
 /* Specs Section */
 .specs-section{max-width:1080px;margin:0 auto;padding:48px 24px}
@@ -579,9 +618,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:#fafafa;color:#1a1a2e;l
     <h1>${name}</h1>
     <div class="rating"><span class="stars">★★★★★</span> <span>4.8/5 rating</span></div>
     ${price ? `<div class="price-tag">${price} <span class="price-sub">USD</span></div>` : ''}
+    ${badgesHtml ? `<div class="badges">${badgesHtml}</div>` : ''}
     ${desc ? `<p class="info-desc">${desc}</p>` : ''}
     <a href="${link}" class="cta-primary" target="_blank" rel="noopener">Shop Now — ${price || 'View Pricing'} →</a>
-    <p class="cta-micro">✓ Secure checkout &nbsp;·&nbsp; Free shipping available</p>
+    <p class="cta-micro">✓ Secure checkout${intel.shipping ? ` · ${escapeHtml(intel.shipping)}` : ''}</p>
   </div>
 </section>
 

@@ -12,7 +12,7 @@ const GEMINI_MODEL = 'gemini-2.5-flash';
 
 // ─── Pass 1: Extract structured product data ───────────────────
 async function extractProductIntelligence(scrapedText, apiKey) {
-   const prompt = `You are a product research analyst. Extract the most useful information from this product/sales page content.
+   const prompt = `You are a product research analyst. Extract the most useful information from this product/sales page content. Focus on selling points that would make a great landing page.
 
 RAW SCRAPED CONTENT:
 ${scrapedText}
@@ -24,19 +24,29 @@ Extract and return a JSON object with these fields (use null if not found):
   "tagline": "main marketing tagline",
   "description": "2-3 sentence summary of what the product does",
   "targetAudience": "who this product is for",
-  "mainClaims": ["top 5 key marketing claims only"],
-  "ingredients": [{"name": "ingredient name", "benefit": "what it does"}],
-  "testimonials": [{"quote": "short testimonial (max 2 sentences)", "name": "person name", "detail": "location"}],
+  "keyFeatures": ["top 4-6 key features as short phrases, e.g. 'Thermally Modified Pine Exterior'"],
+  "specifications": {"Dimension Name": "value", "Material": "value", "Weight": "value"},
+  "sellingPoints": [
+    {"icon": "💰", "title": "short title", "detail": "brief detail"},
+    {"icon": "🚚", "title": "Free Shipping", "detail": "Ships to your door at no extra cost"}
+  ],
+  "financing": {"available": true, "provider": "Affirm", "monthlyFrom": "$312/mo", "apr": "0% APR"},
+  "medicalDiscount": {"eligible": true, "type": "HSA/FSA", "savings": "Save an average of 30%"},
+  "shipping": "Free Shipping or shipping details",
+  "warranty": "warranty details",
+  "deliveryTime": "delivery timeline",
   "pricing": [{"tier": "package name", "totalPrice": "$XX"}],
   "guarantee": "money-back guarantee details",
-  "bonuses": ["any free bonuses mentioned"],
-  "keyStats": ["top 5 specific numbers/percentages"],
+  "bonuses": ["any free bonuses or included items mentioned"],
   "problemItSolves": "the core problem this product addresses",
-  "howItWorks": "mechanism of action in 1-2 sentences",
   "uniqueAngle": "what makes this different from competitors"
 }
 
-IMPORTANT: Keep testimonials to maximum 5. Keep all lists to maximum 5 items. Keep all text fields concise.
+IMPORTANT: 
+- sellingPoints: extract ALL notable selling points (financing, discounts, medical benefits, shipping, warranty, certifications, included items). Use relevant emojis.
+- specifications: extract physical specs like dimensions, weight, materials, capacity, power.
+- keyFeatures: extract the top product features as short, scannable phrases.
+- Keep all lists to maximum 6 items. Keep all text fields concise.
 Return ONLY valid JSON.`;
 
    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
