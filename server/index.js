@@ -158,13 +158,65 @@ if (process.env.NODE_ENV === 'production') {
             return next();
         }
 
-        // Host-based routing: if NOT on app.* subdomain, serve storefront
         const host = (req.hostname || '').toLowerCase();
         const isAppSubdomain = host.startsWith('app.');
-        const isStorefrontMode = req.query.mode === 'storefront'; // dev override
+        const isWww = host.startsWith('www.');
+        const RESERVED = ['app', 'www', 'mail', 'api', 'admin', 'ftp', 'smtp', 'pop', 'imap', 'ns1', 'ns2'];
 
-        if (!isAppSubdomain && !isStorefrontMode) {
-            // Root domain → serve the public storefront
+        // Extract subdomain: e.g. "spas" from "spas.dealfindai.com"
+        const parts = host.split('.');
+        const subdomain = parts.length >= 3 ? parts[0] : null;
+        const isReserved = subdomain && RESERVED.includes(subdomain);
+        const isMicrositeCandidate = subdomain && !isReserved;
+
+        // ─── Route 1: app.* → React SPA ───
+        if (isAppSubdomain) {
+            return res.sendFile(path.join(clientPath, 'index.html'));
+        }
+
+        // ─── Route 2: Microsite subdomain → DB lookup ───
+        if (isMicrositeCandidate) {
+            try {
+                const { query: dbQuery } = require('./config/db');
+                const { generateMicrositeHTML } = require('./services/storefront');
+
+                const msResult = await dbQuery(
+                    'SELECT * FROM microsites WHERE subdomain = $1 AND is_active = true LIMIT 1',
+                    [subdomain]
+                );
+                const microsite = msResult.rows[0];
+
+                if (microsite) {
+                    const productsResult = await dbQuery(
+                        'SELECT * FROM microsite_products WHERE microsite_id = $1 ORDER BY sort_order, created_at',
+                        [microsite.id]
+                    );
+                    const products = productsResult.rows;
+
+                    if (products.length > 0) {
+                        // Check if path is a product slug (e.g. /sauna-dynamic)
+                        const pathSlug = req.path.replace(/^\//, '').replace(/\/$/, '') || null;
+                        const html = generateMicrositeHTML(microsite, products, pathSlug);
+
+                        if (html) {
+                            res.setHeader('Content-Type', 'text/html');
+                            res.setHeader('Cache-Control', 'public, max-age=60');
+                            return res.send(html);
+                        }
+                        // Product slug not found → 404
+                        if (pathSlug) {
+                            return res.status(404).send('<h1>Product not found</h1>');
+                        }
+                    }
+                }
+                // Microsite not found or empty → fall through to 404 or SPA
+            } catch (err) {
+                console.error('Microsite render error:', err);
+            }
+        }
+
+        // ─── Route 3: Root domain or www → Corporate Storefront ───
+        if (!subdomain || isWww) {
             try {
                 const { query: dbQuery } = require('./config/db');
                 const { generateStorefrontHTML } = require('./services/storefront');
@@ -197,11 +249,10 @@ if (process.env.NODE_ENV === 'production') {
                 return res.send(html);
             } catch (err) {
                 console.error('Storefront render error:', err);
-                // Fall through to SPA
             }
         }
 
-        // app.* subdomain or fallback → serve React SPA
+        // Fallback → serve React SPA
         res.sendFile(path.join(clientPath, 'index.html'));
     });
 } else {
@@ -239,6 +290,36 @@ if (process.env.NODE_ENV === 'production') {
             return res.send(html);
         } catch (err) {
             console.error('Storefront dev render error:', err);
+            next();
+        }
+    });
+
+    // Development: preview a microsite at /?mode=microsite&subdomain=spas
+    app.get('*', async (req, res, next) => {
+        if (req.query.mode !== 'microsite' || !req.query.subdomain) return next();
+        try {
+            const { query: dbQuery } = require('./config/db');
+            const { generateMicrositeHTML } = require('./services/storefront');
+
+            const msResult = await dbQuery(
+                'SELECT * FROM microsites WHERE subdomain = $1 AND is_active = true LIMIT 1',
+                [req.query.subdomain]
+            );
+            const microsite = msResult.rows[0];
+            if (!microsite) return res.status(404).send('Microsite not found');
+
+            const productsResult = await dbQuery(
+                'SELECT * FROM microsite_products WHERE microsite_id = $1 ORDER BY sort_order, created_at',
+                [microsite.id]
+            );
+
+            const pathSlug = req.path.replace(/^\//, '').replace(/\/$/, '') || null;
+            const html = generateMicrositeHTML(microsite, productsResult.rows, pathSlug);
+            if (!html) return res.status(404).send('Product not found');
+            res.setHeader('Content-Type', 'text/html');
+            return res.send(html);
+        } catch (err) {
+            console.error('Microsite dev render error:', err);
             next();
         }
     });

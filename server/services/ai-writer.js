@@ -758,8 +758,64 @@ CRITICAL:
 ${sharedBlockRules()}`;
 }
 
+function buildMicrositeShowcasePrompt({ productContext, affiliateLink, dateStr, year, images }) {
+   const imageSlots = (images || []).slice(0, 4).map((url, i) =>
+      `<img src=\"${url}\" alt=\"Product image ${i + 1}\" style=\"width:100%;border-radius:12px;margin:12px 0;\" loading=\"lazy\" />`
+   ).join('\n');
+
+   return `You are a premium product showcase designer. Create a beautiful, conversion-optimized product page for a luxury/high-end product. This page will be served on its own dedicated subdomain as a standalone product experience.
+
+TODAY'S DATE: ${dateStr}
+CURRENT YEAR: ${year}
+AFFILIATE/PURCHASE LINK: ${affiliateLink}
+
+${productContext}
+
+${images?.length ? `PRODUCT IMAGES AVAILABLE:\n${images.slice(0, 4).map((u, i) => `${i + 1}. ${u}`).join('\n')}` : ''}
+
+Write a COMPLETE standalone product showcase page. Output as a SINGLE self-contained HTML document with embedded styles. This is NOT for a block editor — this is a full page.
+
+The page must include:
+
+1. A sleek sticky header bar with the product brand name
+
+2. A large hero section with:
+   ${images?.length ? `- Use the first product image: <img src=\"${images[0]}\" ...>` : '- A placeholder for a hero product image'}
+   - Product name as a large heading
+   - Star rating (e.g. ⭐⭐⭐⭐⭐ 4.8/5)
+   - A short tagline
+   - A prominent CTA button linking to ${affiliateLink}
+
+3. A "Quick Specs" section with key product details in a clean info grid
+
+4. A detailed "Why Choose This Product" section with 3-4 feature blocks, each with an icon/emoji, title, and description
+
+5. ${images?.length > 1 ? `An image gallery section using the available product images` : 'A placeholder for additional product images'}
+
+6. A Pros & Cons section using styled cards (green for pros, amber for cons)
+
+7. A "What Customers Are Saying" section with 2-3 realistic review quotes
+
+8. A large final CTA section with gradient background, compelling headline, and button linking to ${affiliateLink}
+
+9. A minimal footer
+
+DESIGN REQUIREMENTS:
+- Use a dark, premium theme: backgrounds #0a0a0f, #12121a, #1a1a26
+- Accent color from product brand or use #6366f1 (indigo)
+- Font: Inter from Google Fonts
+- Glassmorphism effects on cards (backdrop-filter: blur, semi-transparent backgrounds)
+- Smooth animations (@keyframes fadeUp on sections)
+- Fully responsive (mobile-first with @media queries)
+- All CTA buttons link to: ${affiliateLink}
+- Include proper <head> with meta viewport, charset, Google Fonts link
+- OG meta tags for social sharing
+
+OUTPUT: Return ONLY the complete HTML document starting with <!DOCTYPE html>. No markdown, no code fences, no explanation.`;
+}
+
 // ─── Pass 2: Generate page content ─────────────────────────────
-async function generateArticlePage({ productName, productDescription, affiliateLink, style = 'review_article', emailSwipes = '', existingContent = '', productIntel = null, customDirection = '', templateHtml = '' }) {
+async function generateArticlePage({ productName, productDescription, affiliateLink, style = 'review_article', emailSwipes = '', existingContent = '', productIntel = null, customDirection = '', templateHtml = '', images = [] }) {
    const apiKey = process.env.GEMINI_API_KEY || await getSetting('gemini_api_key');
    if (!apiKey) throw new Error('Gemini API key not configured. Add it in Admin Settings.');
 
@@ -768,7 +824,7 @@ async function generateArticlePage({ productName, productDescription, affiliateL
    const year = today.getFullYear();
    const productContext = buildProductContext(productName, productDescription, productIntel);
 
-   const promptArgs = { productContext, affiliateLink, dateStr, year, emailSwipes, existingContent, templateHtml };
+   const promptArgs = { productContext, affiliateLink, dateStr, year, emailSwipes, existingContent, templateHtml, images };
 
    // Pick the right prompt builder based on style
    let prompt;
@@ -826,6 +882,10 @@ async function generateArticlePage({ productName, productDescription, affiliateL
             prompt = buildProductReviewPrompt(promptArgs);
             maxTokens = 16384;
             break;
+         case 'microsite_showcase':
+            prompt = buildMicrositeShowcasePrompt(promptArgs);
+            maxTokens = 32768;
+            break;
          case 'advertorial':
          case 'health_review':
          case 'review_article':
@@ -878,4 +938,4 @@ async function generateArticlePage({ productName, productDescription, affiliateL
    return html;
 }
 
-module.exports = { generateArticlePage, extractProductIntelligence };
+module.exports = { generateArticlePage, extractProductIntelligence, buildProductContext };

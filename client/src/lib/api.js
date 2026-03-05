@@ -299,6 +299,17 @@ export const storefrontApi = {
     listPublishedPages: () => api('/storefront/published-pages'),
 };
 
+// Microsites (subdomain product pages)
+export const micrositeApi = {
+    list: () => api('/storefront/microsites'),
+    create: (data) => api('/storefront/microsites', { body: data }),
+    update: (id, data) => api(`/storefront/microsites/${id}`, { body: data, method: 'PUT' }),
+    delete: (id) => api(`/storefront/microsites/${id}`, { method: 'DELETE' }),
+    listProducts: (msId) => api(`/storefront/microsites/${msId}/products`),
+    generateProduct: (msId, data) => api(`/storefront/microsites/${msId}/generate-product`, { body: data }),
+    removeProduct: (msId, prodId) => api(`/storefront/microsites/${msId}/products/${prodId}`, { method: 'DELETE' }),
+};
+
 // Blog
 export const blogApi = {
     list: (params = {}) => { const qs = new URLSearchParams(params).toString(); return api(`/blog${qs ? '?' + qs : ''}`); },

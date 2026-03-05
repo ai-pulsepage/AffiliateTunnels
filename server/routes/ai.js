@@ -7,6 +7,14 @@ const { authenticate } = require('../middleware/auth');
 const { generateArticlePage, extractProductIntelligence } = require('../services/ai-writer');
 const { getSetting } = require('../config/settings');
 
+// Helper: resolve relative URLs to absolute
+function resolveUrl(src, baseUrl) {
+    try {
+        if (!src || src.startsWith('data:')) return null;
+        return new URL(src, baseUrl.origin).href;
+    } catch { return null; }
+}
+
 // Generate article/advertorial landing page content
 router.post('/generate-page', authenticate, async (req, res) => {
     try {
@@ -103,6 +111,39 @@ router.post('/scrape-product', authenticate, async (req, res) => {
         const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']*)/i);
         const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)/i);
 
+        // Extract images
+        const images = [];
+        const seenUrls = new Set();
+
+        // OG image (best quality, most representative)
+        const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)/i);
+        if (ogImageMatch?.[1]) {
+            const imgUrl = resolveUrl(ogImageMatch[1], parsedUrl);
+            if (imgUrl && !seenUrls.has(imgUrl)) { images.push(imgUrl); seenUrls.add(imgUrl); }
+        }
+
+        // Product images from img tags
+        const imgRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
+        let imgMatch;
+        while ((imgMatch = imgRegex.exec(html)) !== null && images.length < 10) {
+            const src = imgMatch[0];
+            const imgUrl = resolveUrl(imgMatch[1], parsedUrl);
+            if (!imgUrl || seenUrls.has(imgUrl)) continue;
+            // Filter out tiny icons, tracking pixels, logos by URL patterns
+            const lower = imgUrl.toLowerCase();
+            if (lower.includes('icon') || lower.includes('logo') || lower.includes('favicon') ||
+                lower.includes('pixel') || lower.includes('tracker') || lower.includes('badge') ||
+                lower.includes('spacer') || lower.includes('1x1') || lower.endsWith('.svg') ||
+                lower.includes('data:image')) continue;
+            // Check for size attributes suggesting tiny images
+            const widthMatch = src.match(/width=["']?(\d+)/i);
+            const heightMatch = src.match(/height=["']?(\d+)/i);
+            if (widthMatch && parseInt(widthMatch[1]) < 50) continue;
+            if (heightMatch && parseInt(heightMatch[1]) < 50) continue;
+            images.push(imgUrl);
+            seenUrls.add(imgUrl);
+        }
+
         const productName = title || ogTitleMatch?.[1] || 'Unknown Product';
         const description = metaDesc || ogDescMatch?.[1] || '';
 
@@ -127,6 +168,7 @@ router.post('/scrape-product', authenticate, async (req, res) => {
             productName: productIntel?.productName || productName,
             description: cleanDescription,
             sourceUrl: url,
+            images,
             productIntel,
         });
     } catch (err) {

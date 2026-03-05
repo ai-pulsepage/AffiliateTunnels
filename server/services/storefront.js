@@ -360,4 +360,153 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
-module.exports = { generateStorefrontHTML };
+module.exports = { generateStorefrontHTML, generateMicrositeHTML };
+
+/**
+ * Microsite Renderer — generates HTML for subdomain microsites
+ * Single product: serves AI-generated showcase in a branded shell
+ * Multi-product: hero + product card grid
+ */
+function generateMicrositeHTML(microsite, products, productSlug) {
+    const title = microsite.site_title || 'Products';
+    const subtitle = microsite.site_subtitle || '';
+    const accent = microsite.accent_color || '#6366f1';
+    const logoUrl = microsite.logo_url || '';
+
+    // If a specific product slug is requested, and the product has generated HTML, serve it directly
+    if (productSlug) {
+        const product = products.find(p => p.slug === productSlug);
+        if (!product) return null;
+        if (product.generated_html) {
+            // Inject the opt-in form if enabled
+            const optinHtml = microsite.optin_enabled ? buildOptinSection(microsite, accent) : '';
+            return product.generated_html.replace('</body>', `${optinHtml}</body>`);
+        }
+    }
+
+    // Single product with generated HTML → serve it directly (no grid needed)
+    if (products.length === 1 && products[0].generated_html) {
+        const optinHtml = microsite.optin_enabled ? buildOptinSection(microsite, accent) : '';
+        return products[0].generated_html.replace('</body>', `${optinHtml}</body>`);
+    }
+
+    // Multi-product or products without generated HTML → render grid
+    const subdomain = microsite.subdomain;
+    const heroImage = products[0]?.card_image_url || '';
+
+    const productCards = products.map(p => {
+        const link = p.generated_html ? `/${p.slug}` : p.affiliate_url;
+        const target = p.generated_html ? '' : 'target="_blank" rel="noopener"';
+        return `
+        <div class="ms-card">
+            <div class="ms-card-img">
+                ${p.card_image_url
+                ? `<img src="${escapeHtml(p.card_image_url)}" alt="${escapeHtml(p.product_name)}" loading="lazy" />`
+                : `<div class="ms-card-placeholder"><svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`
+            }
+            </div>
+            <div class="ms-card-body">
+                <h3 class="ms-card-title">${escapeHtml(p.product_name || 'Product')}</h3>
+                <p class="ms-card-desc">${escapeHtml((p.product_desc || '').substring(0, 200))}</p>
+                ${p.price_label ? `<span class="ms-card-price">${escapeHtml(p.price_label)}</span>` : ''}
+                <a href="${escapeHtml(link)}" class="ms-card-btn" ${target}>View Details →</a>
+            </div>
+        </div>`;
+    }).join('\n');
+
+    const optinHtml = microsite.optin_enabled ? buildOptinSection(microsite, accent) : '';
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${escapeHtml(title)}</title>
+    <meta name="description" content="${escapeHtml(subtitle || title)}">
+    <meta property="og:title" content="${escapeHtml(title)}">
+    <meta property="og:description" content="${escapeHtml(subtitle)}">
+    <meta property="og:type" content="website">
+    ${heroImage ? `<meta property="og:image" content="${escapeHtml(heroImage)}">` : ''}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --accent: ${accent}; --accent-light: ${accent}22; --glow: ${accent}33; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #0a0a0f; color: #f0f0f5; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+        .ms-header { position: sticky; top: 0; z-index: 100; backdrop-filter: blur(20px); background: rgba(10,10,15,0.85); border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .ms-header-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; }
+        .ms-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #f0f0f5; font-size: 18px; font-weight: 800; }
+        .ms-logo-icon { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), #a855f7); display: flex; align-items: center; justify-content: center; }
+        .ms-logo-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+        .ms-hero { position: relative; padding: 80px 24px 60px; text-align: center; overflow: hidden; }
+        .ms-hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 80% 60% at 50% 0%, var(--glow), transparent 70%); pointer-events: none; }
+        .ms-hero h1 { font-size: clamp(32px, 5vw, 56px); font-weight: 900; letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 16px; }
+        .ms-hero p { font-size: 18px; color: #8888a0; max-width: 560px; margin: 0 auto; }
+        .ms-grid { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; padding: 0 24px 60px; }
+        .ms-card { background: #12121a; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden; transition: all 0.3s; }
+        .ms-card:hover { transform: translateY(-4px); border-color: ${accent}44; box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 40px var(--glow); }
+        .ms-card-img { width: 100%; aspect-ratio: 16/10; overflow: hidden; background: #1a1a26; }
+        .ms-card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
+        .ms-card:hover .ms-card-img img { transform: scale(1.05); }
+        .ms-card-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #8888a0; }
+        .ms-card-body { padding: 20px; }
+        .ms-card-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .ms-card-desc { font-size: 14px; color: #8888a0; margin-bottom: 14px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .ms-card-price { display: inline-block; font-size: 15px; font-weight: 700; color: #10b981; margin-bottom: 14px; }
+        .ms-card-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 22px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), #a855f7); color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; box-shadow: 0 4px 16px var(--glow); }
+        .ms-footer { border-top: 1px solid rgba(255,255,255,0.06); padding: 28px; text-align: center; color: #8888a0; font-size: 13px; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .ms-card { animation: fadeUp 0.5s ease forwards; opacity: 0; }
+        .ms-card:nth-child(1) { animation-delay: 0.05s; }
+        .ms-card:nth-child(2) { animation-delay: 0.1s; }
+        .ms-card:nth-child(3) { animation-delay: 0.15s; }
+        .ms-card:nth-child(4) { animation-delay: 0.2s; }
+        @media (max-width: 768px) { .ms-hero { padding: 50px 16px 40px; } .ms-grid { padding: 0 16px 40px; grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header class="ms-header">
+        <div class="ms-header-inner">
+            <a href="/" class="ms-logo">
+                <div class="ms-logo-icon">
+                    ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="">` : `<svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24" width="18" height="18"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`}
+                </div>
+                ${escapeHtml(title)}
+            </a>
+        </div>
+    </header>
+
+    <section class="ms-hero">
+        <h1>${escapeHtml(title)}</h1>
+        ${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}
+    </section>
+
+    <div class="ms-grid">
+        ${productCards}
+    </div>
+
+    ${optinHtml}
+
+    <footer class="ms-footer">
+        <p>© ${new Date().getFullYear()} ${escapeHtml(title)}. All rights reserved.</p>
+    </footer>
+</body>
+</html>`;
+}
+
+function buildOptinSection(microsite, accent) {
+    const headline = microsite.optin_headline || 'Get an Exclusive Discount';
+    const incentive = microsite.optin_incentive || 'Enter your email to receive your special offer link.';
+    return `
+    <div style="max-width:520px;margin:40px auto;padding:36px;background:linear-gradient(135deg,${accent}22,${accent}11);border-radius:20px;border:1px solid ${accent}44;text-align:center;">
+        <h3 style="font-size:24px;font-weight:800;color:#f0f0f5;margin-bottom:8px;">${escapeHtml(headline)}</h3>
+        <p style="color:#8888a0;font-size:15px;margin-bottom:20px;">${escapeHtml(incentive)}</p>
+        <form data-at-form="optin" method="POST" action="/api/leads" style="display:flex;flex-direction:column;gap:10px;max-width:360px;margin:0 auto;">
+            <input type="text" name="name" placeholder="Your Name" style="padding:14px 18px;border:1px solid rgba(255,255,255,0.1);background:#12121a;color:#f0f0f5;border-radius:10px;font-size:15px;" />
+            <input type="email" name="email" placeholder="Your Email" required style="padding:14px 18px;border:1px solid rgba(255,255,255,0.1);background:#12121a;color:#f0f0f5;border-radius:10px;font-size:15px;" />
+            <button type="submit" style="padding:16px;background:linear-gradient(135deg,${accent},#a855f7);color:#fff;font-size:16px;font-weight:700;border:none;border-radius:10px;cursor:pointer;">Get My Discount →</button>
+        </form>
+        <p style="color:#666;font-size:11px;margin-top:10px;">We respect your privacy. Unsubscribe anytime.</p>
+    </div>`;
+}

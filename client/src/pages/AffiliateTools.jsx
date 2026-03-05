@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { affiliateApi, clickbankApi, storefrontApi } from '../lib/api';
+import { affiliateApi, clickbankApi, storefrontApi, micrositeApi } from '../lib/api';
 import {
     Link2, Plus, Trash2, Copy, ExternalLink, Search, DollarSign,
     FileText, Image, Video, Upload, Eye, BarChart3, MousePointerClick,
-    Store, Settings, FolderPlus, Package, EyeOff, Palette, Tag, GripVertical, Edit2, Check, X as XIcon
+    Store, Settings, FolderPlus, Package, EyeOff, Palette, Tag, GripVertical, Edit2, Check, X as XIcon, Globe, Loader
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -402,6 +402,7 @@ function StorefrontManager() {
     const subTabs = [
         { id: 'products', label: 'Showcase Products', icon: Package },
         { id: 'categories', label: 'Categories', icon: Tag },
+        { id: 'microsites', label: 'Microsites', icon: Globe },
         { id: 'settings', label: 'Branding', icon: Palette },
     ];
 
@@ -590,6 +591,9 @@ function StorefrontManager() {
                     </div>
                 </div>
             )}
+
+            {/* ── Microsites Sub-Tab ── */}
+            {subTab === 'microsites' && <MicrositeManager />}
         </div>
     );
 }
@@ -834,6 +838,290 @@ function CreateModal({ tab, onClose, onCreated }) {
                     <div className="flex justify-end gap-3 pt-2">
                         <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
                         <button type="submit" disabled={submitting} className="btn-primary">{submitting ? 'Creating...' : 'Create'}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Microsite Manager — Create subdomains, generate product pages
+// ═══════════════════════════════════════════════════════════
+
+function MicrositeManager() {
+    const [microsites, setMicrosites] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showCreate, setShowCreate] = useState(false);
+    const [selectedMs, setSelectedMs] = useState(null);
+    const [msProducts, setMsProducts] = useState([]);
+    const [showGenerate, setShowGenerate] = useState(false);
+    const [generating, setGenerating] = useState(false);
+    const [genForm, setGenForm] = useState({ source_url: '', affiliate_url: '' });
+
+    useEffect(() => { loadMicrosites(); }, []);
+
+    async function loadMicrosites() {
+        setLoading(true);
+        try {
+            const res = await micrositeApi.list();
+            setMicrosites(res.microsites || []);
+        } catch (err) { toast.error(err.message); }
+        finally { setLoading(false); }
+    }
+
+    async function createMicrosite(form) {
+        try {
+            const res = await micrositeApi.create(form);
+            setMicrosites(p => [res.microsite, ...p]);
+            setShowCreate(false);
+            toast.success(`${form.subdomain}.dealfindai.com created!`);
+        } catch (err) { toast.error(err.message); }
+    }
+
+    async function deleteMicrosite(id) {
+        if (!confirm('Delete this microsite and all its products?')) return;
+        try {
+            await micrositeApi.delete(id);
+            setMicrosites(p => p.filter(m => m.id !== id));
+            if (selectedMs?.id === id) { setSelectedMs(null); setMsProducts([]); }
+            toast.success('Microsite deleted');
+        } catch (err) { toast.error(err.message); }
+    }
+
+    async function selectMicrosite(ms) {
+        setSelectedMs(ms);
+        try {
+            const res = await micrositeApi.listProducts(ms.id);
+            setMsProducts(res.products || []);
+        } catch (err) { toast.error(err.message); }
+    }
+
+    async function generateProduct() {
+        if (!genForm.source_url || !genForm.affiliate_url) return toast.error('Both URLs are required');
+        setGenerating(true);
+        try {
+            const res = await micrositeApi.generateProduct(selectedMs.id, genForm);
+            setMsProducts(p => [...p, res.product]);
+            setMicrosites(prev => prev.map(m => m.id === selectedMs.id ? { ...m, product_count: (m.product_count || 0) + 1 } : m));
+            setGenForm({ source_url: '', affiliate_url: '' });
+            setShowGenerate(false);
+            toast.success('Product page generated!');
+        } catch (err) { toast.error(err.message); }
+        finally { setGenerating(false); }
+    }
+
+    async function removeProduct(prodId) {
+        if (!confirm('Remove this product?')) return;
+        try {
+            await micrositeApi.removeProduct(selectedMs.id, prodId);
+            setMsProducts(p => p.filter(x => x.id !== prodId));
+            setMicrosites(prev => prev.map(m => m.id === selectedMs.id ? { ...m, product_count: Math.max(0, (m.product_count || 1) - 1) } : m));
+            toast.success('Product removed');
+        } catch (err) { toast.error(err.message); }
+    }
+
+    if (loading) return <div className="card animate-pulse h-48" />;
+
+    return (
+        <div className="space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <p className="text-sm text-gray-400">
+                        {microsites.length} microsite{microsites.length !== 1 ? 's' : ''}
+                    </p>
+                </div>
+                <button onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2 text-sm">
+                    <Plus className="w-4 h-4" /> New Microsite
+                </button>
+            </div>
+
+            {/* Microsites Grid */}
+            {microsites.length === 0 ? (
+                <EmptyState icon={Globe} text="No microsites yet. Create a subdomain to start adding products." />
+            ) : (
+                <div className="space-y-2">
+                    {/* Table header */}
+                    <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-xs text-gray-500 font-medium uppercase">
+                        <div className="col-span-3">Subdomain</div>
+                        <div className="col-span-3">Title</div>
+                        <div className="col-span-2 text-center">Products</div>
+                        <div className="col-span-2 text-center">Status</div>
+                        <div className="col-span-2 text-right">Actions</div>
+                    </div>
+                    {microsites.map(ms => (
+                        <div
+                            key={ms.id}
+                            className={`card cursor-pointer transition-all ${selectedMs?.id === ms.id ? 'ring-1 ring-brand-500 bg-brand-500/5' : 'hover:bg-surface-700'
+                                }`}
+                            onClick={() => selectMicrosite(ms)}
+                        >
+                            <div className="grid grid-cols-12 gap-4 items-center">
+                                <div className="col-span-12 md:col-span-3">
+                                    <div className="flex items-center gap-2">
+                                        <Globe className="w-4 h-4 text-brand-400" />
+                                        <span className="font-medium text-white text-sm">{ms.subdomain}</span>
+                                        <span className="text-xs text-gray-600">.dealfindai.com</span>
+                                    </div>
+                                </div>
+                                <div className="col-span-12 md:col-span-3">
+                                    <span className="text-sm text-gray-300">{ms.site_title || '—'}</span>
+                                </div>
+                                <div className="col-span-6 md:col-span-2 text-center">
+                                    <span className="badge badge-info text-xs">{ms.product_count || 0} products</span>
+                                </div>
+                                <div className="col-span-6 md:col-span-2 text-center">
+                                    <span className={`text-xs px-2 py-1 rounded-full ${ms.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                        {ms.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                </div>
+                                <div className="col-span-12 md:col-span-2 flex gap-1 justify-end">
+                                    <a href={`https://${ms.subdomain}.dealfindai.com`} target="_blank" rel="noopener" onClick={e => e.stopPropagation()} className="p-2 hover:bg-white/10 rounded-lg" title="Open site">
+                                        <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                                    </a>
+                                    <button onClick={e => { e.stopPropagation(); deleteMicrosite(ms.id); }} className="p-2 hover:bg-red-500/10 rounded-lg" title="Delete">
+                                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Selected Microsite Details */}
+            {selectedMs && (
+                <div className="space-y-4">
+                    <div className="card bg-gradient-to-r from-brand-500/10 to-purple-500/10 border-brand-500/20">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="font-semibold text-white flex items-center gap-2">
+                                    <Globe className="w-4 h-4 text-brand-400" />
+                                    {selectedMs.subdomain}.dealfindai.com
+                                </h3>
+                                <p className="text-sm text-gray-400 mt-1">{selectedMs.site_title}</p>
+                            </div>
+                            <button onClick={() => setShowGenerate(true)} className="btn-primary flex items-center gap-2 text-sm">
+                                <Plus className="w-4 h-4" /> Add Product
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Products list */}
+                    {msProducts.length === 0 ? (
+                        <EmptyState icon={Package} text="No products yet. Click 'Add Product' to scrape a product URL and generate a showcase page." />
+                    ) : (
+                        <div className="space-y-2">
+                            {msProducts.map(prod => (
+                                <div key={prod.id} className="card group">
+                                    <div className="flex gap-4">
+                                        <div className="w-20 h-14 rounded-lg bg-surface-800 overflow-hidden flex-shrink-0">
+                                            {prod.card_image_url ? (
+                                                <img src={prod.card_image_url} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-gray-600">
+                                                    <Image className="w-5 h-5" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-medium text-white text-sm truncate">{prod.product_name}</h4>
+                                            <p className="text-xs text-gray-500 truncate mt-0.5">{prod.source_url}</p>
+                                            {prod.price_label && <span className="text-xs text-emerald-400 font-medium">{prod.price_label}</span>}
+                                        </div>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity items-center">
+                                            <a href={`https://${selectedMs.subdomain}.dealfindai.com/${prod.slug}`} target="_blank" rel="noopener" className="p-2 hover:bg-white/10 rounded-lg" title="Preview">
+                                                <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                                            </a>
+                                            <button onClick={() => { navigator.clipboard.writeText(`https://${selectedMs.subdomain}.dealfindai.com/${prod.slug}`); toast.success('URL copied!'); }} className="p-2 hover:bg-white/10 rounded-lg" title="Copy URL">
+                                                <Copy className="w-3.5 h-3.5 text-gray-400" />
+                                            </button>
+                                            <button onClick={() => removeProduct(prod.id)} className="p-2 hover:bg-red-500/10 rounded-lg" title="Remove">
+                                                <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Create Microsite Modal */}
+            {showCreate && <CreateMicrositeModal onClose={() => setShowCreate(false)} onCreate={createMicrosite} />}
+
+            {/* Generate Product Modal */}
+            {showGenerate && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => !generating && setShowGenerate(false)}>
+                    <div className="card w-full max-w-md animate-slide-in-right" onClick={e => e.stopPropagation()}>
+                        <h2 className="text-lg font-bold text-white mb-1">Generate Product Page</h2>
+                        <p className="text-sm text-gray-500 mb-5">Paste a product URL and your affiliate link. AI will scrape the page and generate a premium showcase.</p>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm text-gray-300 mb-1">Product URL</label>
+                                <input type="url" value={genForm.source_url} onChange={e => setGenForm(p => ({ ...p, source_url: e.target.value }))} className="input-field" placeholder="https://www.salussaunas.com/products/dynamic" disabled={generating} />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-300 mb-1">Your Affiliate / Coupon Link</label>
+                                <input type="url" value={genForm.affiliate_url} onChange={e => setGenForm(p => ({ ...p, affiliate_url: e.target.value }))} className="input-field" placeholder="https://www.salussaunas.com/?snowball=LUXURYUNBOUND" disabled={generating} />
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button type="button" onClick={() => setShowGenerate(false)} disabled={generating} className="btn-secondary">Cancel</button>
+                                <button onClick={generateProduct} disabled={generating} className="btn-primary flex items-center gap-2">
+                                    {generating ? <><Loader className="w-4 h-4 animate-spin" /> Generating...</> : 'Generate Product Page'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function CreateMicrositeModal({ onClose, onCreate }) {
+    const [form, setForm] = useState({ subdomain: '', site_title: '', site_subtitle: '', accent_color: '#6366f1' });
+    const [submitting, setSubmitting] = useState(false);
+
+    async function handleSubmit(e) {
+        e.preventDefault();
+        setSubmitting(true);
+        await onCreate(form);
+        setSubmitting(false);
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
+            <div className="card w-full max-w-md animate-slide-in-right" onClick={e => e.stopPropagation()}>
+                <h2 className="text-lg font-bold text-white mb-4">Create Microsite</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm text-gray-300 mb-1">Subdomain</label>
+                        <div className="flex items-center gap-2">
+                            <input type="text" value={form.subdomain} onChange={e => setForm(p => ({ ...p, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))} className="input-field" placeholder="spas" required />
+                            <span className="text-sm text-gray-500 whitespace-nowrap">.dealfindai.com</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm text-gray-300 mb-1">Site Title</label>
+                        <input type="text" value={form.site_title} onChange={e => setForm(p => ({ ...p, site_title: e.target.value }))} className="input-field" placeholder="Luxury Spa Collection" />
+                    </div>
+                    <div>
+                        <label className="block text-sm text-gray-300 mb-1">Subtitle</label>
+                        <input type="text" value={form.site_subtitle} onChange={e => setForm(p => ({ ...p, site_subtitle: e.target.value }))} className="input-field" placeholder="Premium wellness products curated for you" />
+                    </div>
+                    <div>
+                        <label className="block text-sm text-gray-300 mb-1">Accent Color</label>
+                        <div className="flex gap-2">
+                            <input type="color" value={form.accent_color} onChange={e => setForm(p => ({ ...p, accent_color: e.target.value }))} className="w-10 h-10 rounded-lg border border-white/10 cursor-pointer" />
+                            <input type="text" value={form.accent_color} onChange={e => setForm(p => ({ ...p, accent_color: e.target.value }))} className="input-field flex-1" />
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+                        <button type="submit" disabled={submitting} className="btn-primary">{submitting ? 'Creating...' : 'Create Microsite'}</button>
                     </div>
                 </form>
             </div>

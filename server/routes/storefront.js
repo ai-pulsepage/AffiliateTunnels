@@ -320,4 +320,244 @@ router.get('/published-pages', authenticate, async (req, res) => {
     }
 });
 
+
+// ═══════════════════════════════════════════════════════════
+// MICROSITES — Admin CRUD
+// ═══════════════════════════════════════════════════════════
+
+const RESERVED_SUBDOMAINS = ['app', 'www', 'mail', 'api', 'admin', 'ftp', 'smtp', 'pop', 'imap', 'ns1', 'ns2', 'mx', 'test', 'staging', 'dev'];
+
+// GET /api/storefront/microsites — list all microsites
+router.get('/microsites', authenticate, async (req, res) => {
+    try {
+        const result = await query(
+            `SELECT m.*,
+                    (SELECT COUNT(*) FROM microsite_products mp WHERE mp.microsite_id = m.id)::int AS product_count
+             FROM microsites m WHERE m.user_id = $1 ORDER BY m.created_at DESC`,
+            [req.user.id]
+        );
+        res.json({ microsites: result.rows });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to load microsites' });
+    }
+});
+
+// POST /api/storefront/microsites — create a microsite
+router.post('/microsites', authenticate, async (req, res) => {
+    try {
+        let { subdomain, site_title, site_subtitle, accent_color } = req.body;
+        if (!subdomain) return res.status(400).json({ error: 'Subdomain is required' });
+
+        // Clean subdomain
+        subdomain = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/(^-|-$)/g, '');
+        if (!subdomain) return res.status(400).json({ error: 'Invalid subdomain' });
+        if (RESERVED_SUBDOMAINS.includes(subdomain)) return res.status(400).json({ error: `"${subdomain}" is a reserved subdomain` });
+
+        const result = await query(
+            `INSERT INTO microsites (user_id, subdomain, site_title, site_subtitle, accent_color)
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [req.user.id, subdomain, site_title || '', site_subtitle || '', accent_color || '#6366f1']
+        );
+        res.status(201).json({ microsite: result.rows[0] });
+    } catch (err) {
+        if (err.code === '23505') return res.status(409).json({ error: 'That subdomain already exists' });
+        res.status(500).json({ error: 'Failed to create microsite' });
+    }
+});
+
+// PUT /api/storefront/microsites/:id — update microsite settings
+router.put('/microsites/:id', authenticate, async (req, res) => {
+    try {
+        const { site_title, site_subtitle, accent_color, logo_url, optin_enabled, optin_headline, optin_incentive, is_active } = req.body;
+
+        const result = await query(
+            `UPDATE microsites SET
+                site_title = COALESCE($1, site_title),
+                site_subtitle = COALESCE($2, site_subtitle),
+                accent_color = COALESCE($3, accent_color),
+                logo_url = $4,
+                optin_enabled = COALESCE($5, optin_enabled),
+                optin_headline = COALESCE($6, optin_headline),
+                optin_incentive = COALESCE($7, optin_incentive),
+                is_active = COALESCE($8, is_active)
+             WHERE id = $9 AND user_id = $10 RETURNING *`,
+            [site_title, site_subtitle, accent_color, logo_url ?? null, optin_enabled, optin_headline, optin_incentive, is_active, req.params.id, req.user.id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Microsite not found' });
+        res.json({ microsite: result.rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update microsite' });
+    }
+});
+
+// DELETE /api/storefront/microsites/:id
+router.delete('/microsites/:id', authenticate, async (req, res) => {
+    try {
+        const result = await query(
+            'DELETE FROM microsites WHERE id = $1 AND user_id = $2 RETURNING id',
+            [req.params.id, req.user.id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Microsite not found' });
+        res.json({ message: 'Microsite deleted' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete microsite' });
+    }
+});
+
+// ─── Microsite Products ───
+
+// GET /api/storefront/microsites/:id/products
+router.get('/microsites/:id/products', authenticate, async (req, res) => {
+    try {
+        const result = await query(
+            'SELECT * FROM microsite_products WHERE microsite_id = $1 AND user_id = $2 ORDER BY sort_order, created_at',
+            [req.params.id, req.user.id]
+        );
+        res.json({ products: result.rows });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to load microsite products' });
+    }
+});
+
+// POST /api/storefront/microsites/:id/generate-product — scrape + AI generate
+router.post('/microsites/:id/generate-product', authenticate, async (req, res) => {
+    try {
+        const { source_url, affiliate_url } = req.body;
+        if (!source_url || !affiliate_url) {
+            return res.status(400).json({ error: 'source_url and affiliate_url are required' });
+        }
+
+        // Verify microsite belongs to user
+        const msCheck = await query('SELECT id FROM microsites WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+        if (msCheck.rows.length === 0) return res.status(404).json({ error: 'Microsite not found' });
+
+        // Step 1: Scrape the product URL
+        let parsedUrl;
+        try { parsedUrl = new URL(source_url); }
+        catch { return res.status(400).json({ error: 'Invalid source URL' }); }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+
+        const fetchResponse = await fetch(parsedUrl.href, {
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'identity',
+            },
+            signal: controller.signal,
+            redirect: 'follow',
+        });
+        clearTimeout(timeout);
+
+        if (!fetchResponse.ok) {
+            return res.status(400).json({ error: `Page returned ${fetchResponse.status}` });
+        }
+
+        const html = await fetchResponse.text();
+
+        // Extract text content
+        let text = html
+            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+            .replace(/&#\d+;/g, '').replace(/\s+/g, ' ').trim();
+        if (text.length > 15000) text = text.substring(0, 15000);
+
+        // Extract images
+        const images = [];
+        const seenUrls = new Set();
+        const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)/i);
+        if (ogImageMatch?.[1]) {
+            try { const u = new URL(ogImageMatch[1], parsedUrl.origin).href; images.push(u); seenUrls.add(u); } catch { }
+        }
+        const imgRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
+        let imgMatch;
+        while ((imgMatch = imgRegex.exec(html)) !== null && images.length < 8) {
+            try {
+                const u = new URL(imgMatch[1], parsedUrl.origin).href;
+                if (seenUrls.has(u)) continue;
+                const lower = u.toLowerCase();
+                if (lower.includes('icon') || lower.includes('logo') || lower.includes('favicon') ||
+                    lower.includes('pixel') || lower.includes('tracker') || lower.endsWith('.svg') ||
+                    lower.includes('data:image')) continue;
+                images.push(u); seenUrls.add(u);
+            } catch { }
+        }
+
+        // Extract basic metadata
+        const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
+        const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)/i);
+        const productName = titleMatch?.[1]?.replace(/&[^;]+;/g, '').trim() || 'Product';
+        const description = metaMatch?.[1]?.trim() || '';
+
+        // Step 2: AI intelligence extraction
+        const { extractProductIntelligence, generateArticlePage } = require('../services/ai-writer');
+        const { getSetting } = require('../config/settings');
+        const apiKey = process.env.GEMINI_API_KEY || await getSetting('gemini_api_key');
+        let productIntel = null;
+        if (apiKey) {
+            try { productIntel = await extractProductIntelligence(description + '\n\n' + text, apiKey); }
+            catch (e) { console.warn('Intel extraction non-fatal:', e.message); }
+        }
+
+        const finalName = productIntel?.productName || productName;
+        const finalDesc = productIntel?.description || description || text.substring(0, 300);
+
+        // Step 3: AI generate the showcase page
+        const generatedHtml = await generateArticlePage({
+            productName: finalName,
+            productDescription: finalDesc,
+            affiliateLink: affiliate_url,
+            style: 'microsite_showcase',
+            productIntel,
+            images,
+        });
+
+        // Step 4: Create slug and save to DB
+        const slug = finalName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').substring(0, 100);
+
+        const result = await query(
+            `INSERT INTO microsite_products (microsite_id, user_id, source_url, affiliate_url, product_name, product_desc, slug, card_image_url, images, price_label, generated_html, product_intel)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+             ON CONFLICT (microsite_id, source_url) DO UPDATE SET
+                affiliate_url = $4, product_name = $5, product_desc = $6, slug = $7,
+                card_image_url = $8, images = $9, generated_html = $11, product_intel = $12
+             RETURNING *`,
+            [
+                req.params.id, req.user.id, source_url, affiliate_url,
+                finalName, finalDesc, slug,
+                images[0] || '', JSON.stringify(images),
+                productIntel?.pricing?.[0]?.totalPrice || '',
+                generatedHtml, JSON.stringify(productIntel || {})
+            ]
+        );
+
+        res.status(201).json({ product: result.rows[0] });
+    } catch (err) {
+        console.error('Generate product error:', err);
+        if (err.name === 'AbortError') {
+            return res.status(408).json({ error: 'Request timed out' });
+        }
+        res.status(500).json({ error: err.message || 'Failed to generate product page' });
+    }
+});
+
+// DELETE /api/storefront/microsites/:msId/products/:prodId
+router.delete('/microsites/:msId/products/:prodId', authenticate, async (req, res) => {
+    try {
+        const result = await query(
+            'DELETE FROM microsite_products WHERE id = $1 AND microsite_id = $2 AND user_id = $3 RETURNING id',
+            [req.params.prodId, req.params.msId, req.user.id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Product not found' });
+        res.json({ message: 'Product removed' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to remove product' });
+    }
+});
+
 module.exports = router;
