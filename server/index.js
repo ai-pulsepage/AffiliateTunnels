@@ -14,6 +14,7 @@ const { pool } = require('./config/db');
 const { loadSettings } = require('./config/settings');
 const { apiLimiter } = require('./middleware/rateLimiter');
 const { startDripScheduler } = require('./services/drip-scheduler');
+const { startBlogScheduler } = require('./services/blogmaker-scheduler');
 
 // Route imports
 const authRoutes = require('./routes/auth');
@@ -436,6 +437,9 @@ async function start() {
 
         // Start drip email scheduler
         startDripScheduler();
+
+        // Start blog content scheduler
+        startBlogScheduler();
 
         app.listen(PORT, () => {
             console.log(`\n🚀 AffiliateTunnels server running on port ${PORT}`);

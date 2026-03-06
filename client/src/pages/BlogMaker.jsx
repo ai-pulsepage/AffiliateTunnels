@@ -119,6 +119,16 @@ export default function BlogMaker() {
         setSuggestingTopics(prev => ({ ...prev, [workerId]: false }));
     }
 
+    async function publishPost(postId, action) {
+        const res = await fetch(`${API}/api/blogmaker/posts/${postId}/${action}`, {
+            method: 'POST', credentials: 'include',
+        });
+        if (res.ok) {
+            // Refresh posts for all expanded workers
+            if (expandedWorker) loadWorkerPosts(expandedWorker);
+        }
+    }
+
     function toggleExpand(workerId) {
         if (expandedWorker === workerId) {
             setExpandedWorker(null);
@@ -277,10 +287,18 @@ export default function BlogMaker() {
                                                                 <FileText className="w-4 h-4 text-gray-500 shrink-0" />
                                                                 <div className="min-w-0">
                                                                     <p className="text-sm text-white font-medium truncate">{post.title}</p>
-                                                                    <p className="text-xs text-gray-500">{post.target_keyword} · {post.status} · {new Date(post.created_at).toLocaleDateString()}</p>
+                                                                    <p className="text-xs text-gray-500">{post.target_keyword} · {new Date(post.created_at).toLocaleDateString()}</p>
                                                                 </div>
                                                             </div>
-                                                            <a href={`/blog/${post.id}/edit`} className="text-xs text-brand-400 hover:text-brand-300 font-medium shrink-0 ml-3">Edit</a>
+                                                            <div className="flex items-center gap-2 shrink-0 ml-3">
+                                                                <span className={`px-2 py-0.5 rounded text-xs font-semibold ${post.status === 'published' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>{post.status}</span>
+                                                                {post.status === 'draft' ? (
+                                                                    <button onClick={() => publishPost(post.id, 'publish')} className="text-xs text-green-400 hover:text-green-300 font-medium">Publish</button>
+                                                                ) : (
+                                                                    <button onClick={() => publishPost(post.id, 'unpublish')} className="text-xs text-yellow-400 hover:text-yellow-300 font-medium">Unpublish</button>
+                                                                )}
+                                                                <a href={`/blog/${post.id}/edit`} className="text-xs text-brand-400 hover:text-brand-300 font-medium">Edit</a>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>

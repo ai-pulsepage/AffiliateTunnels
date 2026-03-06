@@ -42,7 +42,7 @@ const TRAFFIC_SOURCE_PAGES = {
 
 router.post('/', tierGate('funnels'), async (req, res) => {
     try {
-        const { name, slug, traffic_source = 'custom' } = req.body;
+        const { name, slug, traffic_source = 'custom', category } = req.body;
         if (!name) return res.status(400).json({ error: 'Funnel name is required' });
 
         const funnelSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -54,8 +54,8 @@ router.post('/', tierGate('funnels'), async (req, res) => {
         }
 
         const result = await query(
-            `INSERT INTO funnels (user_id, name, slug, traffic_source) VALUES ($1, $2, $3, $4) RETURNING *`,
-            [req.user.id, name, funnelSlug, traffic_source]
+            `INSERT INTO funnels (user_id, name, slug, traffic_source, category) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [req.user.id, name, funnelSlug, traffic_source, category || null]
         );
 
         const funnelId = result.rows[0].id;
@@ -130,7 +130,7 @@ router.get('/:id', async (req, res) => {
 // PUT /api/funnels/:id
 router.put('/:id', async (req, res) => {
     try {
-        const { name, slug, status, brand_colors, brand_fonts, seo_title, seo_description, og_image_url, ga4_id, gads_id, fb_pixel_id, tiktok_pixel_id, traffic_source, affiliate_link } = req.body;
+        const { name, slug, status, brand_colors, brand_fonts, seo_title, seo_description, og_image_url, ga4_id, gads_id, fb_pixel_id, tiktok_pixel_id, traffic_source, affiliate_link, category } = req.body;
 
         const result = await query(
             `UPDATE funnels SET
@@ -148,9 +148,10 @@ router.put('/:id', async (req, res) => {
         tiktok_pixel_id = COALESCE($12, tiktok_pixel_id),
         traffic_source = COALESCE($13, traffic_source),
         affiliate_link = COALESCE($14, affiliate_link),
+        category = COALESCE($15, category),
         updated_at = NOW()
-       WHERE id = $15 AND user_id = $16 RETURNING *`,
-            [name, slug, status, JSON.stringify(brand_colors), JSON.stringify(brand_fonts), seo_title, seo_description, og_image_url, ga4_id, gads_id, fb_pixel_id, tiktok_pixel_id, traffic_source, affiliate_link, req.params.id, req.user.id]
+       WHERE id = $16 AND user_id = $17 RETURNING *`,
+            [name, slug, status, JSON.stringify(brand_colors), JSON.stringify(brand_fonts), seo_title, seo_description, og_image_url, ga4_id, gads_id, fb_pixel_id, tiktok_pixel_id, traffic_source, affiliate_link, category, req.params.id, req.user.id]
         );
 
         if (result.rows.length === 0) {

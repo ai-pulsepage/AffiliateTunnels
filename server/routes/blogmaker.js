@@ -170,4 +170,54 @@ router.post('/workers/:id/generate', async (req, res) => {
     }
 });
 
+// ─── PUBLISH A BLOG POST ────────────────────────────────────────
+router.post('/posts/:postId/publish', async (req, res) => {
+    try {
+        const result = await query(
+            `UPDATE blog_posts SET status = 'published', published_at = NOW(), updated_at = NOW()
+             WHERE id = $1 AND user_id = $2 RETURNING *`,
+            [req.params.postId, req.user.id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+        res.json({ post: result.rows[0], message: 'Blog post published' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to publish post' });
+    }
+});
+
+// ─── UNPUBLISH A BLOG POST ──────────────────────────────────────
+router.post('/posts/:postId/unpublish', async (req, res) => {
+    try {
+        const result = await query(
+            `UPDATE blog_posts SET status = 'draft', updated_at = NOW()
+             WHERE id = $1 AND user_id = $2 RETURNING *`,
+            [req.params.postId, req.user.id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+        res.json({ post: result.rows[0], message: 'Blog post unpublished' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to unpublish post' });
+    }
+});
+
+// ─── ACTIVATE WORKER SCHEDULE ───────────────────────────────────
+router.post('/workers/:id/activate-schedule', async (req, res) => {
+    try {
+        const { schedule_cron } = req.body;
+        // Set next_run_at to now + small delay so first run happens soon
+        const nextRun = new Date(Date.now() + 5 * 60 * 1000); // 5 min from now
+
+        const result = await query(
+            `UPDATE blog_workers SET status = 'active', next_run_at = $3,
+             schedule_cron = COALESCE($4, schedule_cron), updated_at = NOW()
+             WHERE id = $1 AND user_id = $2 RETURNING *`,
+            [req.params.id, req.user.id, nextRun, schedule_cron || null]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Worker not found' });
+        res.json({ worker: result.rows[0], message: 'Worker schedule activated' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to activate schedule' });
+    }
+});
+
 module.exports = router;
