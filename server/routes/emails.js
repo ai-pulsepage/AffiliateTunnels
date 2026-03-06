@@ -146,6 +146,51 @@ router.post('/drips/:funnelId', async (req, res) => {
     }
 });
 
+// === Category-Based Drip Campaigns ===
+
+// GET /api/emails/drips-by-category — list all category-based drip campaigns
+router.get('/drips-by-category', async (req, res) => {
+    try {
+        const result = await query(
+            `SELECT dc.*,
+             (SELECT COUNT(*) FROM leads WHERE category = dc.category AND consent_marketing = true) as subscriber_count,
+             (SELECT json_agg(
+               json_build_object(
+                 'id', de.id, 'step_order', de.step_order, 'delay_days', de.delay_days,
+                 'subject_override', de.subject_override, 'email_template_id', de.email_template_id,
+                 'template_name', et.name, 'template_subject', et.subject
+               ) ORDER BY de.step_order
+             ) FROM drip_emails de LEFT JOIN email_templates et ON de.email_template_id = et.id
+             WHERE de.drip_campaign_id = dc.id) as emails
+             FROM drip_campaigns dc WHERE dc.category IS NOT NULL
+             ORDER BY dc.created_at DESC`,
+        );
+        res.json({ drips: result.rows });
+    } catch (err) {
+        console.error('List category drips error:', err);
+        res.status(500).json({ error: 'Failed to list category drip campaigns' });
+    }
+});
+
+// POST /api/emails/drips-by-category — create a category-based drip campaign
+router.post('/drips-by-category', async (req, res) => {
+    try {
+        const { category, name, from_name, from_email } = req.body;
+        if (!category) return res.status(400).json({ error: 'Category is required' });
+
+        const result = await query(
+            `INSERT INTO drip_campaigns (category, name, from_name, from_email)
+             VALUES ($1, $2, $3, $4) RETURNING *`,
+            [category, name || `${category} Welcome Drip`, from_name || null, from_email || null]
+        );
+
+        res.status(201).json({ drip: result.rows[0] });
+    } catch (err) {
+        console.error('Create category drip error:', err);
+        res.status(500).json({ error: 'Failed to create category drip campaign' });
+    }
+});
+
 // PUT /api/emails/drips/:id/activate
 router.put('/drips/:id/activate', async (req, res) => {
     try {

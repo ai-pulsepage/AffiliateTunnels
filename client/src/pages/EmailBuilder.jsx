@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { emailApi, funnelApi, mediaApi } from '../lib/api';
 import { Link } from 'react-router-dom';
-import { Plus, Trash2, Mail, Pencil, Copy, Eye, X, Code2, FileText, Wand2, Send, ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Mail, Pencil, Copy, Eye, X, Code2, FileText, Wand2, Send, ImageIcon, Globe, Bell, CheckCircle, AlertCircle, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const API = import.meta.env.VITE_API_URL || '';
 const CATEGORIES = ['affiliate', 'welcome', 'followup', 'promo', 'newsletter'];
 const MERGE_TAGS = [
     { tag: '{{name}}', label: 'First Name' },
@@ -21,11 +22,19 @@ export default function EmailBuilder() {
     const [preview, setPreview] = useState(null);
     const [filter, setFilter] = useState('');
     const [funnelFilter, setFunnelFilter] = useState('');
-    const [mode, setMode] = useState('quick'); // 'quick' or 'advanced'
+    const [mode, setMode] = useState('quick');
     const [showMediaPicker, setShowMediaPicker] = useState(false);
     const [mediaFiles, setMediaFiles] = useState([]);
     const [mediaLoading, setMediaLoading] = useState(false);
     const [mediaFunnelFilter, setMediaFunnelFilter] = useState('');
+
+    // Category drips + notifications
+    const [categoryDrips, setCategoryDrips] = useState([]);
+    const [microsites, setMicrosites] = useState([]);
+    const [notifications, setNotifications] = useState([]);
+    const [showCreateDrip, setShowCreateDrip] = useState(false);
+    const [newDripCategory, setNewDripCategory] = useState('');
+    const [newDripName, setNewDripName] = useState('');
 
     // Quick Create fields
     const [quickFromName, setQuickFromName] = useState('');
@@ -34,7 +43,7 @@ export default function EmailBuilder() {
     const [quickCtaLink, setQuickCtaLink] = useState('');
     const [quickFunnel, setQuickFunnel] = useState('');
 
-    useEffect(() => { loadTemplates(); loadFunnels(); }, []);
+    useEffect(() => { loadTemplates(); loadFunnels(); loadCategoryDrips(); loadMicrosites(); loadNotifications(); }, []);
 
     async function loadTemplates() {
         try { const d = await emailApi.listTemplates(); setTemplates(d.templates || []); }
@@ -45,6 +54,57 @@ export default function EmailBuilder() {
     async function loadFunnels() {
         try { const d = await funnelApi.list(); setFunnels(d.funnels || []); }
         catch (err) { console.error(err); }
+    }
+
+    async function loadCategoryDrips() {
+        try {
+            const res = await fetch(`${API}/api/emails/drips-by-category`, { credentials: 'include' });
+            const d = await res.json();
+            setCategoryDrips(d.drips || []);
+        } catch (err) { console.error(err); }
+    }
+
+    async function loadMicrosites() {
+        try {
+            const res = await fetch(`${API}/api/storefront/microsites`, { credentials: 'include' });
+            const d = await res.json();
+            setMicrosites(d.microsites || []);
+        } catch (err) { console.error(err); }
+    }
+
+    async function loadNotifications() {
+        try {
+            const res = await fetch(`${API}/api/blogmaker/notifications`, { credentials: 'include' });
+            const d = await res.json();
+            setNotifications(d.notifications || []);
+        } catch (err) { console.error(err); }
+    }
+
+    async function createCategoryDrip() {
+        if (!newDripCategory) return;
+        const res = await fetch(`${API}/api/emails/drips-by-category`, {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category: newDripCategory, name: newDripName || undefined }),
+        });
+        if (res.ok) {
+            toast.success('Category drip campaign created');
+            setShowCreateDrip(false);
+            setNewDripCategory('');
+            setNewDripName('');
+            loadCategoryDrips();
+        }
+    }
+
+    async function approveNotification(id) {
+        await fetch(`${API}/api/blogmaker/notifications/${id}/approve`, { method: 'POST', credentials: 'include' });
+        toast.success('Notification approved — sending soon');
+        loadNotifications();
+    }
+
+    async function deleteNotification(id) {
+        await fetch(`${API}/api/blogmaker/notifications/${id}`, { method: 'DELETE', credentials: 'include' });
+        loadNotifications();
     }
 
     function startCreate() {
@@ -198,36 +258,106 @@ ${ctaHtml}
     let filtered = filter ? templates.filter(t => t.category === filter) : templates;
     if (funnelFilter) filtered = filtered.filter(t => t.funnel_id === funnelFilter);
 
+    const pendingNotifs = notifications.filter(n => n.status === 'paused');
+
     // ── List view ──
     if (!editing) {
         return (
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-white">Emails</h1>
-                        <p className="text-sm text-gray-500 mt-1">{templates.length} templates</p>
+                        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+                            <Mail className="w-7 h-7 text-brand-400" /> Campaigns
+                        </h1>
+                        <p className="text-sm text-gray-500 mt-1">Email templates, drip campaigns, and blog notifications</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        {funnels.length > 0 && (
-                            <select value={funnelFilter} onChange={e => setFunnelFilter(e.target.value)} className="input-field w-auto text-sm">
-                                <option value="">All Funnels</option>
-                                {funnels.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                            </select>
-                        )}
-                        <button onClick={startCreate} className="btn-primary flex items-center gap-2">
-                            <Plus className="w-4 h-4" /> Quick Create
-                        </button>
-                    </div>
+                    <button onClick={startCreate} className="btn-primary flex items-center gap-2">
+                        <Plus className="w-4 h-4" /> Quick Create
+                    </button>
                 </div>
 
-                {/* Drip Campaigns section */}
+                {/* Blog Notifications (admin approval) */}
+                {pendingNotifs.length > 0 && (
+                    <div className="card" style={{ borderColor: 'rgba(234, 179, 8, 0.2)' }}>
+                        <div className="flex items-center gap-2 mb-3">
+                            <AlertCircle className="w-4 h-4 text-yellow-400" />
+                            <h2 className="text-sm font-semibold text-white">Blog Notifications Awaiting Approval ({pendingNotifs.length})</h2>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-3">New blog posts generated email campaigns. Review and approve to send to subscribers.</p>
+                        <div className="space-y-2">
+                            {pendingNotifs.map(n => (
+                                <div key={n.id} className="flex items-center justify-between bg-surface-700 rounded-xl px-4 py-3">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-white text-sm font-medium truncate">{n.subject}</p>
+                                        <p className="text-gray-500 text-xs">{n.category} subscribers · {new Date(n.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                    <div className="flex gap-2 shrink-0 ml-3">
+                                        <button onClick={() => approveNotification(n.id)} className="px-3 py-1.5 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-lg text-xs font-medium">Approve</button>
+                                        <button onClick={() => deleteNotification(n.id)} className="px-3 py-1.5 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-xs font-medium">Reject</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Category Drip Campaigns (microsite-based) */}
+                <div className="card">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <Globe className="w-4 h-4 text-purple-400" />
+                            <h2 className="text-sm font-semibold text-white">Category Drip Campaigns</h2>
+                        </div>
+                        <button onClick={() => setShowCreateDrip(!showCreateDrip)} className="text-xs text-brand-400 hover:text-brand-300 font-medium flex items-center gap-1">
+                            <Plus className="w-3 h-3" /> New
+                        </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-3">Automated welcome sequences for microsite subscribers. When someone opts in, they get enrolled here.</p>
+
+                    {showCreateDrip && (
+                        <div className="bg-surface-700 rounded-xl p-4 mb-3 space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <select value={newDripCategory} onChange={e => setNewDripCategory(e.target.value)} className="input-field text-sm">
+                                    <option value="">Select microsite...</option>
+                                    {microsites.map(ms => <option key={ms.id} value={ms.subdomain}>{ms.subdomain}.dealfindai.com</option>)}
+                                </select>
+                                <input value={newDripName} onChange={e => setNewDripName(e.target.value)} placeholder="Campaign name (optional)" className="input-field text-sm" />
+                                <button onClick={createCategoryDrip} className="btn-primary text-sm">Create Drip</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {categoryDrips.length > 0 ? (
+                        <div className="space-y-2">
+                            {categoryDrips.map(d => (
+                                <Link key={d.id} to={`/drip/${d.id}`} className="flex items-center justify-between bg-surface-700 rounded-xl px-4 py-3 hover:bg-surface-600 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <Globe className="w-4 h-4 text-purple-400" />
+                                        <div>
+                                            <p className="text-white text-sm font-medium">{d.name}</p>
+                                            <p className="text-gray-500 text-xs">{d.category}.dealfindai.com · {(d.emails || []).length} steps</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xs text-gray-400"><Users className="w-3 h-3 inline mr-1" />{d.subscriber_count || 0}</span>
+                                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${d.is_active ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>{d.is_active ? 'Active' : 'Paused'}</span>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-gray-600 text-xs">No category drip campaigns yet. Create one for a microsite above.</p>
+                    )}
+                </div>
+
+                {/* Funnel Drip Campaigns */}
                 {funnels.length > 0 && (
                     <div className="card">
                         <div className="flex items-center gap-2 mb-3">
                             <Send className="w-4 h-4 text-brand-400" />
-                            <h2 className="text-sm font-semibold text-white">Drip Campaigns</h2>
+                            <h2 className="text-sm font-semibold text-white">Landing Page Drip Campaigns</h2>
                         </div>
-                        <p className="text-xs text-gray-500 mb-3">Set up automated email sequences for your funnels. Each funnel can have its own drip campaign.</p>
+                        <p className="text-xs text-gray-500 mb-3">Email sequences tied to specific landing pages.</p>
                         <div className="flex flex-wrap gap-2">
                             {funnels.map(f => (
                                 <Link key={f.id} to={`/drip/${f.id}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-700 text-gray-300 text-xs font-medium rounded-lg hover:bg-brand-600/20 hover:text-brand-400 transition-colors">

@@ -165,7 +165,40 @@ if (process.env.NODE_ENV === 'production') {
         const parts = originalHost.split('.');
         const subdomain = parts.length >= 3 ? parts[0] : null;
         const RESERVED = ['app', 'www', 'mail', 'api', 'admin', 'ftp', 'smtp', 'pop', 'imap', 'ns1', 'ns2'];
-        if (!subdomain || RESERVED.includes(subdomain)) return next();
+
+        // Serve corporate homepage for root domain (no subdomain)
+        if (!subdomain || RESERVED.includes(subdomain)) {
+            // Handle subscribe form on corporate page
+            if (req.path === '/api/subscribe' && req.method === 'POST') {
+                try {
+                    const { email, name, company, message } = req.body;
+                    if (!email) return res.status(400).json({ error: 'Email required' });
+                    const existing = await require('./config/db').query(
+                        'SELECT id FROM leads WHERE email = $1 AND category = $2', [email, 'corporate']
+                    );
+                    if (existing.rows.length > 0) return res.json({ message: 'Already subscribed', existing: true });
+                    await require('./config/db').query(
+                        `INSERT INTO leads (email, name, category, consent_marketing, custom_fields)
+                         VALUES ($1, $2, 'corporate', true, $3)`,
+                        [email, name || '', JSON.stringify({ source: 'corporate_homepage', company, message })]
+                    );
+                    return res.json({ message: 'Inquiry received' });
+                } catch (err) {
+                    console.error('Corporate subscribe error:', err);
+                    return res.status(500).json({ error: 'Failed' });
+                }
+            }
+
+            // Serve corporate homepage for root path
+            if (!subdomain && (req.path === '/' || req.path === '')) {
+                const { generateCorporateHomepage } = require('./services/corporate-homepage');
+                res.setHeader('Content-Type', 'text/html');
+                res.setHeader('Cache-Control', 'public, max-age=300');
+                return res.send(generateCorporateHomepage());
+            }
+
+            return next();
+        }
 
         // Skip API/page/link routes (except subscribe)
         if (req.path === '/api/subscribe' && req.method === 'POST') {
