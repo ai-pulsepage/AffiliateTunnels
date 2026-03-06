@@ -167,7 +167,55 @@ if (process.env.NODE_ENV === 'production') {
         const RESERVED = ['app', 'www', 'mail', 'api', 'admin', 'ftp', 'smtp', 'pop', 'imap', 'ns1', 'ns2'];
         if (!subdomain || RESERVED.includes(subdomain)) return next();
 
-        // Skip API/page/link routes
+        // Skip API/page/link routes (except subscribe)
+        if (req.path === '/api/subscribe' && req.method === 'POST') {
+            try {
+                const { email, name } = req.body;
+                if (!email) return res.status(400).json({ error: 'Email required' });
+
+                // Check if already subscribed to this category
+                const existing = await require('./config/db').query(
+                    'SELECT id FROM leads WHERE email = $1 AND category = $2',
+                    [email, subdomain]
+                );
+                if (existing.rows.length > 0) {
+                    return res.json({ message: 'Already subscribed', existing: true });
+                }
+
+                // Create lead with category + consent
+                const leadResult = await require('./config/db').query(
+                    `INSERT INTO leads (email, name, category, consent_marketing, custom_fields)
+                     VALUES ($1, $2, $3, true, $4) RETURNING id`,
+                    [email, name || '', subdomain, JSON.stringify({ source: 'microsite_optin', subdomain })]
+                );
+                const leadId = leadResult.rows[0].id;
+
+                // Auto-enroll in category drip campaign if one exists
+                const campaign = await require('./config/db').query(
+                    "SELECT id FROM drip_campaigns WHERE category = $1 AND is_active = true LIMIT 1",
+                    [subdomain]
+                );
+                if (campaign.rows.length > 0) {
+                    const emails = await require('./config/db').query(
+                        'SELECT id, delay_hours FROM drip_emails WHERE drip_campaign_id = $1 ORDER BY step_order',
+                        [campaign.rows[0].id]
+                    );
+                    for (const email of emails.rows) {
+                        const sendAt = new Date(Date.now() + (email.delay_hours || 0) * 60 * 60 * 1000);
+                        await require('./config/db').query(
+                            'INSERT INTO drip_queue (drip_email_id, lead_id, scheduled_at, status) VALUES ($1, $2, $3, $4)',
+                            [email.id, leadId, sendAt, 'pending']
+                        );
+                    }
+                }
+
+                return res.json({ message: 'Subscribed successfully', leadId });
+            } catch (err) {
+                console.error('Subscribe error:', err);
+                return res.status(500).json({ error: 'Subscribe failed' });
+            }
+        }
+
         if (req.path.startsWith('/api') || req.path.startsWith('/go/') || req.path.startsWith('/p/')) {
             return next();
         }

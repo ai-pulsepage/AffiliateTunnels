@@ -853,7 +853,63 @@ function buildMicrositeNav(microsite, accent, activePage = '') {
 }
 
 // ─── Shared Page Shell ──────────────────────────────────────────
-function buildPageShell(title, description, accent, bodyHtml, extraHead = '') {
+function buildPageShell(title, description, accent, bodyHtml, extraHead = '', microsite = null) {
+    const optinPopup = (microsite && microsite.optin_enabled) ? `
+<!-- Opt-in Popup -->
+<div id="optin-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9998;backdrop-filter:blur(4px);opacity:0;transition:opacity .3s"></div>
+<div id="optin-popup" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.95);background:#fff;border-radius:20px;padding:40px;max-width:420px;width:90%;z-index:9999;box-shadow:0 24px 64px rgba(0,0,0,0.2);text-align:center;opacity:0;transition:all .3s">
+    <div style="width:48px;height:48px;background:${accent};border-radius:12px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center">
+        <svg width="24" height="24" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+    </div>
+    <h3 style="font-size:20px;font-weight:800;color:#111;margin-bottom:8px">${escapeHtml(microsite.optin_headline || 'Stay in the Loop')}</h3>
+    <p style="font-size:14px;color:#666;margin-bottom:20px;line-height:1.5">${escapeHtml(microsite.optin_incentive || 'Get exclusive deals and new content delivered to your inbox.')}</p>
+    <form id="optin-form" style="text-align:left">
+        <input type="text" id="optin-name" placeholder="Your name (optional)" style="width:100%;padding:12px 16px;border:1px solid #e5e7eb;border-radius:10px;font-size:14px;margin-bottom:8px;outline:none">
+        <input type="email" id="optin-email" placeholder="Your email" required style="width:100%;padding:12px 16px;border:1px solid #e5e7eb;border-radius:10px;font-size:14px;margin-bottom:12px;outline:none">
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#888;margin-bottom:16px;cursor:pointer">
+            <input type="checkbox" id="optin-consent" required style="margin-top:2px;accent-color:${accent}">
+            <span>I agree to receive educational content and promotions. We never share your email with anyone.</span>
+        </label>
+        <button type="submit" id="optin-btn" style="width:100%;padding:14px;background:${accent};color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:transform .2s,opacity .2s">Subscribe</button>
+    </form>
+    <button id="optin-close" style="margin-top:16px;background:none;border:none;color:#999;font-size:13px;cursor:pointer;padding:4px 12px">No thanks</button>
+    <p id="optin-success" style="display:none;color:${accent};font-weight:600;font-size:15px;margin-top:8px">✓ You're in! Check your inbox.</p>
+</div>
+<script>
+(function(){
+    if(sessionStorage.getItem('optin_dismissed_${microsite.subdomain}'))return;
+    setTimeout(function(){
+        var o=document.getElementById('optin-overlay'),p=document.getElementById('optin-popup');
+        o.style.display='block';p.style.display='block';
+        setTimeout(function(){o.style.opacity='1';p.style.opacity='1';p.style.transform='translate(-50%,-50%) scale(1)';},50);
+    }, 5000);
+    function close(){
+        var o=document.getElementById('optin-overlay'),p=document.getElementById('optin-popup');
+        o.style.opacity='0';p.style.opacity='0';p.style.transform='translate(-50%,-50%) scale(0.95)';
+        setTimeout(function(){o.style.display='none';p.style.display='none';},300);
+        sessionStorage.setItem('optin_dismissed_${microsite.subdomain}','1');
+    }
+    document.getElementById('optin-close').onclick=close;
+    document.getElementById('optin-overlay').onclick=close;
+    document.getElementById('optin-form').onsubmit=function(e){
+        e.preventDefault();
+        var btn=document.getElementById('optin-btn');
+        btn.textContent='Subscribing...';btn.disabled=true;
+        fetch('/api/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+            email:document.getElementById('optin-email').value,
+            name:document.getElementById('optin-name').value
+        })}).then(function(r){return r.json()}).then(function(){
+            document.getElementById('optin-form').style.display='none';
+            document.getElementById('optin-close').style.display='none';
+            document.getElementById('optin-success').style.display='block';
+            sessionStorage.setItem('optin_dismissed_${microsite.subdomain}','1');
+            setTimeout(close,3000);
+        }).catch(function(){btn.textContent='Try again';btn.disabled=false;});
+    };
+})();
+</script>
+` : '';
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -889,6 +945,7 @@ footer{text-align:center;padding:32px;color:#888;font-size:13px;border-top:1px s
 </head>
 <body>
 ${bodyHtml}
+${optinPopup}
 <footer><p>© ${new Date().getFullYear()} ${escapeHtml(title.split('|')[0].trim())}</p></footer>
 </body>
 </html>`;
@@ -923,7 +980,7 @@ function buildBlogIndex(microsite, blogPosts, accent) {
     <div class="card-grid">${postsHtml}</div>
 </div>`;
 
-    return buildPageShell(`Blog | ${siteTitle}`, `Latest articles and insights from ${siteTitle}`, accent, body);
+    return buildPageShell(`Blog | ${siteTitle}`, `Latest articles and insights from ${siteTitle}`, accent, body, '', microsite);
 }
 
 // ─── Individual Blog Post Page ──────────────────────────────────
@@ -990,7 +1047,7 @@ ${post.featured_image ? `<meta property="og:image" content="${escapeHtml(post.fe
     return buildPageShell(
         post.seo_title || `${post.title} | ${siteTitle}`,
         post.seo_description || post.excerpt || '',
-        accent, body, extraHead
+        accent, body, extraHead, microsite
     );
 }
 
@@ -1023,6 +1080,6 @@ function buildReviewsPage(microsite, reviews, accent) {
     <div class="card-grid">${reviewsHtml}</div>
 </div>`;
 
-    return buildPageShell(`Reviews | ${siteTitle}`, `Product reviews and comparisons from ${siteTitle}`, accent, body);
+    return buildPageShell(`Reviews | ${siteTitle}`, `Product reviews and comparisons from ${siteTitle}`, accent, body, '', microsite);
 }
 

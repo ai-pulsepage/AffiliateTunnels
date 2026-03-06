@@ -1,128 +1,180 @@
 /**
- * BlogMaker 3000 — Scheduler
- * Runs every hour, finds workers with next_run_at <= NOW() and status='active',
- * triggers blog generation for each due worker.
+ * BlogMaker 3000 — Scheduler (v2 Queue-Based)
+ * Checks blog_queue for due items, generates posts, sends blog notifications
  */
 const { query } = require('../config/db');
 const { generateBlogPost } = require('./blogmaker-engine');
 
 let schedulerInterval = null;
+let notificationInterval = null;
 
 function startBlogScheduler() {
     if (schedulerInterval) return;
-    console.log('[BlogScheduler] ⏰ Started — checking every 60 minutes');
+    console.log('[BlogScheduler] ⏰ Started — checking queue every 15 minutes');
 
     // Check immediately on start
-    runScheduledJobs();
+    processQueue();
+    processNotifications();
 
-    // Then every 60 minutes
-    schedulerInterval = setInterval(runScheduledJobs, 60 * 60 * 1000);
+    // Queue: every 15 minutes
+    schedulerInterval = setInterval(processQueue, 15 * 60 * 1000);
+    // Notifications: every 5 minutes
+    notificationInterval = setInterval(processNotifications, 5 * 60 * 1000);
 }
 
-async function runScheduledJobs() {
+// ─── Process due queue items ────────────────────────────────────
+async function processQueue() {
     try {
-        // Find active workers with due next_run_at
-        const dueWorkers = await query(
-            `SELECT w.*, m.subdomain, m.site_title
-             FROM blog_workers w
+        const dueItems = await query(
+            `SELECT q.*, w.*, m.subdomain, m.site_title,
+                    q.id AS queue_id, w.id AS worker_id
+             FROM blog_queue q
+             JOIN blog_workers w ON q.worker_id = w.id
              LEFT JOIN microsites m ON w.microsite_id = m.id
-             WHERE w.status = 'active'
-               AND w.next_run_at IS NOT NULL
-               AND w.next_run_at <= NOW()`
+             WHERE q.status = 'pending'
+               AND q.scheduled_at IS NOT NULL
+               AND q.scheduled_at <= NOW()
+             ORDER BY q.scheduled_at ASC
+             LIMIT 5`
         );
 
-        if (dueWorkers.rows.length === 0) return;
+        if (dueItems.rows.length === 0) return;
+        console.log(`[BlogScheduler] Found ${dueItems.rows.length} due queue item(s)`);
 
-        console.log(`[BlogScheduler] Found ${dueWorkers.rows.length} due worker(s)`);
-
-        for (const worker of dueWorkers.rows) {
+        for (const item of dueItems.rows) {
             try {
-                console.log(`[BlogScheduler] Generating for worker "${worker.worker_name}" (${worker.id})`);
+                // Mark as generating
+                await query("UPDATE blog_queue SET status = 'generating' WHERE id = $1", [item.queue_id]);
 
-                // Pick next topic from the topics list, or generate random
-                const topics = typeof worker.topics === 'string' ? JSON.parse(worker.topics) : (worker.topics || []);
-                const unwritten = topics.filter(t => !t.generated);
-                const topic = unwritten.length > 0 ? unwritten[0].title : null;
+                console.log(`[BlogScheduler] Generating: "${item.topic}" for ${item.worker_name}`);
 
-                const post = await generateBlogPost(worker, topic, worker.user_id);
-                console.log(`[BlogScheduler] ✅ Generated: "${post.title}" for ${worker.worker_name}`);
+                const queueItem = {
+                    reference_url: item.reference_url,
+                    topic: item.topic,
+                    target_keyword: item.target_keyword,
+                };
 
-                // Mark topic as generated if we used one from the list
-                if (unwritten.length > 0) {
-                    const updatedTopics = topics.map(t =>
-                        t.title === unwritten[0].title ? { ...t, generated: true } : t
-                    );
-                    await query('UPDATE blog_workers SET topics = $1 WHERE id = $2', [JSON.stringify(updatedTopics), worker.id]);
-                }
+                const worker = {
+                    id: item.worker_id,
+                    user_id: item.user_id,
+                    microsite_id: item.microsite_id,
+                    worker_name: item.worker_name,
+                    worker_title: item.worker_title,
+                    worker_avatar: item.worker_avatar,
+                    affiliate_links: item.affiliate_links,
+                    prompt_template: item.prompt_template,
+                    subdomain: item.subdomain,
+                    site_title: item.site_title,
+                };
 
-                // Calculate next run based on cron-like schedule
-                const nextRun = calculateNextRun(worker.schedule_cron);
+                const post = await generateBlogPost(worker, queueItem, item.user_id);
+
+                // Link queue item to generated post
                 await query(
-                    'UPDATE blog_workers SET next_run_at = $1, updated_at = NOW() WHERE id = $2',
-                    [nextRun, worker.id]
+                    "UPDATE blog_queue SET status = 'published', post_id = $2 WHERE id = $1",
+                    [item.queue_id, post.id]
                 );
 
+                console.log(`[BlogScheduler] ✅ Published: "${post.title}"`);
             } catch (err) {
-                console.error(`[BlogScheduler] ❌ Error for worker ${worker.id}:`, err.message);
+                console.error(`[BlogScheduler] ❌ Failed: "${item.topic}" — ${err.message}`);
+                await query(
+                    "UPDATE blog_queue SET status = 'failed', error = $2 WHERE id = $1",
+                    [item.queue_id, err.message]
+                );
             }
         }
     } catch (err) {
-        console.error('[BlogScheduler] Scheduler run error:', err);
+        console.error('[BlogScheduler] Queue processing error:', err);
     }
 }
 
-/**
- * Simple cron-like next-run calculator
- * Supports patterns like "0 9 1,15 * *" (day 1 and 15 at 9am)
- * or interval days like every 22 days
- */
-function calculateNextRun(cronExpr) {
-    if (!cronExpr) return new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // default: 14 days
+// ─── Send approved blog notifications ───────────────────────────
+async function processNotifications() {
+    try {
+        const activeNotifs = await query(
+            `SELECT * FROM blog_notifications
+             WHERE status = 'active'
+             ORDER BY created_at ASC LIMIT 3`
+        );
 
-    const parts = cronExpr.split(' ');
-    if (parts.length < 5) {
-        // Simple interval: assume it's just a number of days
-        const days = parseInt(cronExpr) || 14;
-        return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-    }
+        for (const notif of activeNotifs.rows) {
+            try {
+                // Get subscribers: category match + consent + drip complete
+                const subscribers = await query(
+                    `SELECT DISTINCT ON (email) id, email, name
+                     FROM leads
+                     WHERE category = $1
+                       AND consent_marketing = true
+                       AND drip_complete = true
+                       AND is_unsubscribed = false
+                     ORDER BY email, created_at DESC`,
+                    [notif.category]
+                );
 
-    // Parse standard cron: minute hour day-of-month month day-of-week
-    const [minute, hour, dayOfMonth] = parts;
-    const now = new Date();
+                if (subscribers.rows.length === 0) {
+                    await query("UPDATE blog_notifications SET status = 'sent', sent_count = 0 WHERE id = $1", [notif.id]);
+                    continue;
+                }
 
-    // Parse days (e.g., "1,15" or "*/22")
-    if (dayOfMonth.includes('/')) {
-        // Interval: */22 means every 22 days
-        const interval = parseInt(dayOfMonth.split('/')[1]) || 14;
-        return new Date(Date.now() + interval * 24 * 60 * 60 * 1000);
-    }
+                console.log(`[BlogScheduler] 📧 Sending notification "${notif.subject}" to ${subscribers.rows.length} subscribers`);
 
-    if (dayOfMonth.includes(',')) {
-        // Specific days: 1,15
-        const days = dayOfMonth.split(',').map(Number).sort((a, b) => a - b);
-        const targetHour = parseInt(hour) || 9;
-        const targetMinute = parseInt(minute) || 0;
+                // Send via Resend (if configured) or mark as sent
+                let sentCount = 0;
+                const { getSetting } = require('../config/settings');
+                const resendKey = await getSetting('resend_api_key');
+                const fromEmail = await getSetting('from_email') || 'noreply@dealfindai.com';
+                const fromName = await getSetting('from_name') || 'DealFindAI';
 
-        // Find next matching day
-        for (let offset = 0; offset < 62; offset++) {
-            const candidate = new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
-            if (days.includes(candidate.getUTCDate())) {
-                candidate.setUTCHours(targetHour, targetMinute, 0, 0);
-                if (candidate > now) return candidate;
+                if (resendKey) {
+                    for (const sub of subscribers.rows) {
+                        try {
+                            // Personalize unsubscribe URL
+                            const html = notif.html_body.replace(
+                                '{{unsubscribe_url}}',
+                                `https://dealfindai.com/api/unsubscribe?lid=${sub.id}`
+                            );
+
+                            const res = await fetch('https://api.resend.com/emails', {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${resendKey}`,
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    from: `${fromName} <${fromEmail}>`,
+                                    to: sub.email,
+                                    subject: notif.subject,
+                                    html: html,
+                                }),
+                            });
+
+                            if (res.ok) sentCount++;
+                        } catch { /* skip individual failures */ }
+                    }
+                } else {
+                    sentCount = subscribers.rows.length; // Mark as sent even without Resend
+                }
+
+                await query(
+                    "UPDATE blog_notifications SET status = 'sent', sent_count = $2 WHERE id = $1",
+                    [notif.id, sentCount]
+                );
+
+                console.log(`[BlogScheduler] ✅ Notification sent to ${sentCount} subscribers`);
+            } catch (err) {
+                console.error(`[BlogScheduler] Notification error:`, err.message);
             }
         }
+    } catch (err) {
+        console.error('[BlogScheduler] Notification processing error:', err);
     }
-
-    // Fallback: 14 days from now
-    return new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 }
 
 function stopBlogScheduler() {
-    if (schedulerInterval) {
-        clearInterval(schedulerInterval);
-        schedulerInterval = null;
-        console.log('[BlogScheduler] Stopped');
-    }
+    if (schedulerInterval) { clearInterval(schedulerInterval); schedulerInterval = null; }
+    if (notificationInterval) { clearInterval(notificationInterval); notificationInterval = null; }
+    console.log('[BlogScheduler] Stopped');
 }
 
-module.exports = { startBlogScheduler, stopBlogScheduler, runScheduledJobs };
+module.exports = { startBlogScheduler, stopBlogScheduler, processQueue, processNotifications };

@@ -1,21 +1,25 @@
 /**
- * BlogMaker 3000 — API Routes
- * CRUD for blog workers + manual generation trigger + topic suggestions
+ * BlogMaker 3000 — API Routes (v2 Queue-Based)
  */
 const express = require('express');
 const { query } = require('../config/db');
 const { authenticate } = require('../middleware/auth');
-const { generateBlogPost, suggestTopics } = require('../services/blogmaker-engine');
+const { generateBlogPost, smartSuggest } = require('../services/blogmaker-engine');
 
 const router = express.Router();
 router.use(authenticate);
 
-// ─── LIST WORKERS ───────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// WORKERS
+// ═══════════════════════════════════════════════════════════════
+
+// LIST WORKERS
 router.get('/workers', async (req, res) => {
     try {
         const result = await query(
             `SELECT w.*, m.subdomain, m.site_title,
-                    (SELECT COUNT(*) FROM blog_posts bp WHERE bp.worker_id = w.id) AS post_count
+                    (SELECT COUNT(*) FROM blog_posts bp WHERE bp.worker_id = w.id) AS post_count,
+                    (SELECT COUNT(*) FROM blog_queue bq WHERE bq.worker_id = w.id AND bq.status = 'pending') AS queue_pending
              FROM blog_workers w
              LEFT JOIN microsites m ON w.microsite_id = m.id
              WHERE w.user_id = $1
@@ -29,20 +33,19 @@ router.get('/workers', async (req, res) => {
     }
 });
 
-// ─── CREATE WORKER ──────────────────────────────────────────────
+// CREATE WORKER
 router.post('/workers', async (req, res) => {
     try {
-        const { microsite_id, worker_name, worker_title, worker_avatar, affiliate_links, reference_urls, prompt_template, schedule_cron, schedule_start, posts_requested } = req.body;
+        const { microsite_id, worker_name, worker_title, worker_avatar, affiliate_links, reference_urls, prompt_template } = req.body;
         if (!worker_name) return res.status(400).json({ error: 'Worker name is required' });
 
         const result = await query(
             `INSERT INTO blog_workers (user_id, microsite_id, worker_name, worker_title, worker_avatar,
-             affiliate_links, reference_urls, prompt_template, schedule_cron, schedule_start, posts_requested)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+             affiliate_links, reference_urls, prompt_template)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
             [req.user.id, microsite_id || null, worker_name, worker_title || '',
             worker_avatar || '', JSON.stringify(affiliate_links || []),
-            JSON.stringify(reference_urls || []), prompt_template || '',
-            schedule_cron || '0 9 1,15 * *', schedule_start || null, posts_requested || 4]
+            JSON.stringify(reference_urls || []), prompt_template || '']
         );
         res.json({ worker: result.rows[0] });
     } catch (err) {
@@ -51,7 +54,7 @@ router.post('/workers', async (req, res) => {
     }
 });
 
-// ─── GET SINGLE WORKER ──────────────────────────────────────────
+// GET SINGLE WORKER
 router.get('/workers/:id', async (req, res) => {
     try {
         const result = await query(
@@ -67,10 +70,10 @@ router.get('/workers/:id', async (req, res) => {
     }
 });
 
-// ─── UPDATE WORKER ──────────────────────────────────────────────
+// UPDATE WORKER
 router.put('/workers/:id', async (req, res) => {
     try {
-        const { worker_name, worker_title, worker_avatar, microsite_id, affiliate_links, reference_urls, topics, prompt_template, schedule_cron, schedule_start, posts_requested, status } = req.body;
+        const { worker_name, worker_title, worker_avatar, microsite_id, affiliate_links, reference_urls, prompt_template, status } = req.body;
         const result = await query(
             `UPDATE blog_workers SET
              worker_name = COALESCE($3, worker_name),
@@ -79,19 +82,14 @@ router.put('/workers/:id', async (req, res) => {
              microsite_id = COALESCE($6, microsite_id),
              affiliate_links = COALESCE($7, affiliate_links),
              reference_urls = COALESCE($8, reference_urls),
-             topics = COALESCE($9, topics),
-             prompt_template = COALESCE($10, prompt_template),
-             schedule_cron = COALESCE($11, schedule_cron),
-             schedule_start = COALESCE($12, schedule_start),
-             posts_requested = COALESCE($13, posts_requested),
-             status = COALESCE($14, status),
+             prompt_template = COALESCE($9, prompt_template),
+             status = COALESCE($10, status),
              updated_at = NOW()
              WHERE id = $1 AND user_id = $2 RETURNING *`,
             [req.params.id, req.user.id, worker_name, worker_title, worker_avatar,
                 microsite_id, affiliate_links ? JSON.stringify(affiliate_links) : null,
             reference_urls ? JSON.stringify(reference_urls) : null,
-            topics ? JSON.stringify(topics) : null,
-                prompt_template, schedule_cron, schedule_start, posts_requested, status]
+                prompt_template, status]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Worker not found' });
         res.json({ worker: result.rows[0] });
@@ -101,7 +99,7 @@ router.put('/workers/:id', async (req, res) => {
     }
 });
 
-// ─── DELETE WORKER ──────────────────────────────────────────────
+// DELETE WORKER
 router.delete('/workers/:id', async (req, res) => {
     try {
         const result = await query(
@@ -115,7 +113,116 @@ router.delete('/workers/:id', async (req, res) => {
     }
 });
 
-// ─── GET WORKER'S POSTS ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// QUEUE
+// ═══════════════════════════════════════════════════════════════
+
+// GET QUEUE for a worker
+router.get('/workers/:id/queue', async (req, res) => {
+    try {
+        const result = await query(
+            `SELECT q.*, bp.title AS post_title, bp.slug AS post_slug
+             FROM blog_queue q
+             LEFT JOIN blog_posts bp ON q.post_id = bp.id
+             WHERE q.worker_id = $1
+             ORDER BY q.scheduled_at ASC NULLS LAST`,
+            [req.params.id]
+        );
+        res.json({ queue: result.rows });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to get queue' });
+    }
+});
+
+// ADD QUEUE ENTRIES (batch)
+router.post('/workers/:id/queue', async (req, res) => {
+    try {
+        const { entries } = req.body; // [{reference_url, topic, target_keyword, scheduled_at}]
+        if (!entries || !Array.isArray(entries) || entries.length === 0) {
+            return res.status(400).json({ error: 'entries array is required' });
+        }
+
+        // Verify worker ownership
+        const worker = await query('SELECT id FROM blog_workers WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+        if (worker.rows.length === 0) return res.status(404).json({ error: 'Worker not found' });
+
+        const inserted = [];
+        for (const entry of entries) {
+            if (!entry.reference_url || !entry.topic) continue;
+            const result = await query(
+                `INSERT INTO blog_queue (worker_id, reference_url, topic, target_keyword, scheduled_at)
+                 VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+                [req.params.id, entry.reference_url, entry.topic, entry.target_keyword || null, entry.scheduled_at || null]
+            );
+            inserted.push(result.rows[0]);
+        }
+
+        res.json({ queue: inserted, message: `${inserted.length} entries added to queue` });
+    } catch (err) {
+        console.error('Add queue error:', err);
+        res.status(500).json({ error: 'Failed to add queue entries' });
+    }
+});
+
+// DELETE QUEUE ENTRY
+router.delete('/queue/:id', async (req, res) => {
+    try {
+        await query('DELETE FROM blog_queue WHERE id = $1', [req.params.id]);
+        res.json({ message: 'Queue entry removed' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to remove queue entry' });
+    }
+});
+
+// SMART SUGGEST — paste URLs → get topic suggestions
+router.post('/workers/:id/smart-suggest', async (req, res) => {
+    try {
+        const { reference_urls } = req.body;
+        if (!reference_urls || !Array.isArray(reference_urls) || reference_urls.length === 0) {
+            return res.status(400).json({ error: 'reference_urls array is required' });
+        }
+
+        const workerResult = await query(
+            'SELECT * FROM blog_workers WHERE id = $1 AND user_id = $2',
+            [req.params.id, req.user.id]
+        );
+        if (workerResult.rows.length === 0) return res.status(404).json({ error: 'Worker not found' });
+
+        const suggestions = await smartSuggest(workerResult.rows[0], reference_urls);
+        res.json({ suggestions });
+    } catch (err) {
+        console.error('Smart suggest error:', err);
+        res.status(500).json({ error: 'Failed to generate suggestions' });
+    }
+});
+
+// MANUAL GENERATE (immediate, no queue)
+router.post('/workers/:id/generate', async (req, res) => {
+    try {
+        const { topic, reference_url } = req.body;
+        const workerResult = await query(
+            `SELECT w.*, m.subdomain, m.site_title
+             FROM blog_workers w LEFT JOIN microsites m ON w.microsite_id = m.id
+             WHERE w.id = $1 AND w.user_id = $2`,
+            [req.params.id, req.user.id]
+        );
+        if (workerResult.rows.length === 0) return res.status(404).json({ error: 'Worker not found' });
+
+        const worker = workerResult.rows[0];
+        const queueItem = { topic, reference_url: reference_url || null, target_keyword: null };
+        const post = await generateBlogPost(worker, queueItem, req.user.id);
+        res.json({ post, message: 'Blog post generated and published' });
+    } catch (err) {
+        console.error('Generate post error:', err);
+        res.status(500).json({ error: 'Failed to generate blog post: ' + err.message });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// POSTS
+// ═══════════════════════════════════════════════════════════════
+
+// GET WORKER'S POSTS
 router.get('/workers/:id/posts', async (req, res) => {
     try {
         const result = await query(
@@ -131,46 +238,25 @@ router.get('/workers/:id/posts', async (req, res) => {
     }
 });
 
-// ─── SUGGEST TOPICS ─────────────────────────────────────────────
-router.post('/workers/:id/suggest-topics', async (req, res) => {
+// ALL POSTS (across all workers)
+router.get('/posts', async (req, res) => {
     try {
-        const workerResult = await query(
-            'SELECT * FROM blog_workers WHERE id = $1 AND user_id = $2',
-            [req.params.id, req.user.id]
+        const result = await query(
+            `SELECT bp.*, bw.worker_name, m.subdomain
+             FROM blog_posts bp
+             LEFT JOIN blog_workers bw ON bp.worker_id = bw.id
+             LEFT JOIN microsites m ON bp.microsite_id = m.id
+             WHERE bp.user_id = $1
+             ORDER BY bp.created_at DESC`,
+            [req.user.id]
         );
-        if (workerResult.rows.length === 0) return res.status(404).json({ error: 'Worker not found' });
-
-        const worker = workerResult.rows[0];
-        const topics = await suggestTopics(worker);
-        res.json({ topics });
+        res.json({ posts: result.rows });
     } catch (err) {
-        console.error('Suggest topics error:', err);
-        res.status(500).json({ error: 'Failed to suggest topics' });
+        res.status(500).json({ error: 'Failed to list posts' });
     }
 });
 
-// ─── GENERATE BLOG POST (manual trigger) ────────────────────────
-router.post('/workers/:id/generate', async (req, res) => {
-    try {
-        const { topic } = req.body;
-        const workerResult = await query(
-            `SELECT w.*, m.subdomain, m.site_title
-             FROM blog_workers w LEFT JOIN microsites m ON w.microsite_id = m.id
-             WHERE w.id = $1 AND w.user_id = $2`,
-            [req.params.id, req.user.id]
-        );
-        if (workerResult.rows.length === 0) return res.status(404).json({ error: 'Worker not found' });
-
-        const worker = workerResult.rows[0];
-        const post = await generateBlogPost(worker, topic, req.user.id);
-        res.json({ post, message: 'Blog post generated successfully' });
-    } catch (err) {
-        console.error('Generate post error:', err);
-        res.status(500).json({ error: 'Failed to generate blog post: ' + err.message });
-    }
-});
-
-// ─── PUBLISH A BLOG POST ────────────────────────────────────────
+// PUBLISH POST
 router.post('/posts/:postId/publish', async (req, res) => {
     try {
         const result = await query(
@@ -179,13 +265,13 @@ router.post('/posts/:postId/publish', async (req, res) => {
             [req.params.postId, req.user.id]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
-        res.json({ post: result.rows[0], message: 'Blog post published' });
+        res.json({ post: result.rows[0] });
     } catch (err) {
         res.status(500).json({ error: 'Failed to publish post' });
     }
 });
 
-// ─── UNPUBLISH A BLOG POST ──────────────────────────────────────
+// UNPUBLISH POST
 router.post('/posts/:postId/unpublish', async (req, res) => {
     try {
         const result = await query(
@@ -194,29 +280,55 @@ router.post('/posts/:postId/unpublish', async (req, res) => {
             [req.params.postId, req.user.id]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
-        res.json({ post: result.rows[0], message: 'Blog post unpublished' });
+        res.json({ post: result.rows[0] });
     } catch (err) {
         res.status(500).json({ error: 'Failed to unpublish post' });
     }
 });
 
-// ─── ACTIVATE WORKER SCHEDULE ───────────────────────────────────
-router.post('/workers/:id/activate-schedule', async (req, res) => {
-    try {
-        const { schedule_cron } = req.body;
-        // Set next_run_at to now + small delay so first run happens soon
-        const nextRun = new Date(Date.now() + 5 * 60 * 1000); // 5 min from now
+// ═══════════════════════════════════════════════════════════════
+// NOTIFICATIONS (admin management)
+// ═══════════════════════════════════════════════════════════════
 
+// LIST NOTIFICATIONS
+router.get('/notifications', async (req, res) => {
+    try {
         const result = await query(
-            `UPDATE blog_workers SET status = 'active', next_run_at = $3,
-             schedule_cron = COALESCE($4, schedule_cron), updated_at = NOW()
-             WHERE id = $1 AND user_id = $2 RETURNING *`,
-            [req.params.id, req.user.id, nextRun, schedule_cron || null]
+            `SELECT bn.*, bp.title AS post_title, bp.slug AS post_slug
+             FROM blog_notifications bn
+             LEFT JOIN blog_posts bp ON bn.blog_post_id = bp.id
+             WHERE bn.user_id = $1
+             ORDER BY bn.created_at DESC`,
+            [req.user.id]
         );
-        if (result.rows.length === 0) return res.status(404).json({ error: 'Worker not found' });
-        res.json({ worker: result.rows[0], message: 'Worker schedule activated' });
+        res.json({ notifications: result.rows });
     } catch (err) {
-        res.status(500).json({ error: 'Failed to activate schedule' });
+        res.status(500).json({ error: 'Failed to list notifications' });
+    }
+});
+
+// APPROVE NOTIFICATION (paused → active)
+router.post('/notifications/:id/approve', async (req, res) => {
+    try {
+        const result = await query(
+            `UPDATE blog_notifications SET status = 'active', approved_at = NOW()
+             WHERE id = $1 AND user_id = $2 RETURNING *`,
+            [req.params.id, req.user.id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Notification not found' });
+        res.json({ notification: result.rows[0], message: 'Notification approved — will send shortly' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to approve notification' });
+    }
+});
+
+// REJECT NOTIFICATION (delete it)
+router.delete('/notifications/:id', async (req, res) => {
+    try {
+        await query('DELETE FROM blog_notifications WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+        res.json({ message: 'Notification deleted' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete notification' });
     }
 });
 

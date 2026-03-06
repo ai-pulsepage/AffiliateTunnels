@@ -20,6 +20,7 @@ import Settings from './pages/Settings';
 import BlogPosts from './pages/BlogPosts';
 import BlogEditor from './pages/BlogEditor';
 import BlogMaker from './pages/BlogMaker';
+import Microsites from './pages/Microsites';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminStats from './pages/admin/AdminStats';
@@ -72,6 +73,7 @@ export default function App() {
                 <Route path="templates" element={<Templates />} />
                 <Route path="blog" element={<BlogPosts />} />
                 <Route path="blogmaker" element={<BlogMaker />} />
+                <Route path="microsites" element={<Microsites />} />
                 <Route path="settings" element={<Settings />} />
 
                 {/* Admin routes */}

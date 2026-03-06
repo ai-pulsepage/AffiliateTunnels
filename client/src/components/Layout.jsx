@@ -1,21 +1,19 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-    LayoutDashboard, Layers, Mail, BarChart3, Image, Link2, Layout as LayoutIcon,
-    Settings, Users, Shield, Activity, LogOut, ChevronDown, Zap, Menu, X, FileText, Bot
+    LayoutDashboard, Layers, Mail, BarChart3, Image, Globe,
+    Settings, Users, Shield, Activity, LogOut, ChevronDown, Menu, X, Bot
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const navItems = [
-    { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
-    { to: '/funnels', icon: Layers, label: 'Funnels' },
-    { to: '/blog', icon: FileText, label: 'Blog' },
+    { to: '/', icon: LayoutDashboard, label: 'Command Center', exact: true },
+    { to: '/microsites', icon: Globe, label: 'Microsites' },
     { to: '/blogmaker', icon: Bot, label: 'BlogMaker' },
-    { to: '/emails', icon: Mail, label: 'Emails' },
+    { to: '/funnels', icon: Layers, label: 'Landing Pages' },
+    { to: '/emails', icon: Mail, label: 'Campaigns' },
     { to: '/analytics', icon: BarChart3, label: 'Analytics' },
     { to: '/media', icon: Image, label: 'Media' },
-    { to: '/affiliate', icon: Link2, label: 'Affiliate Tools' },
-    { to: '/templates', icon: LayoutIcon, label: 'Templates' },
     { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
