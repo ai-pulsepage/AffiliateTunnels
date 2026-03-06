@@ -31,6 +31,7 @@ const affiliateRoutes = require('./routes/affiliate');
 const aiRoutes = require('./routes/ai');
 const blogRoutes = require('./routes/blog');
 const storefrontRoutes = require('./routes/storefront');
+const blogmakerRoutes = require('./routes/blogmaker');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -75,6 +76,7 @@ app.use('/api/affiliate', affiliateRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/blog', blogRoutes);
 app.use('/api/storefront', storefrontRoutes);
+app.use('/api/blogmaker', blogmakerRoutes);
 
 // === Public Routes ===
 
@@ -180,18 +182,49 @@ if (process.env.NODE_ENV === 'production') {
             const microsite = msResult.rows[0];
             if (!microsite) return res.status(404).send('<h1 style="font-family:sans-serif;text-align:center;margin-top:100px;color:#666">Microsite not found</h1>');
 
+            // Handle SEO files
+            const cleanPath = req.path.replace(/^\//, '').replace(/\/$/, '');
+            if (cleanPath === 'robots.txt') {
+                res.setHeader('Content-Type', 'text/plain');
+                return res.send(`User-agent: *\nAllow: /\nSitemap: https://${subdomain}.dealfindai.com/sitemap.xml`);
+            }
+            if (cleanPath === 'sitemap.xml') {
+                const products = await dbQuery('SELECT slug, created_at FROM microsite_products WHERE microsite_id = $1', [microsite.id]);
+                const blogs = await dbQuery("SELECT slug, published_at, updated_at FROM blog_posts WHERE microsite_id = $1 AND status = 'published'", [microsite.id]);
+                const base = `https://${subdomain}.dealfindai.com`;
+                let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+                xml += `<url><loc>${base}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>\n`;
+                xml += `<url><loc>${base}/products</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>\n`;
+                xml += `<url><loc>${base}/reviews</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>\n`;
+                xml += `<url><loc>${base}/blog</loc><changefreq>daily</changefreq><priority>0.8</priority></url>\n`;
+                for (const p of products.rows) xml += `<url><loc>${base}/${p.slug}</loc><lastmod>${(p.created_at || new Date()).toISOString().split('T')[0]}</lastmod><priority>0.9</priority></url>\n`;
+                for (const b of blogs.rows) xml += `<url><loc>${base}/blog/${b.slug}</loc><lastmod>${(b.updated_at || b.published_at || new Date()).toISOString().split('T')[0]}</lastmod><priority>0.7</priority></url>\n`;
+                xml += '</urlset>';
+                res.setHeader('Content-Type', 'application/xml');
+                return res.send(xml);
+            }
+
+            // Load products
             const productsResult = await dbQuery(
                 'SELECT * FROM microsite_products WHERE microsite_id = $1 ORDER BY sort_order, created_at',
                 [microsite.id]
             );
 
-            if (productsResult.rows.length === 0) {
-                return res.status(200).send('<h1 style="font-family:sans-serif;text-align:center;margin-top:100px;color:#666">Coming soon</h1>');
-            }
+            // Load blog posts for this microsite
+            const blogResult = await dbQuery(
+                "SELECT * FROM blog_posts WHERE microsite_id = $1 AND status = 'published' ORDER BY published_at DESC NULLS LAST, created_at DESC",
+                [microsite.id]
+            );
 
-            const pathSlug = req.path.replace(/^\//, '').replace(/\/$/, '') || null;
-            const html = generateMicrositeHTML(microsite, productsResult.rows, pathSlug);
-            if (!html) return res.status(404).send('<h1 style="font-family:sans-serif;text-align:center;margin-top:100px;color:#666">Product not found</h1>');
+            // Load reviews (funnels tagged with this microsite's subdomain as category)
+            const reviewsResult = await dbQuery(
+                "SELECT id, name, slug, thumbnail_url, seo_description FROM funnels WHERE category = $1 AND status = 'published' ORDER BY updated_at DESC",
+                [subdomain]
+            );
+
+            const pathSlug = cleanPath || null;
+            const html = generateMicrositeHTML(microsite, productsResult.rows, pathSlug, blogResult.rows, reviewsResult.rows);
+            if (!html) return res.status(404).send('<h1 style="font-family:sans-serif;text-align:center;margin-top:100px;color:#666">Page not found</h1>');
 
             res.setHeader('Content-Type', 'text/html');
             res.setHeader('Cache-Control', 'public, max-age=60');

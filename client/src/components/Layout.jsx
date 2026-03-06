@@ -2,7 +2,7 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
     LayoutDashboard, Layers, Mail, BarChart3, Image, Link2, Layout as LayoutIcon,
-    Settings, Users, Shield, Activity, LogOut, ChevronDown, Zap, Menu, X, FileText
+    Settings, Users, Shield, Activity, LogOut, ChevronDown, Zap, Menu, X, FileText, Bot
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -10,6 +10,7 @@ const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
     { to: '/funnels', icon: Layers, label: 'Funnels' },
     { to: '/blog', icon: FileText, label: 'Blog' },
+    { to: '/blogmaker', icon: Bot, label: 'BlogMaker' },
     { to: '/emails', icon: Mail, label: 'Emails' },
     { to: '/analytics', icon: BarChart3, label: 'Analytics' },
     { to: '/media', icon: Image, label: 'Media' },

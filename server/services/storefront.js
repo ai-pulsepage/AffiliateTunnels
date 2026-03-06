@@ -365,29 +365,53 @@ module.exports = { generateStorefrontHTML, generateMicrositeHTML };
 
 /**
  * Microsite Renderer — generates HTML for subdomain microsites
- * Single product: premium product showcase page built from stored data
- * Multi-product: hero + product card grid
+ * Routes: /, /products, /products/:slug, /blog, /blog/:slug, /reviews
  */
-function generateMicrositeHTML(microsite, products, productSlug) {
+function generateMicrositeHTML(microsite, products, pathSlug, blogPosts = [], reviews = []) {
     const title = microsite.site_title || 'Products';
     const subtitle = microsite.site_subtitle || '';
     const accent = microsite.accent_color || '#6366f1';
     const logoUrl = microsite.logo_url || '';
+    const subdomain = microsite.subdomain || '';
 
-    // If a specific product slug is requested
-    if (productSlug) {
-        const product = products.find(p => p.slug === productSlug);
-        if (!product) return null;
-        return buildSingleProductPage(product, microsite, accent);
+    // Route: /blog
+    if (pathSlug === 'blog') {
+        return buildBlogIndex(microsite, blogPosts, accent);
     }
 
+    // Route: /blog/:slug
+    if (pathSlug && pathSlug.startsWith('blog/')) {
+        const blogSlug = pathSlug.replace('blog/', '');
+        const post = blogPosts.find(p => p.slug === blogSlug);
+        if (!post) return null;
+        return buildBlogPostPage(post, microsite, accent);
+    }
+
+    // Route: /reviews
+    if (pathSlug === 'reviews') {
+        return buildReviewsPage(microsite, reviews, accent);
+    }
+
+    // Route: /products
+    if (pathSlug === 'products') {
+        return buildMultiProductPage(microsite, products, accent, title, subtitle, logoUrl, blogPosts, reviews);
+    }
+
+    // Route: /:product-slug (specific product)
+    if (pathSlug) {
+        const product = products.find(p => p.slug === pathSlug);
+        if (!product) return null;
+        return buildSingleProductPage(product, microsite, accent, blogPosts, reviews);
+    }
+
+    // Route: / (home page)
     // Single product → premium showcase page
     if (products.length === 1) {
-        return buildSingleProductPage(products[0], microsite, accent);
+        return buildSingleProductPage(products[0], microsite, accent, blogPosts, reviews);
     }
 
     // Multi-product → hero + grid
-    return buildMultiProductPage(microsite, products, accent, title, subtitle, logoUrl);
+    return buildMultiProductPage(microsite, products, accent, title, subtitle, logoUrl, blogPosts, reviews);
 }
 
 /**
@@ -807,3 +831,198 @@ function buildOptinInline(microsite, accent) {
         <p style="color:#aaa;font-size:11px;margin-top:10px;">We respect your privacy. Unsubscribe anytime.</p>
     </div>`;
 }
+
+// ─── Shared Navigation Bar ──────────────────────────────────────
+function buildMicrositeNav(microsite, accent, activePage = '') {
+    const siteTitle = escapeHtml(microsite.site_title || 'Products');
+    const logoUrl = microsite.logo_url || '';
+    return `
+<header style="position:sticky;top:0;z-index:90;background:rgba(255,255,255,0.95);backdrop-filter:blur(16px);border-bottom:1px solid rgba(0,0,0,0.06)">
+<div style="max-width:1080px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:12px 24px">
+  <a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:#0f0f23;font-weight:700;font-size:16px">
+    <div style="width:32px;height:32px;border-radius:10px;background:${accent};display:flex;align-items:center;justify-content:center">${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="" style="width:18px;height:18px;object-fit:contain">` : `<svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`}</div>
+    ${siteTitle}
+  </a>
+  <nav style="display:flex;gap:4px;align-items:center">
+    <a href="/products" style="padding:8px 16px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:${activePage === 'products' ? '700' : '500'};color:${activePage === 'products' ? accent : '#555'};background:${activePage === 'products' ? accent + '12' : 'transparent'};transition:all .2s">Products</a>
+    <a href="/reviews" style="padding:8px 16px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:${activePage === 'reviews' ? '700' : '500'};color:${activePage === 'reviews' ? accent : '#555'};background:${activePage === 'reviews' ? accent + '12' : 'transparent'};transition:all .2s">Reviews</a>
+    <a href="/blog" style="padding:8px 16px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:${activePage === 'blog' ? '700' : '500'};color:${activePage === 'blog' ? accent : '#555'};background:${activePage === 'blog' ? accent + '12' : 'transparent'};transition:all .2s">Blog</a>
+  </nav>
+</div>
+</header>`;
+}
+
+// ─── Shared Page Shell ──────────────────────────────────────────
+function buildPageShell(title, description, accent, bodyHtml, extraHead = '') {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(title)}</title>
+<meta name="description" content="${escapeHtml((description || '').substring(0, 160))}">
+<meta property="og:title" content="${escapeHtml(title)}">
+<meta property="og:description" content="${escapeHtml((description || '').substring(0, 160))}">
+<meta name="twitter:card" content="summary_large_image">
+${extraHead}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--accent:${accent}}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;background:#fafafa;color:#1a1a2e;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+.container{max-width:1080px;margin:0 auto;padding:48px 24px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:24px}
+.card{background:#fff;border-radius:16px;border:1px solid rgba(0,0,0,0.06);overflow:hidden;transition:all .3s;text-decoration:none;color:inherit;display:flex;flex-direction:column}
+.card:hover{box-shadow:0 8px 32px rgba(0,0,0,0.08);transform:translateY(-2px)}
+.card-img{width:100%;aspect-ratio:16/10;object-fit:cover;background:#f5f5f5}
+.card-body{padding:24px;flex:1;display:flex;flex-direction:column}
+.card-title{font-size:18px;font-weight:700;color:#0f0f23;margin-bottom:8px;line-height:1.3}
+.card-excerpt{font-size:14px;color:#666;line-height:1.5;flex:1}
+.card-meta{font-size:12px;color:#999;margin-top:16px;display:flex;align-items:center;gap:8px}
+.tag{display:inline-block;padding:4px 10px;background:var(--accent);color:#fff;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+.empty{text-align:center;padding:80px 24px;color:#888;font-size:16px}
+footer{text-align:center;padding:32px;color:#888;font-size:13px;border-top:1px solid rgba(0,0,0,0.06)}
+@media(max-width:768px){.card-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+${bodyHtml}
+<footer><p>© ${new Date().getFullYear()} ${escapeHtml(title.split('|')[0].trim())}</p></footer>
+</body>
+</html>`;
+}
+
+// ─── Blog Index Page ────────────────────────────────────────────
+function buildBlogIndex(microsite, blogPosts, accent) {
+    const siteTitle = escapeHtml(microsite.site_title || 'Blog');
+    const nav = buildMicrositeNav(microsite, accent, 'blog');
+
+    const postsHtml = blogPosts.length > 0 ? blogPosts.map(post => {
+        const title = escapeHtml(post.title || 'Untitled');
+        const excerpt = escapeHtml((post.excerpt || '').substring(0, 200));
+        const date = post.published_at ? new Date(post.published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+        const author = escapeHtml(post.author_name || 'Staff Writer');
+        const img = post.featured_image ? `<img class="card-img" src="${escapeHtml(post.featured_image)}" alt="${title}" loading="lazy">` : `<div class="card-img" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,${accent}15,${accent}05)"><svg width="48" height="48" fill="none" stroke="${accent}" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 6.25a.75.75 0 0 1 .75.75v4.25H17a.75.75 0 0 1 0 1.5h-4.25V17a.75.75 0 0 1-1.5 0v-4.25H7a.75.75 0 0 1 0-1.5h4.25V7a.75.75 0 0 1 .75-.75z"/></svg></div>`;
+        return `<a href="/blog/${escapeHtml(post.slug)}" class="card">
+            ${img}
+            <div class="card-body">
+                ${post.target_keyword ? `<span class="tag">${escapeHtml(post.target_keyword)}</span>` : ''}
+                <h2 class="card-title">${title}</h2>
+                <p class="card-excerpt">${excerpt}</p>
+                <div class="card-meta"><span>By ${author}</span>${date ? ` · <span>${date}</span>` : ''}</div>
+            </div>
+        </a>`;
+    }).join('') : '<div class="empty"><p>No blog posts yet. Check back soon!</p></div>';
+
+    const body = `${nav}
+<div class="container">
+    <h1 style="font-size:32px;font-weight:800;color:#0f0f23;margin-bottom:8px">Blog</h1>
+    <p style="color:#666;margin-bottom:32px;font-size:16px">Insights, guides, and expert advice</p>
+    <div class="card-grid">${postsHtml}</div>
+</div>`;
+
+    return buildPageShell(`Blog | ${siteTitle}`, `Latest articles and insights from ${siteTitle}`, accent, body);
+}
+
+// ─── Individual Blog Post Page ──────────────────────────────────
+function buildBlogPostPage(post, microsite, accent) {
+    const siteTitle = escapeHtml(microsite.site_title || 'Blog');
+    const nav = buildMicrositeNav(microsite, accent, 'blog');
+    const title = escapeHtml(post.title || 'Untitled');
+    const author = escapeHtml(post.author_name || 'Staff Writer');
+    const authorTitle = escapeHtml(post.author_title || '');
+    const date = post.published_at ? new Date(post.published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+    const content = post.content_html || '';
+    const keyword = escapeHtml(post.target_keyword || '');
+
+    // JSON-LD Article schema
+    const jsonLd = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": post.title || '',
+        "description": post.seo_description || post.excerpt || '',
+        "image": post.featured_image || '',
+        "author": { "@type": "Person", "name": post.author_name || 'Staff Writer' },
+        "publisher": { "@type": "Organization", "name": microsite.site_title || '' },
+        "datePublished": post.published_at || post.created_at || '',
+        "dateModified": post.updated_at || post.published_at || '',
+        "keywords": post.target_keyword || '',
+    });
+
+    const extraHead = `
+<meta property="og:type" content="article">
+${post.featured_image ? `<meta property="og:image" content="${escapeHtml(post.featured_image)}">` : ''}
+<script type="application/ld+json">${jsonLd}</script>`;
+
+    const body = `${nav}
+<article style="max-width:740px;margin:0 auto;padding:48px 24px">
+    ${keyword ? `<span class="tag" style="margin-bottom:16px">${keyword}</span>` : ''}
+    <h1 style="font-size:36px;font-weight:900;color:#0f0f23;line-height:1.2;margin:16px 0 24px">${title}</h1>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:40px;padding-bottom:24px;border-bottom:1px solid rgba(0,0,0,0.06)">
+        <div style="width:44px;height:44px;border-radius:50%;background:${accent};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px">${author.charAt(0)}</div>
+        <div>
+            <div style="font-weight:600;color:#0f0f23;font-size:15px">${author}</div>
+            <div style="font-size:13px;color:#888">${authorTitle}${authorTitle && date ? ' · ' : ''}${date}</div>
+        </div>
+    </div>
+    ${post.featured_image ? `<img src="${escapeHtml(post.featured_image)}" alt="${title}" style="width:100%;border-radius:16px;margin-bottom:32px;aspect-ratio:16/9;object-fit:cover">` : ''}
+    <div class="blog-content" style="font-size:17px;line-height:1.8;color:#333">
+        ${content}
+    </div>
+    <div style="margin-top:48px;padding-top:32px;border-top:1px solid rgba(0,0,0,0.06);text-align:center">
+        <a href="/blog" style="color:${accent};font-weight:600;text-decoration:none;font-size:15px">← Back to all articles</a>
+    </div>
+</article>
+<style>
+.blog-content h2{font-size:24px;font-weight:800;color:#0f0f23;margin:36px 0 16px}
+.blog-content h3{font-size:20px;font-weight:700;color:#0f0f23;margin:28px 0 12px}
+.blog-content p{margin-bottom:18px}
+.blog-content ul,.blog-content ol{margin:16px 0;padding-left:28px}
+.blog-content li{margin-bottom:8px}
+.blog-content blockquote{border-left:4px solid ${accent};padding:16px 24px;margin:24px 0;background:#f8f8fc;border-radius:0 12px 12px 0;font-style:italic;color:#555}
+.blog-content a{color:${accent};font-weight:500}
+.blog-content img{max-width:100%;border-radius:12px;margin:24px 0}
+.blog-content strong{color:#0f0f23}
+</style>`;
+
+    return buildPageShell(
+        post.seo_title || `${post.title} | ${siteTitle}`,
+        post.seo_description || post.excerpt || '',
+        accent, body, extraHead
+    );
+}
+
+// ─── Reviews Page ───────────────────────────────────────────────
+function buildReviewsPage(microsite, reviews, accent) {
+    const siteTitle = escapeHtml(microsite.site_title || 'Reviews');
+    const nav = buildMicrositeNav(microsite, accent, 'reviews');
+
+    const reviewsHtml = reviews.length > 0 ? reviews.map(review => {
+        const name = escapeHtml(review.name || 'Review');
+        const desc = escapeHtml((review.seo_description || '').substring(0, 150));
+        const img = review.thumbnail_url
+            ? `<img class="card-img" src="${escapeHtml(review.thumbnail_url)}" alt="${name}" loading="lazy">`
+            : `<div class="card-img" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,${accent}20,${accent}08)"><svg width="48" height="48" fill="none" stroke="${accent}" stroke-width="1.5" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></div>`;
+        const slug = escapeHtml(review.slug || '');
+        return `<a href="/p/${slug}" class="card" target="_blank" rel="noopener">
+            ${img}
+            <div class="card-body">
+                <span class="tag">Review</span>
+                <h2 class="card-title">${name}</h2>
+                <p class="card-excerpt">${desc}</p>
+            </div>
+        </a>`;
+    }).join('') : '<div class="empty"><p>No reviews yet. Check back soon!</p></div>';
+
+    const body = `${nav}
+<div class="container">
+    <h1 style="font-size:32px;font-weight:800;color:#0f0f23;margin-bottom:8px">Reviews</h1>
+    <p style="color:#666;margin-bottom:32px;font-size:16px">In-depth product reviews and comparisons</p>
+    <div class="card-grid">${reviewsHtml}</div>
+</div>`;
+
+    return buildPageShell(`Reviews | ${siteTitle}`, `Product reviews and comparisons from ${siteTitle}`, accent, body);
+}
+
