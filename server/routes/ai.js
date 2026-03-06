@@ -172,14 +172,17 @@ router.post('/scrape-product', authenticate, async (req, res) => {
                     const imgUrl = resolveUrl(bestUrl.trim(), parsedUrl);
                     if (!imgUrl || seenUrls.has(imgUrl)) continue;
                     const lower = imgUrl.toLowerCase();
-                    // Filter out non-product images
+                    // Filter out non-product images (icons, logos, bundles, swatches, etc.)
                     if (lower.includes('icon') || lower.includes('logo') || lower.includes('badge') ||
                         lower.includes('favicon') || lower.includes('payment') || lower.includes('trust') ||
+                        lower.includes('bundle') || lower.includes('swatch') || lower.includes('variant') ||
+                        lower.includes('comparison') || lower.includes('size-chart') || lower.includes('size_chart') ||
+                        lower.includes('accessori') || lower.includes('upsell') || lower.includes('cross-sell') ||
                         lower.endsWith('.svg') || lower.includes('data:image') ||
-                        lower.includes('1x1') || lower.includes('spacer')) continue;
+                        lower.includes('1x1') || lower.includes('spacer') || lower.includes('placeholder')) continue;
                     // Skip tiny images by URL hints (Shopify CDN uses width param)
                     const widthParam = lower.match(/width=(\d+)/);
-                    if (widthParam && parseInt(widthParam[1]) < 100) continue;
+                    if (widthParam && parseInt(widthParam[1]) < 200) continue;
                     images.push(imgUrl);
                     seenUrls.add(imgUrl);
                 }

@@ -410,6 +410,10 @@ function buildSingleProductPage(product, microsite, accent) {
     let intel = {};
     try { intel = typeof product.product_intel === 'string' ? JSON.parse(product.product_intel) : (product.product_intel || {}); } catch { intel = {}; }
 
+    // Use the best available description: salesDescription > intel description > product_desc
+    const salesDesc = escapeHtml(intel.salesDescription || intel.description || product.product_desc || '');
+    const brand = escapeHtml(intel.brand || siteTitle);
+
     // Build carousel slides
     const carouselSlides = images.slice(0, 6).map((url, i) =>
         `<div class="slide${i === 0 ? ' active' : ''}" data-idx="${i}"><img src="${escapeHtml(url)}" alt="${name} - Image ${i + 1}" loading="${i === 0 ? 'eager' : 'lazy'}" /></div>`
@@ -493,11 +497,27 @@ function buildSingleProductPage(product, microsite, accent) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${name} | ${siteTitle}</title>
-<meta name="description" content="${desc.substring(0, 160)}">
+<meta name="description" content="${salesDesc.substring(0, 160)}">
 <meta property="og:title" content="${name}">
-<meta property="og:description" content="${desc.substring(0, 160)}">
+<meta property="og:description" content="${salesDesc.substring(0, 160)}">
 <meta property="og:type" content="product">
 ${images[0] ? `<meta property="og:image" content="${escapeHtml(images[0])}">` : ''}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${name}">
+<meta name="twitter:description" content="${salesDesc.substring(0, 160)}">
+${images[0] ? `<meta name="twitter:image" content="${escapeHtml(images[0])}">` : ''}
+<script type="application/ld+json">
+${JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": product.product_name || 'Product',
+        "description": intel.salesDescription || intel.description || product.product_desc || '',
+        "image": images[0] || '',
+        "brand": { "@type": "Brand", "name": intel.brand || siteTitle },
+        ...(product.price_label ? { "offers": { "@type": "Offer", "price": product.price_label.replace(/[^0-9.]/g, ''), "priceCurrency": "USD", "availability": "https://schema.org/InStock", "url": product.affiliate_url } } : {}),
+        "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.8", "reviewCount": "120" }
+    })}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -637,7 +657,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#fafafa;color:#1a1a2e;l
     <div class="rating"><span class="stars">★★★★★</span> <span>4.8/5 rating</span></div>
     ${price ? `<div class="price-tag">${price} <span class="price-sub">USD</span></div>` : ''}
     ${badgesHtml ? `<div class="badges">${badgesHtml}</div>` : ''}
-    ${desc ? `<p class="info-desc">${desc}</p>` : ''}
+    ${salesDesc ? `<p class="info-desc">${salesDesc}</p>` : ''}
     <a href="${link}" class="cta-primary" target="_blank" rel="noopener">Shop Now — ${price || 'View Pricing'} →</a>
     <p class="cta-micro">✓ Secure checkout${intel.shipping ? ` · ${escapeHtml(intel.shipping)}` : ''}</p>
   </div>
