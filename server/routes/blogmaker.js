@@ -237,6 +237,20 @@ router.get('/scheduler-status', async (req, res) => {
     }
 });
 
+// POST /api/blogmaker/queue/:id/retry — retry a failed queue entry
+router.post('/queue/:id/retry', async (req, res) => {
+    try {
+        const result = await query(
+            "UPDATE blog_queue SET status = 'pending', error = NULL WHERE id = $1 AND status = 'failed' RETURNING *",
+            [req.params.id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Entry not found or not failed' });
+        res.json({ queue: result.rows[0], message: 'Entry reset to pending — will be processed on next cycle' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to retry entry' });
+    }
+});
+
 // SMART SUGGEST — paste URLs → get topic suggestions
 router.post('/workers/:id/smart-suggest', async (req, res) => {
     try {

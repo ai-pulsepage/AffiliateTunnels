@@ -136,14 +136,38 @@ Return ONLY valid JSON. No markdown code fences.`;
     }
 
     const data = await response.json();
-    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    // Check for blocked/empty responses
+    const finishReason = data.candidates?.[0]?.finishReason;
+    if (!text && finishReason) {
+        console.error('[BlogMaker] AI response blocked or empty. finishReason:', finishReason);
+        console.error('[BlogMaker] Full response:', JSON.stringify(data).substring(0, 500));
+        throw new Error(`AI response blocked (${finishReason}). Try a different topic.`);
+    }
+
+    // Strip markdown code fences if present
     text = text.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
 
     let blogData;
     try {
         blogData = JSON.parse(text);
-    } catch {
-        throw new Error('Failed to parse AI-generated blog content');
+    } catch (e1) {
+        // Fallback: try to extract JSON object from the response
+        console.error('[BlogMaker] Direct JSON parse failed. Raw text (first 500 chars):', text.substring(0, 500));
+        try {
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                blogData = JSON.parse(jsonMatch[0]);
+                console.log('[BlogMaker] Recovered JSON via regex extraction');
+            } else {
+                throw new Error('No JSON object found');
+            }
+        } catch (e2) {
+            console.error('[BlogMaker] All JSON parse attempts failed:', e2.message);
+            console.error('[BlogMaker] Full raw response:', text.substring(0, 2000));
+            throw new Error(`Failed to parse AI blog content. AI returned: "${text.substring(0, 200)}..."`);
+        }
     }
 
     // 5. Save to database

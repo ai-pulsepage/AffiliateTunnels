@@ -253,6 +253,9 @@ function QueueTab({ workers, onRefresh }) {
     async function deleteEntry(id) {
         await api(`/blogmaker/queue/${id}`, { method: 'DELETE' }); loadQueue(); loadSchedulerStatus(); onRefresh();
     }
+    async function retryEntry(id) {
+        await api(`/blogmaker/queue/${id}/retry`, { method: 'POST' }); loadQueue(); loadSchedulerStatus(); onRefresh();
+    }
     async function saveEdit(id) {
         try { await api(`/blogmaker/queue/${id}`, { method: 'PUT', body: editForm }); setEditingId(null); setEditForm({}); loadQueue(); } catch (err) { console.error(err); }
     }
@@ -413,12 +416,20 @@ function QueueTab({ workers, onRefresh }) {
                     <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-400" /> Completed ({completed.length})</h3>
                     <div className="space-y-2">
                         {completed.map(q => (
-                            <div key={q.id} className="bg-surface-800 border border-white/10 rounded-xl p-3 flex items-center justify-between opacity-70">
+                            <div key={q.id} className={`bg-surface-800 border rounded-xl p-3 flex items-center justify-between ${q.status === 'failed' ? 'border-red-500/30' : 'border-white/10 opacity-70'}`}>
                                 <div className="min-w-0 flex-1">
                                     <p className="text-white text-sm truncate">{q.post_title || q.topic}</p>
-                                    <p className="text-gray-500 text-xs">{q.status === 'failed' ? `❌ ${q.error || 'Failed'}` : '✅ Published'}</p>
+                                    <p className={`text-xs ${q.status === 'failed' ? 'text-red-400' : 'text-gray-500'}`}>
+                                        {q.status === 'failed' ? `❌ ${q.error || 'Failed'}` : '✅ Published'}
+                                    </p>
                                 </div>
-                                {q.post_slug && <a href={`/blog/${q.post_id}/edit`} className="text-xs text-brand-400 hover:text-brand-300 font-medium">Edit</a>}
+                                <div className="flex items-center gap-2 shrink-0 ml-2">
+                                    {q.status === 'failed' && (
+                                        <button onClick={() => retryEntry(q.id)} className="px-3 py-1.5 bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 rounded-lg text-xs font-medium">Retry</button>
+                                    )}
+                                    {q.post_slug && <a href={`/blog/${q.post_id}/edit`} className="text-xs text-brand-400 hover:text-brand-300 font-medium">Edit</a>}
+                                    <button onClick={() => deleteEntry(q.id)} className="p-1 text-gray-600 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                                </div>
                             </div>
                         ))}
                     </div>
