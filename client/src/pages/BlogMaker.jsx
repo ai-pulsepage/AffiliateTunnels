@@ -87,7 +87,7 @@ export default function BlogMaker() {
 // ═══════════════════════════════════════════════════════════════
 function WorkersTab({ workers, microsites, onRefresh }) {
     const [showCreate, setShowCreate] = useState(false);
-    const [form, setForm] = useState({ worker_name: '', worker_title: '', microsite_id: '', affiliate_links: '', prompt_template: '' });
+    const [form, setForm] = useState({ worker_name: '', worker_title: '', microsite_id: '', affiliate_links: '', reference_blogs: '', prompt_template: '' });
 
     async function createWorker(e) {
         e.preventDefault();
@@ -95,10 +95,11 @@ function WorkersTab({ workers, microsites, onRefresh }) {
             const [url, ...rest] = line.split('|');
             return { url: url.trim(), productName: rest.join('|').trim() || 'Product' };
         });
+        const referenceUrls = form.reference_blogs.split('\n').filter(Boolean).map(u => u.trim());
         try {
-            await api('/blogmaker/workers', { body: { ...form, affiliate_links: affiliateLinks } });
+            await api('/blogmaker/workers', { body: { ...form, affiliate_links: affiliateLinks, reference_urls: referenceUrls } });
             setShowCreate(false);
-            setForm({ worker_name: '', worker_title: '', microsite_id: '', affiliate_links: '', prompt_template: '' });
+            setForm({ worker_name: '', worker_title: '', microsite_id: '', affiliate_links: '', reference_blogs: '', prompt_template: '' });
             onRefresh();
         } catch (err) { console.error(err); }
     }
@@ -140,7 +141,13 @@ function WorkersTab({ workers, microsites, onRefresh }) {
                     </div>
                     <div>
                         <label className="text-sm text-gray-400 block mb-1">Affiliate Links <span className="text-gray-600">(one per line: URL | Product Name)</span></label>
-                        <textarea value={form.affiliate_links} onChange={e => setForm({ ...form, affiliate_links: e.target.value })} rows="3" placeholder={"https://example.com/product-1 | Fire Pit\nhttps://example.com/product-2 | BBQ Smoker"} className="w-full px-3 py-2.5 bg-surface-700 border border-white/10 rounded-lg text-white text-sm font-mono" />
+                        <p className="text-xs text-gray-600 mb-1">{'\u2192'} These are YOUR product landing pages. The AI will weave them into blog posts as recommended products.</p>
+                        <textarea value={form.affiliate_links} onChange={e => setForm({ ...form, affiliate_links: e.target.value })} rows="3" placeholder={"https://saunas.dealfindai.com/monarch-sauna | 3 Person Sauna\nhttps://example.com/product-2 | BBQ Smoker"} className="w-full px-3 py-2.5 bg-surface-700 border border-white/10 rounded-lg text-white text-sm font-mono" />
+                    </div>
+                    <div>
+                        <label className="text-sm text-gray-400 block mb-1">Reference Blogs <span className="text-gray-600">(one URL per line {'\u2014'} inspiration sites)</span></label>
+                        <p className="text-xs text-gray-600 mb-1">{'\u2192'} The AI reads these to understand the niche voice, topics, and buyer concerns. It won't copy {'\u2014'} it draws inspiration.</p>
+                        <textarea value={form.reference_blogs} onChange={e => setForm({ ...form, reference_blogs: e.target.value })} rows="2" placeholder={"https://almostheaven.com/blogs/news/the-ultimate-guide-to-sauna\nhttps://example.com/best-outdoor-living-tips"} className="w-full px-3 py-2.5 bg-surface-700 border border-white/10 rounded-lg text-white text-sm font-mono" />
                     </div>
                     <div>
                         <label className="text-sm text-gray-400 block mb-1">Writing Instructions <span className="text-gray-600">(tone, audience, style)</span></label>

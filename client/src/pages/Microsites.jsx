@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Globe, Plus, Trash2, Settings, Package, Mail, ExternalLink, ChevronDown, ChevronUp, Users, FileText } from 'lucide-react';
+import { Globe, Plus, Trash2, Settings, Package, Mail, ExternalLink, ChevronDown, ChevronUp, Users, FileText, Loader2, Link2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../lib/api';
 
@@ -13,6 +13,9 @@ export default function Microsites() {
     const [expanded, setExpanded] = useState(null);
     const [products, setProducts] = useState({});
     const [form, setForm] = useState({ ...DEFAULT_FORM });
+    const [addingProduct, setAddingProduct] = useState(null); // microsite id
+    const [productForm, setProductForm] = useState({ source_url: '', affiliate_url: '' });
+    const [generating, setGenerating] = useState(false);
 
     useEffect(() => { loadMicrosites(); }, []);
 
@@ -57,6 +60,32 @@ export default function Microsites() {
             const data = await api(`/storefront/microsites/${msId}/products`);
             setProducts(prev => ({ ...prev, [msId]: data.products || [] }));
         } catch (err) { console.error(err); }
+    }
+
+    async function generateProduct(msId) {
+        if (!productForm.source_url || !productForm.affiliate_url) {
+            toast.error('Both source URL and affiliate URL are required');
+            return;
+        }
+        setGenerating(true);
+        try {
+            await api(`/storefront/microsites/${msId}/generate-product`, {
+                body: { source_url: productForm.source_url, affiliate_url: productForm.affiliate_url }
+            });
+            toast.success('Product generated! AI scraped and built the page.');
+            setAddingProduct(null);
+            setProductForm({ source_url: '', affiliate_url: '' });
+            loadProducts(msId);
+        } catch (err) {
+            toast.error(err.message || 'Failed to generate product');
+        }
+        setGenerating(false);
+    }
+
+    async function deleteProduct(msId, prodId) {
+        if (!confirm('Remove this product?')) return;
+        await api(`/storefront/microsites/${msId}/products/${prodId}`, { method: 'DELETE' });
+        loadProducts(msId);
     }
 
     function toggleExpand(id) {
@@ -172,7 +201,36 @@ export default function Microsites() {
 
                                     {/* Products */}
                                     <div className="bg-surface-700 rounded-xl p-4">
-                                        <h5 className="text-white text-sm font-semibold flex items-center gap-2 mb-3"><Package className="w-4 h-4 text-amber-400" /> Products ({(products[ms.id] || []).length})</h5>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h5 className="text-white text-sm font-semibold flex items-center gap-2"><Package className="w-4 h-4 text-amber-400" /> Products ({(products[ms.id] || []).length})</h5>
+                                            <button onClick={() => setAddingProduct(addingProduct === ms.id ? null : ms.id)} className="text-xs text-brand-400 hover:text-brand-300 font-medium flex items-center gap-1">
+                                                <Plus className="w-3 h-3" /> Add Product
+                                            </button>
+                                        </div>
+
+                                        {/* Add Product Form */}
+                                        {addingProduct === ms.id && (
+                                            <div className="bg-surface-600 rounded-xl p-4 mb-3 space-y-3">
+                                                <p className="text-gray-400 text-xs">Paste the manufacturer page URL (source to scrape) and your affiliate/landing page URL.</p>
+                                                <div className="space-y-2">
+                                                    <div>
+                                                        <label className="text-xs text-gray-500 block mb-1">Source URL — manufacturer product page to scrape</label>
+                                                        <input value={productForm.source_url} onChange={e => setProductForm({ ...productForm, source_url: e.target.value })} placeholder="https://manufacturer.com/product-page" className="w-full px-3 py-2 bg-surface-700 border border-white/10 rounded-lg text-white text-sm" />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs text-gray-500 block mb-1">Affiliate URL — your landing page or affiliate link for Buy button</label>
+                                                        <input value={productForm.affiliate_url} onChange={e => setProductForm({ ...productForm, affiliate_url: e.target.value })} placeholder="https://manufacturer.com/product?ref=yourcode" className="w-full px-3 py-2 bg-surface-700 border border-white/10 rounded-lg text-white text-sm" />
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => generateProduct(ms.id)} disabled={generating} className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+                                                        {generating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</> : <><Package className="w-3.5 h-3.5" /> Generate Product Page</>}
+                                                    </button>
+                                                    <button onClick={() => { setAddingProduct(null); setProductForm({ source_url: '', affiliate_url: '' }); }} className="px-3 py-2 text-gray-400 text-sm">Cancel</button>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {(products[ms.id] || []).length > 0 ? (
                                             <div className="space-y-2">
                                                 {products[ms.id].map(p => (
@@ -181,12 +239,15 @@ export default function Microsites() {
                                                             {p.images?.[0] && <img src={typeof p.images === 'string' ? JSON.parse(p.images)[0] : p.images[0]} className="w-8 h-8 rounded object-cover" />}
                                                             <span className="text-white text-sm truncate">{p.product_name}</span>
                                                         </div>
-                                                        <a href={`https://${ms.subdomain}.dealfindai.com/${p.slug}`} target="_blank" rel="noopener" className="text-xs text-brand-400 hover:text-brand-300">View</a>
+                                                        <div className="flex items-center gap-2 shrink-0">
+                                                            <a href={`https://${ms.subdomain}.dealfindai.com/${p.slug}`} target="_blank" rel="noopener" className="text-xs text-brand-400 hover:text-brand-300">View</a>
+                                                            <button onClick={() => deleteProduct(ms.id, p.id)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
                                         ) : (
-                                            <p className="text-gray-500 text-sm">No products yet. Add products from the microsite product manager.</p>
+                                            <p className="text-gray-500 text-sm">No products yet. Click "Add Product" above.</p>
                                         )}
                                     </div>
 
