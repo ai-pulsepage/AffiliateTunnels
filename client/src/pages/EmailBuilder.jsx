@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { emailApi, funnelApi, mediaApi } from '../lib/api';
+import { emailApi, funnelApi, mediaApi, api } from '../lib/api';
 import { Link } from 'react-router-dom';
 import { Plus, Trash2, Mail, Pencil, Copy, Eye, X, Code2, FileText, Wand2, Send, ImageIcon, Globe, Bell, CheckCircle, AlertCircle, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -58,52 +58,45 @@ export default function EmailBuilder() {
 
     async function loadCategoryDrips() {
         try {
-            const res = await fetch(`${API}/api/emails/drips-by-category`, { credentials: 'include' });
-            const d = await res.json();
+            const d = await api('/emails/drips-by-category');
             setCategoryDrips(d.drips || []);
         } catch (err) { console.error(err); }
     }
 
     async function loadMicrosites() {
         try {
-            const res = await fetch(`${API}/api/storefront/microsites`, { credentials: 'include' });
-            const d = await res.json();
+            const d = await api('/storefront/microsites');
             setMicrosites(d.microsites || []);
         } catch (err) { console.error(err); }
     }
 
     async function loadNotifications() {
         try {
-            const res = await fetch(`${API}/api/blogmaker/notifications`, { credentials: 'include' });
-            const d = await res.json();
+            const d = await api('/blogmaker/notifications');
             setNotifications(d.notifications || []);
         } catch (err) { console.error(err); }
     }
 
     async function createCategoryDrip() {
         if (!newDripCategory) return;
-        const res = await fetch(`${API}/api/emails/drips-by-category`, {
-            method: 'POST', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ category: newDripCategory, name: newDripName || undefined }),
-        });
-        if (res.ok) {
+        try {
+            await api('/emails/drips-by-category', { body: { category: newDripCategory, name: newDripName || undefined } });
             toast.success('Category drip campaign created');
             setShowCreateDrip(false);
             setNewDripCategory('');
             setNewDripName('');
             loadCategoryDrips();
-        }
+        } catch (err) { toast.error(err.message); }
     }
 
     async function approveNotification(id) {
-        await fetch(`${API}/api/blogmaker/notifications/${id}/approve`, { method: 'POST', credentials: 'include' });
+        await api(`/blogmaker/notifications/${id}/approve`, { method: 'POST' });
         toast.success('Notification approved — sending soon');
         loadNotifications();
     }
 
     async function deleteNotification(id) {
-        await fetch(`${API}/api/blogmaker/notifications/${id}`, { method: 'DELETE', credentials: 'include' });
+        await api(`/blogmaker/notifications/${id}`, { method: 'DELETE' });
         loadNotifications();
     }
 

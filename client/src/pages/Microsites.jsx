@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Globe, Plus, Trash2, Settings, Package, Mail, ExternalLink, ChevronDown, ChevronUp, Users, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-const API = import.meta.env.VITE_API_URL || '';
+import { api } from '../lib/api';
 
 const DEFAULT_FORM = { subdomain: '', site_title: '', site_subtitle: '', accent_color: '#6366f1' };
 const COLOR_PRESETS = ['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#1e293b'];
@@ -19,8 +18,7 @@ export default function Microsites() {
 
     async function loadMicrosites() {
         try {
-            const res = await fetch(`${API}/api/storefront/microsites`, { credentials: 'include' });
-            const data = await res.json();
+            const data = await api('/storefront/microsites');
             setMicrosites(data.microsites || []);
         } catch (err) { console.error(err); }
         setLoading(false);
@@ -28,49 +26,37 @@ export default function Microsites() {
 
     async function createMicrosite(e) {
         e.preventDefault();
-        const res = await fetch(`${API}/api/storefront/microsites`, {
-            method: 'POST', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(form),
-        });
-        if (res.ok) {
+        try {
+            await api('/storefront/microsites', { body: form });
             toast.success('Microsite created!');
             setShowCreate(false);
             setForm({ ...DEFAULT_FORM });
             loadMicrosites();
-        } else {
-            const err = await res.json();
-            toast.error(err.error || 'Failed');
+        } catch (err) {
+            toast.error(err.message || 'Failed');
         }
     }
 
     async function deleteMicrosite(id) {
         if (!confirm('Delete this microsite and all its products?')) return;
-        await fetch(`${API}/api/storefront/microsites/${id}`, { method: 'DELETE', credentials: 'include' });
+        await api(`/storefront/microsites/${id}`, { method: 'DELETE' });
         loadMicrosites();
     }
 
     async function toggleOptin(ms) {
-        await fetch(`${API}/api/storefront/microsites/${ms.id}`, {
-            method: 'PUT', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ optin_enabled: !ms.optin_enabled }),
-        });
+        await api(`/storefront/microsites/${ms.id}`, { body: { optin_enabled: !ms.optin_enabled }, method: 'PUT' });
         loadMicrosites();
     }
 
     async function updateOptinText(id, field, value) {
-        await fetch(`${API}/api/storefront/microsites/${id}`, {
-            method: 'PUT', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ [field]: value }),
-        });
+        await api(`/storefront/microsites/${id}`, { body: { [field]: value }, method: 'PUT' });
     }
 
     async function loadProducts(msId) {
-        const res = await fetch(`${API}/api/storefront/microsites/${msId}/products`, { credentials: 'include' });
-        const data = await res.json();
-        setProducts(prev => ({ ...prev, [msId]: data.products || [] }));
+        try {
+            const data = await api(`/storefront/microsites/${msId}/products`);
+            setProducts(prev => ({ ...prev, [msId]: data.products || [] }));
+        } catch (err) { console.error(err); }
     }
 
     function toggleExpand(id) {

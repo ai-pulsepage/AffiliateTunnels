@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Bot, Plus, Trash2, Sparkles, FileText, Calendar, Send, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, ExternalLink, AlertCircle } from 'lucide-react';
-
-const API = import.meta.env.VITE_API_URL || '';
+import { api } from '../lib/api';
 
 export default function BlogMaker() {
     const [tab, setTab] = useState('workers');
@@ -18,29 +17,25 @@ export default function BlogMaker() {
 
     async function loadWorkers() {
         try {
-            const res = await fetch(`${API}/api/blogmaker/workers`, { credentials: 'include' });
-            const data = await res.json();
+            const data = await api('/blogmaker/workers');
             setWorkers(data.workers || []);
         } catch (err) { console.error(err); }
     }
     async function loadMicrosites() {
         try {
-            const res = await fetch(`${API}/api/storefront/microsites`, { credentials: 'include' });
-            const data = await res.json();
+            const data = await api('/storefront/microsites');
             setMicrosites(data.microsites || []);
         } catch (err) { console.error(err); }
     }
     async function loadAllPosts() {
         try {
-            const res = await fetch(`${API}/api/blogmaker/posts`, { credentials: 'include' });
-            const data = await res.json();
+            const data = await api('/blogmaker/posts');
             setAllPosts(data.posts || []);
         } catch (err) { console.error(err); }
     }
     async function loadNotifications() {
         try {
-            const res = await fetch(`${API}/api/blogmaker/notifications`, { credentials: 'include' });
-            const data = await res.json();
+            const data = await api('/blogmaker/notifications');
             setNotifications(data.notifications || []);
         } catch (err) { console.error(err); }
     }
@@ -100,21 +95,17 @@ function WorkersTab({ workers, microsites, onRefresh }) {
             const [url, ...rest] = line.split('|');
             return { url: url.trim(), productName: rest.join('|').trim() || 'Product' };
         });
-        const res = await fetch(`${API}/api/blogmaker/workers`, {
-            method: 'POST', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...form, affiliate_links: affiliateLinks }),
-        });
-        if (res.ok) {
+        try {
+            await api('/blogmaker/workers', { body: { ...form, affiliate_links: affiliateLinks } });
             setShowCreate(false);
             setForm({ worker_name: '', worker_title: '', microsite_id: '', affiliate_links: '', prompt_template: '' });
             onRefresh();
-        }
+        } catch (err) { console.error(err); }
     }
 
     async function deleteWorker(id) {
         if (!confirm('Delete this worker?')) return;
-        await fetch(`${API}/api/blogmaker/workers/${id}`, { method: 'DELETE', credentials: 'include' });
+        await api(`/blogmaker/workers/${id}`, { method: 'DELETE' });
         onRefresh();
     }
 
@@ -217,24 +208,21 @@ function QueueTab({ workers, onRefresh }) {
     useEffect(() => { if (selectedWorker) loadQueue(); }, [selectedWorker]);
 
     async function loadQueue() {
-        const res = await fetch(`${API}/api/blogmaker/workers/${selectedWorker}/queue`, { credentials: 'include' });
-        const data = await res.json();
-        setQueue(data.queue || []);
+        try {
+            const data = await api(`/blogmaker/workers/${selectedWorker}/queue`);
+            setQueue(data.queue || []);
+        } catch (err) { console.error(err); }
     }
 
     async function addEntries(entriesToAdd) {
-        const res = await fetch(`${API}/api/blogmaker/workers/${selectedWorker}/queue`, {
-            method: 'POST', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ entries: entriesToAdd }),
-        });
-        if (res.ok) {
+        try {
+            await api(`/blogmaker/workers/${selectedWorker}/queue`, { body: { entries: entriesToAdd } });
             setShowAdd(false);
             setEntries([{ reference_url: '', topic: '', target_keyword: '', scheduled_at: '' }]);
             setSuggestions([]);
             loadQueue();
             onRefresh();
-        }
+        } catch (err) { console.error(err); }
     }
 
     async function handleSmartSuggest() {
@@ -242,13 +230,7 @@ function QueueTab({ workers, onRefresh }) {
         if (urls.length === 0) return;
         setSuggesting(true);
         try {
-            const res = await fetch(`${API}/api/blogmaker/workers/${selectedWorker}/smart-suggest`, {
-                method: 'POST', credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reference_urls: urls }),
-            });
-            const data = await res.json();
-            // Auto-space dates 2 days apart starting tomorrow
+            const data = await api(`/blogmaker/workers/${selectedWorker}/smart-suggest`, { body: { reference_urls: urls } });
             const start = new Date();
             start.setDate(start.getDate() + 1);
             start.setHours(9, 0, 0, 0);
@@ -263,7 +245,7 @@ function QueueTab({ workers, onRefresh }) {
     }
 
     async function deleteEntry(id) {
-        await fetch(`${API}/api/blogmaker/queue/${id}`, { method: 'DELETE', credentials: 'include' });
+        await api(`/blogmaker/queue/${id}`, { method: 'DELETE' });
         loadQueue();
         onRefresh();
     }
@@ -425,17 +407,17 @@ function PublishedTab({ posts, notifications, onRefresh }) {
     const sentNotifs = notifications.filter(n => n.status === 'sent');
 
     async function publishPost(postId, action) {
-        await fetch(`${API}/api/blogmaker/posts/${postId}/${action}`, { method: 'POST', credentials: 'include' });
+        await api(`/blogmaker/posts/${postId}/${action}`, { method: 'POST' });
         onRefresh();
     }
 
     async function approveNotification(id) {
-        await fetch(`${API}/api/blogmaker/notifications/${id}/approve`, { method: 'POST', credentials: 'include' });
+        await api(`/blogmaker/notifications/${id}/approve`, { method: 'POST' });
         onRefresh();
     }
 
     async function deleteNotification(id) {
-        await fetch(`${API}/api/blogmaker/notifications/${id}`, { method: 'DELETE', credentials: 'include' });
+        await api(`/blogmaker/notifications/${id}`, { method: 'DELETE' });
         onRefresh();
     }
 
