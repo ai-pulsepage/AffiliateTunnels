@@ -310,17 +310,17 @@ function QueueTab({ workers, onRefresh }) {
                                         <div className="md:col-span-1">
                                             <input value={s.topic} onChange={e => {
                                                 const u = [...suggestions]; u[i] = { ...u[i], topic: e.target.value }; setSuggestions(u);
-                                            }} className="w-full px-2 py-1.5 bg-surface-600 rounded text-white text-sm" />
+                                            }} className="w-full px-2 py-1.5 bg-surface-700 border border-white/10 rounded text-white text-sm" />
                                         </div>
                                         <div>
                                             <input value={s.target_keyword || ''} onChange={e => {
                                                 const u = [...suggestions]; u[i] = { ...u[i], target_keyword: e.target.value }; setSuggestions(u);
-                                            }} placeholder="keyword" className="w-full px-2 py-1.5 bg-surface-600 rounded text-white text-sm" />
+                                            }} placeholder="keyword" className="w-full px-2 py-1.5 bg-surface-700 border border-white/10 rounded text-white text-sm" />
                                         </div>
                                         <div>
                                             <input type="datetime-local" value={s.scheduled_at || ''} onChange={e => {
                                                 const u = [...suggestions]; u[i] = { ...u[i], scheduled_at: e.target.value }; setSuggestions(u);
-                                            }} className="w-full px-2 py-1.5 bg-surface-600 rounded text-white text-sm" />
+                                            }} className="w-full px-2 py-1.5 bg-surface-700 border border-white/10 rounded text-white text-sm [color-scheme:dark]" />
                                         </div>
                                     </div>
                                 ))}
@@ -359,50 +359,55 @@ function QueueTab({ workers, onRefresh }) {
 
                     <button onClick={() => setShowAdd(false)} className="text-sm text-gray-500 hover:text-gray-300">Close</button>
                 </div>
-            )}
+            )
+            }
 
             {/* Pending Queue */}
             <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-yellow-400" /> Scheduled ({pending.length})</h3>
-            {pending.length === 0 ? (
-                <p className="text-gray-600 text-sm mb-6">No pending items. Add entries above to schedule blog posts.</p>
-            ) : (
-                <div className="space-y-2 mb-6">
-                    {pending.map(q => (
-                        <div key={q.id} className="bg-surface-800 border border-white/10 rounded-xl p-4 flex items-center justify-between">
-                            <div className="min-w-0 flex-1">
-                                <p className="text-white text-sm font-medium truncate">{q.topic}</p>
-                                <p className="text-gray-500 text-xs truncate">{q.reference_url} · {q.target_keyword || 'auto keyword'}</p>
-                                <p className="text-gray-600 text-xs mt-1">
-                                    <Calendar className="w-3 h-3 inline mr-1" />
-                                    {q.scheduled_at ? new Date(q.scheduled_at).toLocaleString() : 'No date set'}
-                                </p>
-                            </div>
-                            <button onClick={() => deleteEntry(q.id)} className="p-2 text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Completed */}
-            {completed.length > 0 && (
-                <>
-                    <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-400" /> Completed ({completed.length})</h3>
-                    <div className="space-y-2">
-                        {completed.map(q => (
-                            <div key={q.id} className="bg-surface-800 border border-white/10 rounded-xl p-3 flex items-center justify-between opacity-70">
+            {
+                pending.length === 0 ? (
+                    <p className="text-gray-600 text-sm mb-6">No pending items. Add entries above to schedule blog posts.</p>
+                ) : (
+                    <div className="space-y-2 mb-6">
+                        {pending.map(q => (
+                            <div key={q.id} className="bg-surface-800 border border-white/10 rounded-xl p-4 flex items-center justify-between">
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-white text-sm truncate">{q.post_title || q.topic}</p>
-                                    <p className="text-gray-500 text-xs">{q.status === 'failed' ? `❌ ${q.error || 'Failed'}` : '✅ Published'}</p>
+                                    <p className="text-white text-sm font-medium truncate">{q.topic}</p>
+                                    <p className="text-gray-500 text-xs truncate">{q.reference_url} · {q.target_keyword || 'auto keyword'}</p>
+                                    <p className="text-gray-600 text-xs mt-1">
+                                        <Calendar className="w-3 h-3 inline mr-1" />
+                                        {q.scheduled_at ? new Date(q.scheduled_at).toLocaleString() : 'No date set'}
+                                    </p>
                                 </div>
-                                {q.post_slug && (
-                                    <a href={`/blog/${q.post_id}/edit`} className="text-xs text-brand-400 hover:text-brand-300 font-medium">Edit</a>
-                                )}
+                                <button onClick={() => deleteEntry(q.id)} className="p-2 text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                             </div>
                         ))}
                     </div>
-                </>
-            )}
-        </div>
+                )
+            }
+
+            {/* Completed */}
+            {
+                completed.length > 0 && (
+                    <>
+                        <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-400" /> Completed ({completed.length})</h3>
+                        <div className="space-y-2">
+                            {completed.map(q => (
+                                <div key={q.id} className="bg-surface-800 border border-white/10 rounded-xl p-3 flex items-center justify-between opacity-70">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-white text-sm truncate">{q.post_title || q.topic}</p>
+                                        <p className="text-gray-500 text-xs">{q.status === 'failed' ? `❌ ${q.error || 'Failed'}` : '✅ Published'}</p>
+                                    </div>
+                                    {q.post_slug && (
+                                        <a href={`/blog/${q.post_id}/edit`} className="text-xs text-brand-400 hover:text-brand-300 font-medium">Edit</a>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )
+            }
+        </div >
     );
 }
 
