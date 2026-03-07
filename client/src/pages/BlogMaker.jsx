@@ -205,76 +205,96 @@ function QueueTab({ workers, onRefresh }) {
     const [showAdd, setShowAdd] = useState(false);
     const [suggesting, setSuggesting] = useState(false);
     const [suggestions, setSuggestions] = useState([]);
+    const [schedulerStatus, setSchedulerStatus] = useState(null);
+    const [processing, setProcessing] = useState(false);
+    const [editingId, setEditingId] = useState(null);
+    const [editForm, setEditForm] = useState({});
 
     // Manual add form
     const [entries, setEntries] = useState([{ reference_url: '', topic: '', target_keyword: '', scheduled_at: '' }]);
-
-    // Smart suggest URLs
     const [suggestUrls, setSuggestUrls] = useState('');
 
-    useEffect(() => { if (selectedWorker) loadQueue(); }, [selectedWorker]);
+    useEffect(() => { if (selectedWorker) loadQueue(); loadSchedulerStatus(); }, [selectedWorker]);
 
     async function loadQueue() {
-        try {
-            const data = await api(`/blogmaker/workers/${selectedWorker}/queue`);
-            setQueue(data.queue || []);
-        } catch (err) { console.error(err); }
+        try { const data = await api(`/blogmaker/workers/${selectedWorker}/queue`); setQueue(data.queue || []); } catch (err) { console.error(err); }
     }
-
+    async function loadSchedulerStatus() {
+        try { const data = await api('/blogmaker/scheduler-status'); setSchedulerStatus(data); } catch (err) { console.error(err); }
+    }
+    async function processNow() {
+        setProcessing(true);
+        try {
+            await api('/blogmaker/process-now', { method: 'POST' });
+            setTimeout(() => { loadQueue(); loadSchedulerStatus(); onRefresh(); setProcessing(false); }, 8000);
+        } catch (err) { console.error(err); setProcessing(false); }
+    }
     async function addEntries(entriesToAdd) {
         try {
             await api(`/blogmaker/workers/${selectedWorker}/queue`, { body: { entries: entriesToAdd } });
-            setShowAdd(false);
-            setEntries([{ reference_url: '', topic: '', target_keyword: '', scheduled_at: '' }]);
-            setSuggestions([]);
-            loadQueue();
-            onRefresh();
+            setShowAdd(false); setEntries([{ reference_url: '', topic: '', target_keyword: '', scheduled_at: '' }]);
+            setSuggestions([]); loadQueue(); loadSchedulerStatus(); onRefresh();
         } catch (err) { console.error(err); }
     }
-
     async function handleSmartSuggest() {
         const urls = suggestUrls.split('\n').filter(Boolean).map(u => u.trim());
         if (urls.length === 0) return;
         setSuggesting(true);
         try {
             const data = await api(`/blogmaker/workers/${selectedWorker}/smart-suggest`, { body: { reference_urls: urls } });
-            const start = new Date();
-            start.setDate(start.getDate() + 1);
-            start.setHours(9, 0, 0, 0);
-
+            const start = new Date(); start.setDate(start.getDate() + 1); start.setHours(9, 0, 0, 0);
             const withDates = (data.suggestions || []).map((s, i) => ({
-                ...s,
-                scheduled_at: new Date(start.getTime() + i * 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+                ...s, scheduled_at: new Date(start.getTime() + i * 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
             }));
             setSuggestions(withDates);
         } catch (err) { console.error(err); }
         setSuggesting(false);
     }
-
     async function deleteEntry(id) {
-        await api(`/blogmaker/queue/${id}`, { method: 'DELETE' });
-        loadQueue();
-        onRefresh();
+        await api(`/blogmaker/queue/${id}`, { method: 'DELETE' }); loadQueue(); loadSchedulerStatus(); onRefresh();
     }
-
-    function addRow() {
-        setEntries([...entries, { reference_url: '', topic: '', target_keyword: '', scheduled_at: '' }]);
+    async function saveEdit(id) {
+        try { await api(`/blogmaker/queue/${id}`, { method: 'PUT', body: editForm }); setEditingId(null); setEditForm({}); loadQueue(); } catch (err) { console.error(err); }
     }
-
-    function updateEntry(i, field, val) {
-        const updated = [...entries];
-        updated[i] = { ...updated[i], [field]: val };
-        setEntries(updated);
+    function startEdit(q) {
+        setEditingId(q.id);
+        setEditForm({ topic: q.topic, target_keyword: q.target_keyword || '', reference_url: q.reference_url || '', scheduled_at: q.scheduled_at ? new Date(q.scheduled_at).toISOString().slice(0, 16) : '' });
     }
+    function addRow() { setEntries([...entries, { reference_url: '', topic: '', target_keyword: '', scheduled_at: '' }]); }
+    function updateEntry(i, field, val) { const updated = [...entries]; updated[i] = { ...updated[i], [field]: val }; setEntries(updated); }
 
     const pending = queue.filter(q => q.status === 'pending');
     const completed = queue.filter(q => q.status !== 'pending');
 
     return (
         <div>
+            {/* Scheduler Status Bar */}
+            {schedulerStatus && (
+                <div className="bg-surface-800 border border-white/10 rounded-xl p-4 mb-6">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
+                        <div className="flex items-center gap-4 text-xs flex-wrap">
+                            <span className="text-gray-400">Queue: <span className="text-white font-medium">{schedulerStatus.pending} pending</span></span>
+                            {schedulerStatus.overdue > 0 && <span className="text-yellow-400 font-medium flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {schedulerStatus.overdue} overdue</span>}
+                            {schedulerStatus.generating > 0 && <span className="text-blue-400">⏳ {schedulerStatus.generating} generating</span>}
+                            {schedulerStatus.failed > 0 && <span className="text-red-400">❌ {schedulerStatus.failed} failed</span>}
+                            <span className="text-gray-500">{schedulerStatus.published} published</span>
+                            <span className={schedulerStatus.gemini_key_set ? 'text-green-400' : 'text-red-400 font-bold'}>
+                                AI Key: {schedulerStatus.gemini_key_set ? '✓ Set' : '✗ MISSING — posts cannot generate'}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-gray-600 text-xs">Server: {new Date(schedulerStatus.server_time).toLocaleString()}</span>
+                            <button onClick={processNow} disabled={processing}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-lg text-xs font-medium disabled:opacity-40 transition-colors">
+                                <Send className="w-3 h-3" /> {processing ? 'Processing...' : 'Process Now'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="flex items-center gap-4 mb-6">
-                <select value={selectedWorker} onChange={e => setSelectedWorker(e.target.value)}
-                    className="px-3 py-2.5 bg-surface-800 border border-white/10 rounded-lg text-white text-sm">
+                <select value={selectedWorker} onChange={e => setSelectedWorker(e.target.value)} className="px-3 py-2.5 bg-surface-800 border border-white/10 rounded-lg text-white text-sm">
                     {workers.map(w => <option key={w.id} value={w.id}>{w.worker_name}</option>)}
                 </select>
                 <button onClick={() => { setShowAdd(true); setSuggestions([]); }} className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-sm font-medium">
@@ -285,7 +305,6 @@ function QueueTab({ workers, onRefresh }) {
             {/* Smart Suggest or Manual Add */}
             {showAdd && (
                 <div className="bg-surface-800 border border-white/10 rounded-2xl p-6 mb-6 space-y-5">
-                    {/* Smart Suggest */}
                     <div>
                         <h3 className="text-white font-semibold mb-2 flex items-center gap-2"><Sparkles className="w-4 h-4 text-purple-400" /> Smart Suggest</h3>
                         <p className="text-gray-500 text-xs mb-3">Paste reference article URLs — AI generates paired topics, keywords, and auto-spaces dates</p>
@@ -297,31 +316,19 @@ function QueueTab({ workers, onRefresh }) {
                         </button>
                     </div>
 
-                    {/* Suggestions Result */}
                     {suggestions.length > 0 && (
                         <div>
                             <h3 className="text-white font-semibold mb-3">Suggested Queue ({suggestions.length} entries)</h3>
                             <div className="space-y-2">
                                 {suggestions.map((s, i) => (
                                     <div key={i} className="bg-surface-700 rounded-lg p-3 grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
-                                        <div className="md:col-span-1">
-                                            <p className="text-xs text-gray-500 truncate">{s.reference_url}</p>
-                                        </div>
-                                        <div className="md:col-span-1">
-                                            <input value={s.topic} onChange={e => {
-                                                const u = [...suggestions]; u[i] = { ...u[i], topic: e.target.value }; setSuggestions(u);
-                                            }} className="w-full px-2 py-1.5 bg-surface-700 border border-white/10 rounded text-white text-sm" />
-                                        </div>
-                                        <div>
-                                            <input value={s.target_keyword || ''} onChange={e => {
-                                                const u = [...suggestions]; u[i] = { ...u[i], target_keyword: e.target.value }; setSuggestions(u);
-                                            }} placeholder="keyword" className="w-full px-2 py-1.5 bg-surface-700 border border-white/10 rounded text-white text-sm" />
-                                        </div>
-                                        <div>
-                                            <input type="datetime-local" value={s.scheduled_at || ''} onChange={e => {
-                                                const u = [...suggestions]; u[i] = { ...u[i], scheduled_at: e.target.value }; setSuggestions(u);
-                                            }} className="w-full px-2 py-1.5 bg-surface-700 border border-white/10 rounded text-white text-sm [color-scheme:dark]" />
-                                        </div>
+                                        <p className="text-xs text-gray-500 truncate">{s.reference_url}</p>
+                                        <input value={s.topic} onChange={e => { const u = [...suggestions]; u[i] = { ...u[i], topic: e.target.value }; setSuggestions(u); }}
+                                            className="w-full px-2 py-1.5 bg-surface-700 border border-white/10 rounded text-white text-sm" />
+                                        <input value={s.target_keyword || ''} onChange={e => { const u = [...suggestions]; u[i] = { ...u[i], target_keyword: e.target.value }; setSuggestions(u); }}
+                                            placeholder="keyword" className="w-full px-2 py-1.5 bg-surface-700 border border-white/10 rounded text-white text-sm" />
+                                        <input type="datetime-local" value={s.scheduled_at || ''} onChange={e => { const u = [...suggestions]; u[i] = { ...u[i], scheduled_at: e.target.value }; setSuggestions(u); }}
+                                            className="w-full px-2 py-1.5 bg-surface-700 border border-white/10 rounded text-white text-sm [color-scheme:dark]" />
                                     </div>
                                 ))}
                             </div>
@@ -334,7 +341,6 @@ function QueueTab({ workers, onRefresh }) {
                         </div>
                     )}
 
-                    {/* Manual Add */}
                     {suggestions.length === 0 && (
                         <div>
                             <div className="flex items-center justify-between mb-3">
@@ -347,67 +353,78 @@ function QueueTab({ workers, onRefresh }) {
                                         <input value={entry.reference_url} onChange={e => updateEntry(i, 'reference_url', e.target.value)} placeholder="Reference URL" className="px-3 py-2 bg-surface-700 border border-white/10 rounded-lg text-white text-sm" />
                                         <input value={entry.topic} onChange={e => updateEntry(i, 'topic', e.target.value)} placeholder="Blog Topic" className="px-3 py-2 bg-surface-700 border border-white/10 rounded-lg text-white text-sm" />
                                         <input value={entry.target_keyword} onChange={e => updateEntry(i, 'target_keyword', e.target.value)} placeholder="Target Keyword" className="px-3 py-2 bg-surface-700 border border-white/10 rounded-lg text-white text-sm" />
-                                        <input type="datetime-local" value={entry.scheduled_at} onChange={e => updateEntry(i, 'scheduled_at', e.target.value)} className="px-3 py-2 bg-surface-700 border border-white/10 rounded-lg text-white text-sm" />
+                                        <input type="datetime-local" value={entry.scheduled_at} onChange={e => updateEntry(i, 'scheduled_at', e.target.value)} className="px-3 py-2 bg-surface-700 border border-white/10 rounded-lg text-white text-sm [color-scheme:dark]" />
                                     </div>
                                 ))}
                             </div>
-                            <button onClick={() => addEntries(entries.filter(e => e.reference_url && e.topic))} className="mt-3 px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-sm font-medium">
-                                Add to Queue
-                            </button>
+                            <button onClick={() => addEntries(entries.filter(e => e.reference_url && e.topic))} className="mt-3 px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-sm font-medium">Add to Queue</button>
                         </div>
                     )}
-
                     <button onClick={() => setShowAdd(false)} className="text-sm text-gray-500 hover:text-gray-300">Close</button>
                 </div>
-            )
-            }
+            )}
 
             {/* Pending Queue */}
             <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-yellow-400" /> Scheduled ({pending.length})</h3>
-            {
-                pending.length === 0 ? (
-                    <p className="text-gray-600 text-sm mb-6">No pending items. Add entries above to schedule blog posts.</p>
-                ) : (
-                    <div className="space-y-2 mb-6">
-                        {pending.map(q => (
-                            <div key={q.id} className="bg-surface-800 border border-white/10 rounded-xl p-4 flex items-center justify-between">
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-white text-sm font-medium truncate">{q.topic}</p>
-                                    <p className="text-gray-500 text-xs truncate">{q.reference_url} · {q.target_keyword || 'auto keyword'}</p>
-                                    <p className="text-gray-600 text-xs mt-1">
-                                        <Calendar className="w-3 h-3 inline mr-1" />
-                                        {q.scheduled_at ? new Date(q.scheduled_at).toLocaleString() : 'No date set'}
-                                    </p>
+            {pending.length === 0 ? (
+                <p className="text-gray-600 text-sm mb-6">No pending items. Add entries above to schedule blog posts.</p>
+            ) : (
+                <div className="space-y-2 mb-6">
+                    {pending.map(q => (
+                        <div key={q.id} className="bg-surface-800 border border-white/10 rounded-xl p-4">
+                            {editingId === q.id ? (
+                                <div className="space-y-2">
+                                    <input value={editForm.topic} onChange={e => setEditForm({ ...editForm, topic: e.target.value })} placeholder="Topic" className="w-full px-3 py-2 bg-surface-700 border border-white/10 rounded-lg text-white text-sm" />
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                        <input value={editForm.reference_url} onChange={e => setEditForm({ ...editForm, reference_url: e.target.value })} placeholder="Reference URL" className="px-3 py-2 bg-surface-700 border border-white/10 rounded-lg text-white text-sm" />
+                                        <input value={editForm.target_keyword} onChange={e => setEditForm({ ...editForm, target_keyword: e.target.value })} placeholder="Keyword" className="px-3 py-2 bg-surface-700 border border-white/10 rounded-lg text-white text-sm" />
+                                        <input type="datetime-local" value={editForm.scheduled_at} onChange={e => setEditForm({ ...editForm, scheduled_at: e.target.value })} className="px-3 py-2 bg-surface-700 border border-white/10 rounded-lg text-white text-sm [color-scheme:dark]" />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => saveEdit(q.id)} className="px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs font-medium">Save</button>
+                                        <button onClick={() => setEditingId(null)} className="px-3 py-1.5 text-gray-400 text-xs">Cancel</button>
+                                    </div>
                                 </div>
-                                <button onClick={() => deleteEntry(q.id)} className="p-2 text-gray-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
+                            ) : (
+                                <div className="flex items-center justify-between">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-white text-sm font-medium truncate">{q.topic}</p>
+                                        <p className="text-gray-500 text-xs truncate">{q.reference_url} · {q.target_keyword || 'auto keyword'}</p>
+                                        <p className="text-gray-600 text-xs mt-1">
+                                            <Calendar className="w-3 h-3 inline mr-1" />
+                                            {q.scheduled_at ? new Date(q.scheduled_at).toLocaleString() : 'No date set'}
+                                            {q.scheduled_at && new Date(q.scheduled_at) < new Date() && <span className="ml-2 text-yellow-400 font-medium">⚠ Overdue</span>}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <button onClick={() => startEdit(q)} className="p-2 text-gray-500 hover:text-brand-400" title="Edit"><FileText className="w-4 h-4" /></button>
+                                        <button onClick={() => deleteEntry(q.id)} className="p-2 text-gray-500 hover:text-red-400" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Completed */}
+            {completed.length > 0 && (
+                <>
+                    <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-400" /> Completed ({completed.length})</h3>
+                    <div className="space-y-2">
+                        {completed.map(q => (
+                            <div key={q.id} className="bg-surface-800 border border-white/10 rounded-xl p-3 flex items-center justify-between opacity-70">
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-white text-sm truncate">{q.post_title || q.topic}</p>
+                                    <p className="text-gray-500 text-xs">{q.status === 'failed' ? `❌ ${q.error || 'Failed'}` : '✅ Published'}</p>
+                                </div>
+                                {q.post_slug && <a href={`/blog/${q.post_id}/edit`} className="text-xs text-brand-400 hover:text-brand-300 font-medium">Edit</a>}
                             </div>
                         ))}
                     </div>
-                )
-            }
-
-            {/* Completed */}
-            {
-                completed.length > 0 && (
-                    <>
-                        <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-400" /> Completed ({completed.length})</h3>
-                        <div className="space-y-2">
-                            {completed.map(q => (
-                                <div key={q.id} className="bg-surface-800 border border-white/10 rounded-xl p-3 flex items-center justify-between opacity-70">
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-white text-sm truncate">{q.post_title || q.topic}</p>
-                                        <p className="text-gray-500 text-xs">{q.status === 'failed' ? `❌ ${q.error || 'Failed'}` : '✅ Published'}</p>
-                                    </div>
-                                    {q.post_slug && (
-                                        <a href={`/blog/${q.post_id}/edit`} className="text-xs text-brand-400 hover:text-brand-300 font-medium">Edit</a>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </>
-                )
-            }
-        </div >
+                </>
+            )}
+        </div>
     );
 }
 

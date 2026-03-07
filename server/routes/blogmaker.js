@@ -174,6 +174,69 @@ router.delete('/queue/:id', async (req, res) => {
     }
 });
 
+// PUT /api/blogmaker/queue/:id — edit a queue item
+router.put('/queue/:id', async (req, res) => {
+    try {
+        const { topic, target_keyword, reference_url, scheduled_at } = req.body;
+        const result = await query(
+            `UPDATE blog_queue
+             SET topic = COALESCE($2, topic),
+                 target_keyword = COALESCE($3, target_keyword),
+                 reference_url = COALESCE($4, reference_url),
+                 scheduled_at = COALESCE($5, scheduled_at)
+             WHERE id = $1 AND status = 'pending'
+             RETURNING *`,
+            [req.params.id, topic, target_keyword, reference_url, scheduled_at]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Queue entry not found or already processed' });
+        res.json({ queue: result.rows[0] });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update queue entry' });
+    }
+});
+
+// POST /api/blogmaker/process-now — manually trigger queue processing
+router.post('/process-now', async (req, res) => {
+    try {
+        const { processQueue } = require('../services/blogmaker-scheduler');
+        console.log('[BlogMaker] Manual process triggered by admin');
+        processQueue().then(() => {
+            console.log('[BlogMaker] Manual process complete');
+        }).catch(err => {
+            console.error('[BlogMaker] Manual process error:', err);
+        });
+        res.json({ message: 'Queue processing started — check Published tab in a few minutes' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to trigger processing' });
+    }
+});
+
+// GET /api/blogmaker/scheduler-status — diagnostics
+router.get('/scheduler-status', async (req, res) => {
+    try {
+        const pending = await query("SELECT COUNT(*) as count FROM blog_queue WHERE status = 'pending'");
+        const overdue = await query("SELECT COUNT(*) as count FROM blog_queue WHERE status = 'pending' AND scheduled_at <= NOW()");
+        const generating = await query("SELECT COUNT(*) as count FROM blog_queue WHERE status = 'generating'");
+        const failed = await query("SELECT COUNT(*) as count FROM blog_queue WHERE status = 'failed'");
+        const published = await query("SELECT COUNT(*) as count FROM blog_queue WHERE status = 'published'");
+
+        const { getSetting } = require('../config/settings');
+        const apiKey = process.env.GEMINI_API_KEY || await getSetting('gemini_api_key');
+
+        res.json({
+            pending: parseInt(pending.rows[0].count),
+            overdue: parseInt(overdue.rows[0].count),
+            generating: parseInt(generating.rows[0].count),
+            failed: parseInt(failed.rows[0].count),
+            published: parseInt(published.rows[0].count),
+            gemini_key_set: !!apiKey,
+            server_time: new Date().toISOString(),
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to get scheduler status' });
+    }
+});
+
 // SMART SUGGEST — paste URLs → get topic suggestions
 router.post('/workers/:id/smart-suggest', async (req, res) => {
     try {
