@@ -4,13 +4,16 @@ import toast from 'react-hot-toast';
 
 const API = import.meta.env.VITE_API_URL || '';
 
+const DEFAULT_FORM = { subdomain: '', site_title: '', site_subtitle: '', accent_color: '#6366f1' };
+const COLOR_PRESETS = ['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#1e293b'];
+
 export default function Microsites() {
     const [microsites, setMicrosites] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
     const [expanded, setExpanded] = useState(null);
     const [products, setProducts] = useState({});
-    const [form, setForm] = useState({ subdomain: '', site_title: '', site_subtitle: '', accent_color: '#6366f1' });
+    const [form, setForm] = useState({ ...DEFAULT_FORM });
 
     useEffect(() => { loadMicrosites(); }, []);
 
@@ -33,7 +36,7 @@ export default function Microsites() {
         if (res.ok) {
             toast.success('Microsite created!');
             setShowCreate(false);
-            setForm({ subdomain: '', site_title: '', site_subtitle: '', accent_color: '#6366f1' });
+            setForm({ ...DEFAULT_FORM });
             loadMicrosites();
         } else {
             const err = await res.json();
@@ -116,14 +119,19 @@ export default function Microsites() {
                         </div>
                         <div>
                             <label className="text-sm text-gray-400 block mb-1">Accent Color</label>
-                            <div className="flex items-center gap-2">
-                                <input type="color" value={form.accent_color} onChange={e => setForm({ ...form, accent_color: e.target.value })} className="w-10 h-10 rounded-lg cursor-pointer" />
-                                <input value={form.accent_color} onChange={e => setForm({ ...form, accent_color: e.target.value })} className="flex-1 px-3 py-2.5 bg-surface-700 border border-white/10 rounded-lg text-white text-sm font-mono" />
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {COLOR_PRESETS.map(c => (
+                                    <button key={c} type="button" onClick={() => setForm({ ...form, accent_color: c })} className="w-7 h-7 rounded-lg border-2 transition-transform hover:scale-110" style={{ background: c, borderColor: form.accent_color === c ? '#fff' : 'transparent' }} />
+                                ))}
+                                <div className="relative" style={{ zIndex: 100 }}>
+                                    <input type="color" value={form.accent_color} onChange={e => setForm({ ...form, accent_color: e.target.value })} className="w-7 h-7 rounded-lg cursor-pointer border-0 p-0" style={{ WebkitAppearance: 'none', border: 'none' }} title="Custom color" />
+                                </div>
+                                <input value={form.accent_color} onChange={e => setForm({ ...form, accent_color: e.target.value })} className="w-24 px-2 py-1.5 bg-surface-700 border border-white/10 rounded-lg text-white text-xs font-mono" />
                             </div>
                         </div>
                     </div>
                     <div className="flex justify-end gap-3">
-                        <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-400">Cancel</button>
+                        <button type="button" onClick={() => { setShowCreate(false); setForm({ ...DEFAULT_FORM }); }} className="px-4 py-2 text-sm text-gray-400">Cancel</button>
                         <button type="submit" className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-sm font-medium">Create Microsite</button>
                     </div>
                 </form>
