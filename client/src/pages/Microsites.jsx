@@ -202,12 +202,12 @@ export default function Microsites() {
                                     {/* Footer & Socials Settings */}
                                     <div className="bg-surface-700 rounded-xl p-4">
                                         <h5 className="text-white text-sm font-semibold flex items-center gap-2 mb-3"><Globe className="w-4 h-4 text-cyan-400" /> Footer & Socials</h5>
-                                        <p className="text-gray-600 text-xs mb-3">These appear in the footer across all pages. Leave blank to hide.</p>
+                                        <p className="text-gray-400 text-xs mb-3">These appear in the footer across all pages. Leave blank to hide.</p>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                            <input defaultValue={ms.footer_company_name || ''} onBlur={e => updateOptinText(ms.id, 'footer_company_name', e.target.value)} placeholder="Company Name" className="w-full px-3 py-2 bg-surface-600 border border-white/10 rounded-lg text-white text-sm" />
-                                            <input defaultValue={ms.footer_website || ''} onBlur={e => updateOptinText(ms.id, 'footer_website', e.target.value)} placeholder="Website URL (https://...)" className="w-full px-3 py-2 bg-surface-600 border border-white/10 rounded-lg text-white text-sm" />
+                                            <input defaultValue={ms.footer_company_name || ''} onBlur={e => updateOptinText(ms.id, 'footer_company_name', e.target.value)} placeholder="Company Name" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
+                                            <input defaultValue={ms.footer_website || ''} onBlur={e => updateOptinText(ms.id, 'footer_website', e.target.value)} placeholder="Website URL (https://...)" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
                                         </div>
-                                        <p className="text-gray-600 text-xs mt-3 mb-2">Social links (paste full URLs)</p>
+                                        <p className="text-gray-400 text-xs mt-3 mb-2">Social links (paste full URLs)</p>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                             {[['instagram', '📷 Instagram'], ['twitter', '𝕏 Twitter / X'], ['tiktok', '🎵 TikTok'], ['youtube', '▶️ YouTube'], ['facebook', '📘 Facebook'], ['linkedin', '💼 LinkedIn']].map(([key, label]) => (
                                                 <input key={key} defaultValue={(typeof ms.footer_socials === 'string' ? JSON.parse(ms.footer_socials || '{}') : (ms.footer_socials || {}))[key] || ''}
@@ -215,7 +215,7 @@ export default function Microsites() {
                                                         const socials = typeof ms.footer_socials === 'string' ? JSON.parse(ms.footer_socials || '{}') : (ms.footer_socials || {});
                                                         updateOptinText(ms.id, 'footer_socials', { ...socials, [key]: e.target.value });
                                                     }}
-                                                    placeholder={label} className="w-full px-3 py-2 bg-surface-600 border border-white/10 rounded-lg text-white text-sm placeholder:text-gray-600" />
+                                                    placeholder={label} style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm placeholder:text-gray-500" />
                                             ))}
                                         </div>
                                     </div>
