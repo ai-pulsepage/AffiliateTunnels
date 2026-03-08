@@ -552,6 +552,64 @@ router.post('/microsites/:id/generate-product', authenticate, async (req, res) =
     }
 });
 
+// POST /api/storefront/microsites/:id/manual-product — manual entry (no scraping)
+router.post('/microsites/:id/manual-product', authenticate, async (req, res) => {
+    try {
+        const { product_name, description, features, price, cta_url, image_url, selling_points, pricing_tiers } = req.body;
+        if (!product_name || !cta_url) {
+            return res.status(400).json({ error: 'Product name and CTA/affiliate URL are required' });
+        }
+
+        // Verify microsite belongs to user
+        const msCheck = await query('SELECT id FROM microsites WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+        if (msCheck.rows.length === 0) return res.status(404).json({ error: 'Microsite not found' });
+
+        // Build product intel from manual input
+        const featureList = (features || '').split('\n').map(f => f.trim()).filter(Boolean);
+        const spList = (selling_points || '').split('\n').map(s => s.trim()).filter(Boolean);
+        const productIntel = {
+            productName: product_name,
+            description: description || '',
+            salesDescription: description || '',
+            tagline: '',
+            targetAudience: '',
+            keyFeatures: featureList.slice(0, 6),
+            specifications: {},
+            sellingPoints: spList.slice(0, 6).map(s => ({ icon: '✨', title: s.substring(0, 30), detail: '' })),
+            pricing: pricing_tiers ? pricing_tiers.split('\n').map(t => {
+                const parts = t.split('|').map(p => p.trim());
+                return { tier: parts[0] || '', totalPrice: parts[1] || '' };
+            }).filter(t => t.tier) : (price ? [{ tier: 'Standard', totalPrice: price }] : []),
+            shipping: null,
+            warranty: null,
+            deliveryTime: null,
+            financing: null,
+            medicalDiscount: null,
+        };
+
+        const images = image_url ? [image_url] : [];
+        const slug = product_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').substring(0, 100);
+
+        const result = await query(
+            `INSERT INTO microsite_products (microsite_id, user_id, source_url, affiliate_url, product_name, product_desc, slug, card_image_url, images, price_label, product_intel)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             RETURNING *`,
+            [
+                req.params.id, req.user.id, `manual://${slug}`, cta_url,
+                product_name, description || '', slug,
+                image_url || '', JSON.stringify(images),
+                price || '',
+                JSON.stringify(productIntel)
+            ]
+        );
+
+        res.status(201).json({ product: result.rows[0] });
+    } catch (err) {
+        console.error('Manual product error:', err);
+        res.status(500).json({ error: err.message || 'Failed to create product' });
+    }
+});
+
 // DELETE /api/storefront/microsites/:msId/products/:prodId
 router.delete('/microsites/:msId/products/:prodId', authenticate, async (req, res) => {
     try {

@@ -232,23 +232,91 @@ export default function Microsites() {
                                         {/* Add Product Form */}
                                         {addingProduct === ms.id && (
                                             <div className="bg-surface-600 rounded-xl p-4 mb-3 space-y-3">
-                                                <p className="text-gray-400 text-xs">Paste the manufacturer page URL (source to scrape) and your affiliate/landing page URL.</p>
-                                                <div className="space-y-2">
-                                                    <div>
-                                                        <label className="text-xs text-gray-500 block mb-1">Source URL — manufacturer product page to scrape</label>
-                                                        <input value={productForm.source_url} onChange={e => setProductForm({ ...productForm, source_url: e.target.value })} placeholder="https://manufacturer.com/product-page" className="w-full px-3 py-2 bg-surface-700 border border-white/10 rounded-lg text-white text-sm" />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-xs text-gray-500 block mb-1">Affiliate URL — your landing page or affiliate link for Buy button</label>
-                                                        <input value={productForm.affiliate_url} onChange={e => setProductForm({ ...productForm, affiliate_url: e.target.value })} placeholder="https://manufacturer.com/product?ref=yourcode" className="w-full px-3 py-2 bg-surface-700 border border-white/10 rounded-lg text-white text-sm" />
-                                                    </div>
+                                                {/* Mode Toggle */}
+                                                <div className="flex gap-1 bg-surface-700 rounded-lg p-1">
+                                                    <button onClick={() => setProductForm({ ...productForm, mode: 'scrape' })} className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${(productForm.mode || 'scrape') === 'scrape' ? 'bg-brand-500 text-white' : 'text-gray-400 hover:text-white'}`}>🔗 Scrape URL</button>
+                                                    <button onClick={() => setProductForm({ ...productForm, mode: 'manual' })} className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${productForm.mode === 'manual' ? 'bg-brand-500 text-white' : 'text-gray-400 hover:text-white'}`}>✏️ Manual Entry</button>
                                                 </div>
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => generateProduct(ms.id)} disabled={generating} className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">
-                                                        {generating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</> : <><Package className="w-3.5 h-3.5" /> Generate Product Page</>}
-                                                    </button>
-                                                    <button onClick={() => { setAddingProduct(null); setProductForm({ source_url: '', affiliate_url: '' }); }} className="px-3 py-2 text-gray-400 text-sm">Cancel</button>
-                                                </div>
+
+                                                {(productForm.mode || 'scrape') === 'scrape' ? (
+                                                    /* Scrape Mode */
+                                                    <div className="space-y-2">
+                                                        <p className="text-gray-400 text-xs">Paste the manufacturer page URL (source to scrape) and your affiliate/landing page URL.</p>
+                                                        <div>
+                                                            <label className="text-xs text-gray-500 block mb-1">Source URL — product page to scrape</label>
+                                                            <input value={productForm.source_url || ''} onChange={e => setProductForm({ ...productForm, source_url: e.target.value })} placeholder="https://manufacturer.com/product-page" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs text-gray-500 block mb-1">Affiliate URL — your landing page or affiliate link</label>
+                                                            <input value={productForm.affiliate_url || ''} onChange={e => setProductForm({ ...productForm, affiliate_url: e.target.value })} placeholder="https://manufacturer.com/product?ref=yourcode" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <button onClick={() => generateProduct(ms.id)} disabled={generating} className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+                                                                {generating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</> : <><Package className="w-3.5 h-3.5" /> Generate Product Page</>}
+                                                            </button>
+                                                            <button onClick={() => { setAddingProduct(null); setProductForm({ source_url: '', affiliate_url: '' }); }} className="px-3 py-2 text-gray-400 text-sm">Cancel</button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    /* Manual Entry Mode */
+                                                    <div className="space-y-2">
+                                                        <p className="text-gray-400 text-xs">For SaaS, digital products, or sites the scraper can't reach. Enter details manually.</p>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 block mb-1">Product / Software Name *</label>
+                                                                <input value={productForm.product_name || ''} onChange={e => setProductForm({ ...productForm, product_name: e.target.value })} placeholder="BizLeadFinders" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 block mb-1">Price (displayed)</label>
+                                                                <input value={productForm.price || ''} onChange={e => setProductForm({ ...productForm, price: e.target.value })} placeholder="$49/mo or Free trial" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs text-gray-500 block mb-1">Description (2-3 sentences that sell it)</label>
+                                                            <textarea value={productForm.description || ''} onChange={e => setProductForm({ ...productForm, description: e.target.value })} placeholder="South Florida's premier lead generation and automation software. Find qualified leads, automate outreach, and grow your business with AI-powered tools." rows={2} style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm resize-none" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs text-gray-500 block mb-1">Key Features (one per line)</label>
+                                                            <textarea value={productForm.features || ''} onChange={e => setProductForm({ ...productForm, features: e.target.value })} placeholder={"AI-powered lead search\nAutomated email drips\nReal-time analytics\nCRM integration"} rows={3} style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm resize-none" />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs text-gray-500 block mb-1">Selling Points / Badges (one per line)</label>
+                                                            <textarea value={productForm.selling_points || ''} onChange={e => setProductForm({ ...productForm, selling_points: e.target.value })} placeholder={"2-Week Free Trial\n24/7 Support\nNo Credit Card Required\nCancel Anytime"} rows={2} style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm resize-none" />
+                                                        </div>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 block mb-1">CTA / Signup URL *</label>
+                                                                <input value={productForm.cta_url || ''} onChange={e => setProductForm({ ...productForm, cta_url: e.target.value })} placeholder="https://bizleadfinders.com/signup" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 block mb-1">Product Screenshot / Image URL</label>
+                                                                <input value={productForm.image_url || ''} onChange={e => setProductForm({ ...productForm, image_url: e.target.value })} placeholder="https://example.com/screenshot.png" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <button onClick={async () => {
+                                                                if (!productForm.product_name || !productForm.cta_url) { toast.error('Product name and CTA URL are required'); return; }
+                                                                setGenerating(true);
+                                                                try {
+                                                                    await api(`/storefront/microsites/${ms.id}/manual-product`, {
+                                                                        body: {
+                                                                            product_name: productForm.product_name, description: productForm.description,
+                                                                            features: productForm.features, price: productForm.price, cta_url: productForm.cta_url,
+                                                                            image_url: productForm.image_url, selling_points: productForm.selling_points
+                                                                        }
+                                                                    });
+                                                                    toast.success('Product added!');
+                                                                    setAddingProduct(null); setProductForm({ source_url: '', affiliate_url: '' });
+                                                                    loadProducts(ms.id);
+                                                                } catch (err) { toast.error(err.message || 'Failed to add product'); }
+                                                                setGenerating(false);
+                                                            }} disabled={generating} className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+                                                                {generating ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</> : <><Plus className="w-3.5 h-3.5" /> Add Product</>}
+                                                            </button>
+                                                            <button onClick={() => { setAddingProduct(null); setProductForm({ source_url: '', affiliate_url: '' }); }} className="px-3 py-2 text-gray-400 text-sm">Cancel</button>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
 
