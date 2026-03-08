@@ -153,19 +153,15 @@ Return ONLY valid JSON. No markdown code fences.`;
     try {
         blogData = JSON.parse(text);
     } catch (e1) {
-        // Fallback: try to extract JSON object from the response
-        console.error('[BlogMaker] Direct JSON parse failed. Raw text (first 500 chars):', text.substring(0, 500));
+        console.log('[BlogMaker] Direct JSON parse failed, using field extraction fallback...');
+        // The content_html field often contains unescaped chars that break JSON.parse.
+        // Extract each field individually — much more robust for long HTML content.
         try {
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                blogData = JSON.parse(jsonMatch[0]);
-                console.log('[BlogMaker] Recovered JSON via regex extraction');
-            } else {
-                throw new Error('No JSON object found');
-            }
+            blogData = extractBlogFields(text);
+            console.log('[BlogMaker] ✅ Recovered blog data via field extraction');
         } catch (e2) {
-            console.error('[BlogMaker] All JSON parse attempts failed:', e2.message);
-            console.error('[BlogMaker] Full raw response:', text.substring(0, 2000));
+            console.error('[BlogMaker] All parse attempts failed:', e2.message);
+            console.error('[BlogMaker] Raw response (first 2000 chars):', text.substring(0, 2000));
             throw new Error(`Failed to parse AI blog content. AI returned: "${text.substring(0, 200)}..."`);
         }
     }
@@ -330,6 +326,64 @@ async function scrapePageText(url) {
         clearTimeout(timeout);
         return '';
     }
+}
+
+// ─── Robust field extractor for AI-generated blog JSON ──────────
+// When JSON.parse fails (usually due to unescaped chars in content_html),
+// this extracts each field individually — immune to HTML content issues.
+function extractBlogFields(rawText) {
+    const fields = ['title', 'slug', 'seo_title', 'seo_description', 'target_keyword', 'excerpt', 'content_html'];
+    const result = {};
+
+    for (const field of fields) {
+        if (field === 'content_html') {
+            // content_html is special — it's the longest field and most likely to contain problematic chars
+            // Find it by locating the key and then extracting everything until the last closing tag pattern
+            const startPattern = `"content_html"\\s*:\\s*"`;
+            const startMatch = rawText.match(new RegExp(startPattern));
+            if (startMatch) {
+                const startIdx = rawText.indexOf(startMatch[0]) + startMatch[0].length;
+                // Find the end: look for the pattern where content_html value ends
+                // It ends with a " followed by optional whitespace and either , or }
+                // But the content itself may contain escaped quotes, so find the LAST occurrence of "}
+                let endIdx = rawText.length;
+                // Work backwards from the end to find where content_html ends
+                const afterContent = rawText.substring(startIdx);
+                // Look for closing pattern: "\n} or "} at the end of the JSON
+                const endMatch = afterContent.match(/"\s*\}\s*$/);
+                if (endMatch) {
+                    endIdx = startIdx + afterContent.lastIndexOf(endMatch[0]);
+                } else {
+                    // Try to find the last unescaped quote before a } or end
+                    endIdx = startIdx + afterContent.length;
+                    // Walk backwards to find the ending quote
+                    for (let i = afterContent.length - 1; i > 0; i--) {
+                        if (afterContent[i] === '"' && afterContent[i - 1] !== '\\') {
+                            endIdx = startIdx + i;
+                            break;
+                        }
+                    }
+                }
+                let html = rawText.substring(startIdx, endIdx);
+                // Unescape JSON string escapes
+                html = html.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+                result.content_html = html;
+            }
+        } else {
+            // For short fields, simple regex extraction works fine
+            const pattern = new RegExp(`"${field}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`, 's');
+            const match = rawText.match(pattern);
+            if (match) {
+                result[field] = match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+            }
+        }
+    }
+
+    if (!result.title && !result.content_html) {
+        throw new Error('Could not extract title or content_html from AI response');
+    }
+
+    return result;
 }
 
 module.exports = { generateBlogPost, smartSuggest, scrapePageText };
