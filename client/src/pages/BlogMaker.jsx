@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Plus, Trash2, Sparkles, FileText, Calendar, Send, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, ExternalLink, AlertCircle } from 'lucide-react';
+import { Bot, Plus, Trash2, Sparkles, FileText, Calendar, Send, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, ExternalLink, AlertCircle, Search, Save } from 'lucide-react';
 import { api } from '../lib/api';
 
 export default function BlogMaker() {
@@ -445,25 +445,37 @@ function QueueTab({ workers, onRefresh }) {
 function PublishedTab({ posts, notifications, onRefresh }) {
     const pendingNotifs = notifications.filter(n => n.status === 'paused');
     const sentNotifs = notifications.filter(n => n.status === 'sent');
+    const [expandedSeo, setExpandedSeo] = useState(null); // post.id or null
+    const [seoForm, setSeoForm] = useState({});
+    const [savingSeo, setSavingSeo] = useState(false);
 
     async function publishPost(postId, action) {
         await api(`/blogmaker/posts/${postId}/${action}`, { method: 'POST' });
         onRefresh();
     }
-
     async function approveNotification(id) {
         await api(`/blogmaker/notifications/${id}/approve`, { method: 'POST' });
         onRefresh();
     }
-
     async function deleteNotification(id) {
         await api(`/blogmaker/notifications/${id}`, { method: 'DELETE' });
         onRefresh();
     }
+    function toggleSeo(post) {
+        if (expandedSeo === post.id) { setExpandedSeo(null); return; }
+        setExpandedSeo(post.id);
+        setSeoForm({ title: post.title || '', seo_title: post.seo_title || '', seo_description: post.seo_description || '', target_keyword: post.target_keyword || '', excerpt: post.excerpt || '' });
+    }
+    async function saveSeo(postId) {
+        setSavingSeo(true);
+        try { await api(`/blogmaker/posts/${postId}/seo`, { method: 'PUT', body: seoForm }); onRefresh(); } catch (err) { console.error(err); }
+        setSavingSeo(false);
+    }
+    function charColor(len, max) { if (len <= max) return 'text-green-400'; if (len <= max * 1.1) return 'text-yellow-400'; return 'text-red-400'; }
 
     return (
         <div>
-            {/* Pending Notifications (admin approval) */}
+            {/* Pending Notifications */}
             {pendingNotifs.length > 0 && (
                 <div className="mb-8">
                     <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
@@ -494,30 +506,81 @@ function PublishedTab({ posts, notifications, onRefresh }) {
             ) : (
                 <div className="space-y-2">
                     {posts.map(post => (
-                        <div key={post.id} className="bg-surface-800 border border-white/10 rounded-xl p-4 flex items-center justify-between">
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                                <FileText className="w-4 h-4 text-gray-500 shrink-0" />
-                                <div className="min-w-0">
-                                    <p className="text-white text-sm font-medium truncate">{post.title}</p>
-                                    <p className="text-gray-500 text-xs">
-                                        {post.worker_name || 'Staff'} · {post.subdomain ? `${post.subdomain}.dealfindai.com` : ''} · {post.target_keyword} · {new Date(post.created_at).toLocaleDateString()}
-                                    </p>
+                        <div key={post.id} className="bg-surface-800 border border-white/10 rounded-xl overflow-hidden">
+                            <div className="p-4 flex items-center justify-between">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <FileText className="w-4 h-4 text-gray-500 shrink-0" />
+                                    <div className="min-w-0">
+                                        <p className="text-white text-sm font-medium truncate">{post.title}</p>
+                                        <p className="text-gray-500 text-xs">
+                                            {post.worker_name || 'Staff'} · {post.subdomain ? `${post.subdomain}.dealfindai.com` : ''} · {post.target_keyword} · {new Date(post.created_at).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0 ml-3">
+                                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${post.status === 'published' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>{post.status}</span>
+                                    {post.status === 'draft' ? (
+                                        <button onClick={() => publishPost(post.id, 'publish')} className="text-xs text-green-400 hover:text-green-300 font-medium">Publish</button>
+                                    ) : (
+                                        <button onClick={() => publishPost(post.id, 'unpublish')} className="text-xs text-yellow-400 hover:text-yellow-300 font-medium">Unpublish</button>
+                                    )}
+                                    <button onClick={() => toggleSeo(post)} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${expandedSeo === post.id ? 'bg-brand-500/20 text-brand-400' : 'text-gray-400 hover:text-brand-400 hover:bg-white/5'}`}>
+                                        <Search className="w-3 h-3" /> SEO {expandedSeo === post.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                    </button>
+                                    {post.subdomain && post.slug && (
+                                        <a href={`https://${post.subdomain}.dealfindai.com/blog/${post.slug}`} target="_blank" rel="noopener" className="text-xs text-gray-400 hover:text-white">
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                        </a>
+                                    )}
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0 ml-3">
-                                <span className={`px-2 py-0.5 rounded text-xs font-semibold ${post.status === 'published' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}`}>{post.status}</span>
-                                {post.status === 'draft' ? (
-                                    <button onClick={() => publishPost(post.id, 'publish')} className="text-xs text-green-400 hover:text-green-300 font-medium">Publish</button>
-                                ) : (
-                                    <button onClick={() => publishPost(post.id, 'unpublish')} className="text-xs text-yellow-400 hover:text-yellow-300 font-medium">Unpublish</button>
-                                )}
-                                {post.subdomain && post.slug && (
-                                    <a href={`https://${post.subdomain}.dealfindai.com/blog/${post.slug}`} target="_blank" rel="noopener" className="text-xs text-gray-400 hover:text-white">
-                                        <ExternalLink className="w-3.5 h-3.5" />
-                                    </a>
-                                )}
-                                <a href={`/blog/${post.id}/edit`} className="text-xs text-brand-400 hover:text-brand-300 font-medium">Edit</a>
-                            </div>
+                            {/* Expandable SEO Panel */}
+                            {expandedSeo === post.id && (
+                                <div className="border-t border-white/5 bg-surface-900/50 p-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1">Post Title</label>
+                                            <input value={seoForm.title} onChange={e => setSeoForm({ ...seoForm, title: e.target.value })}
+                                                className="w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-400 outline-none" />
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-xs text-gray-500">SEO Title (browser tab)</label>
+                                                <span className={`text-xs font-mono ${charColor(seoForm.seo_title?.length || 0, 60)}`}>{seoForm.seo_title?.length || 0}/60</span>
+                                            </div>
+                                            <input value={seoForm.seo_title} onChange={e => setSeoForm({ ...seoForm, seo_title: e.target.value })}
+                                                className="w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-400 outline-none" />
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-xs text-gray-500">Meta Description</label>
+                                                <span className={`text-xs font-mono ${charColor(seoForm.seo_description?.length || 0, 155)}`}>{seoForm.seo_description?.length || 0}/155</span>
+                                            </div>
+                                            <textarea value={seoForm.seo_description} onChange={e => setSeoForm({ ...seoForm, seo_description: e.target.value })} rows={2}
+                                                className="w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-400 outline-none resize-none" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1">Target Keyword</label>
+                                            <input value={seoForm.target_keyword} onChange={e => setSeoForm({ ...seoForm, target_keyword: e.target.value })}
+                                                className="w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-400 outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1">Excerpt (preview text)</label>
+                                            <input value={seoForm.excerpt} onChange={e => setSeoForm({ ...seoForm, excerpt: e.target.value })}
+                                                className="w-full bg-surface-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-brand-400 outline-none" />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between mt-3">
+                                        <div className="text-xs text-gray-600">
+                                            {post.subdomain && post.slug && <span>Live: <a href={`https://${post.subdomain}.dealfindai.com/blog/${post.slug}`} target="_blank" rel="noopener" className="text-brand-400 hover:underline">{post.subdomain}.dealfindai.com/blog/{post.slug}</a></span>}
+                                        </div>
+                                        <button onClick={() => saveSeo(post.id)} disabled={savingSeo}
+                                            className="flex items-center gap-1.5 px-4 py-2 bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 rounded-lg text-xs font-semibold disabled:opacity-40 transition-colors">
+                                            <Save className="w-3 h-3" /> {savingSeo ? 'Saving...' : 'Save SEO'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>

@@ -363,6 +363,29 @@ router.post('/posts/:postId/unpublish', async (req, res) => {
     }
 });
 
+// UPDATE POST SEO (inline SEO editor)
+router.put('/posts/:postId/seo', async (req, res) => {
+    try {
+        const { title, seo_title, seo_description, target_keyword, excerpt } = req.body;
+        const result = await query(
+            `UPDATE blog_posts SET
+                title = COALESCE($3, title),
+                seo_title = COALESCE($4, seo_title),
+                seo_description = COALESCE($5, seo_description),
+                target_keyword = COALESCE($6, target_keyword),
+                excerpt = COALESCE($7, excerpt),
+                updated_at = NOW()
+             WHERE id = $1 AND user_id = $2 RETURNING *`,
+            [req.params.postId, req.user.id, title, seo_title, seo_description, target_keyword, excerpt]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+        res.json({ post: result.rows[0], message: 'SEO updated' });
+    } catch (err) {
+        console.error('Update post SEO error:', err);
+        res.status(500).json({ error: 'Failed to update post SEO' });
+    }
+});
+
 // ═══════════════════════════════════════════════════════════════
 // NOTIFICATIONS (admin management)
 // ═══════════════════════════════════════════════════════════════
