@@ -84,8 +84,20 @@ export default function Microsites() {
 
     async function deleteProduct(msId, prodId) {
         if (!confirm('Remove this product?')) return;
-        await api(`/storefront/microsites/${msId}/products/${prodId}`, { method: 'DELETE' });
-        loadProducts(msId);
+        try {
+            await api(`/storefront/microsites/${msId}/products/${prodId}`, { method: 'DELETE' });
+            toast.success('Product removed');
+            loadProducts(msId);
+        } catch (err) { toast.error(err.message || 'Failed to remove product'); }
+    }
+
+    async function deleteMicrosite(msId, subdomain) {
+        if (!confirm(`Delete ${subdomain}.dealfindai.com and ALL its products? This cannot be undone.`)) return;
+        try {
+            await api(`/storefront/microsites/${msId}`, { method: 'DELETE' });
+            toast.success('Microsite deleted');
+            loadMicrosites();
+        } catch (err) { toast.error(err.message || 'Failed to delete microsite'); }
     }
 
     function toggleExpand(id) {
@@ -172,10 +184,13 @@ export default function Microsites() {
                                         <p className="text-gray-500 text-xs">{ms.site_title || 'Untitled'} · {ms.product_count || 0} products</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
                                     <a href={`https://${ms.subdomain}.dealfindai.com`} target="_blank" rel="noopener" onClick={e => e.stopPropagation()} className="p-2 text-gray-500 hover:text-brand-400">
                                         <ExternalLink className="w-4 h-4" />
                                     </a>
+                                    <button onClick={e => { e.stopPropagation(); deleteMicrosite(ms.id, ms.subdomain); }} className="p-2 text-gray-600 hover:text-red-400 transition-colors" title="Delete microsite">
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
                                     {expanded === ms.id ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
                                 </div>
                             </div>
