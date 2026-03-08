@@ -368,7 +368,8 @@ router.post('/microsites', authenticate, async (req, res) => {
 // PUT /api/storefront/microsites/:id — update microsite settings
 router.put('/microsites/:id', authenticate, async (req, res) => {
     try {
-        const { site_title, site_subtitle, accent_color, logo_url, optin_enabled, optin_headline, optin_incentive, is_active } = req.body;
+        const { site_title, site_subtitle, accent_color, logo_url, optin_enabled, optin_headline, optin_incentive, is_active,
+            footer_company_name, footer_website, footer_socials } = req.body;
 
         const result = await query(
             `UPDATE microsites SET
@@ -379,9 +380,14 @@ router.put('/microsites/:id', authenticate, async (req, res) => {
                 optin_enabled = COALESCE($5, optin_enabled),
                 optin_headline = COALESCE($6, optin_headline),
                 optin_incentive = COALESCE($7, optin_incentive),
-                is_active = COALESCE($8, is_active)
+                is_active = COALESCE($8, is_active),
+                footer_company_name = COALESCE($11, footer_company_name),
+                footer_website = COALESCE($12, footer_website),
+                footer_socials = COALESCE($13, footer_socials)
              WHERE id = $9 AND user_id = $10 RETURNING *`,
-            [site_title, site_subtitle, accent_color, logo_url ?? null, optin_enabled, optin_headline, optin_incentive, is_active, req.params.id, req.user.id]
+            [site_title, site_subtitle, accent_color, logo_url ?? null, optin_enabled, optin_headline, optin_incentive, is_active,
+                req.params.id, req.user.id,
+                footer_company_name, footer_website, footer_socials ? JSON.stringify(footer_socials) : null]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Microsite not found' });
         res.json({ microsite: result.rows[0] });
