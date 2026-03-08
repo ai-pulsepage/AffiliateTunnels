@@ -661,6 +661,11 @@ body{font-family:'Inter',system-ui,sans-serif;background:#fafafa;color:#1a1a2e;l
     <div class="brand-icon">${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="">` : `<svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`}</div>
     ${siteTitle}
   </a>
+  <nav style="display:flex;gap:4px;align-items:center;margin-left:auto;margin-right:16px">
+    <a href="/products" style="padding:8px 14px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;color:#555;transition:all .2s">Products</a>
+    <a href="/reviews" style="padding:8px 14px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;color:#555;transition:all .2s">Reviews</a>
+    <a href="/blog" style="padding:8px 14px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;color:#555;transition:all .2s">Blog</a>
+  </nav>
   <a href="${link}" class="hdr-cta" target="_blank" rel="noopener">Shop Now →</a>
 </div>
 </header>
@@ -784,7 +789,7 @@ body{font-family:'Inter',sans-serif;background:#fafafa;color:#1a1a2e;line-height
 </style>
 </head>
 <body>
-<header class="hdr"><div class="hdr-inner"><a href="/" class="brand"><div class="brand-icon"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div>${escapeHtml(title)}</a></div></header>
+<header class="hdr"><div class="hdr-inner"><a href="/" class="brand"><div class="brand-icon"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div>${escapeHtml(title)}</a><nav style="display:flex;gap:4px;align-items:center;margin-left:auto"><a href="/products" style="padding:8px 14px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;color:${accent};background:${accent}12">Products</a><a href="/reviews" style="padding:8px 14px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;color:#555">Reviews</a><a href="/blog" style="padding:8px 14px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;color:#555">Blog</a></nav></div></header>
 <section class="ms-hero"><h1>${escapeHtml(title)}</h1>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</section>
 <div class="ms-grid">${productCards}</div>
 ${optinHtml}

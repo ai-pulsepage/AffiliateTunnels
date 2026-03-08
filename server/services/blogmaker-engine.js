@@ -60,8 +60,8 @@ async function generateBlogPost(worker, queueItem, userId) {
     // 4. Build the prompt
     const topicTitle = queueItem?.topic || 'a relevant topic based on the product context';
     const persona = worker.worker_name
-        ? `You are ${worker.worker_name}${worker.worker_title ? `, ${worker.worker_title}` : ''}. Write in first person with authority and warmth.`
-        : 'You are a knowledgeable product reviewer and lifestyle expert.';
+        ? `You are ${worker.worker_name}${worker.worker_title ? `, ${worker.worker_title}` : ''}. You are an INDEPENDENT reviewer and lifestyle expert — NOT an employee of any brand. Write in first person with authority and warmth. When recommending products, speak about the brand as a SEPARATE entity ("I've been testing the [Brand] sauna..." NOT "Our sauna..."). You discover, test, and recommend — you don't sell. This independent voice is critical for reader trust.`
+        : 'You are a knowledgeable, independent product reviewer and lifestyle expert. You recommend products as a third party — never speak as if you represent the brand.';
 
     const customInstructions = worker.prompt_template || '';
 
