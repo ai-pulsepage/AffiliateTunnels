@@ -94,11 +94,12 @@ app.get('/go/:slug', async (req, res) => {
         const deviceType = /mobile|android|iphone/i.test(ua) ? 'mobile' : /tablet|ipad/i.test(ua) ? 'tablet' : 'desktop';
         const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || '';
         const visitorId = req.query.vid || ip;
+        const clickId = req.query.click_id || req.query.clickid || '';
 
         await dbQuery(
-            `INSERT INTO click_tracking (cloaked_link_id, visitor_id, ip_address, device_type, referrer, utm_source)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-            [link.rows[0].id, visitorId, ip, deviceType, req.headers['referer'] || '', req.query.utm_source || '']
+            `INSERT INTO click_tracking (cloaked_link_id, visitor_id, ip_address, device_type, referrer, utm_source, click_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [link.rows[0].id, visitorId, ip, deviceType, req.headers['referer'] || '', req.query.utm_source || '', clickId || null]
         );
 
         // Update counters
@@ -107,7 +108,13 @@ app.get('/go/:slug', async (req, res) => {
             [link.rows[0].id]
         );
 
-        res.redirect(302, link.rows[0].destination_url);
+        // Forward query params to destination (preserves click_id, utm_source, etc.)
+        const destUrl = new URL(link.rows[0].destination_url);
+        for (const [key, val] of Object.entries(req.query)) {
+            if (key !== 'vid') destUrl.searchParams.set(key, val);
+        }
+
+        res.redirect(302, destUrl.toString());
     } catch (err) {
         console.error('Cloaked redirect error:', err);
         res.redirect(302, '/');
@@ -164,7 +171,7 @@ if (process.env.NODE_ENV === 'production') {
 
         const parts = originalHost.split('.');
         const subdomain = parts.length >= 3 ? parts[0] : null;
-        const RESERVED = ['app', 'www', 'mail', 'api', 'admin', 'ftp', 'smtp', 'pop', 'imap', 'ns1', 'ns2'];
+        const RESERVED = ['app', 'www', 'mail', 'api', 'admin', 'ftp', 'smtp', 'pop', 'imap', 'ns1', 'ns2', 'electronics'];
 
         // Serve corporate homepage for root domain (no subdomain)
         if (!subdomain || RESERVED.includes(subdomain)) {
@@ -326,7 +333,7 @@ if (process.env.NODE_ENV === 'production') {
         const host = (req.hostname || '').toLowerCase();
         const isAppSubdomain = host.startsWith('app.');
         const isWww = host.startsWith('www.');
-        const RESERVED = ['app', 'www', 'mail', 'api', 'admin', 'ftp', 'smtp', 'pop', 'imap', 'ns1', 'ns2'];
+        const RESERVED = ['app', 'www', 'mail', 'api', 'admin', 'ftp', 'smtp', 'pop', 'imap', 'ns1', 'ns2', 'electronics'];
 
         // Cloudflare Worker sends original host via header for wildcard subdomain routing
         const originalHost = (req.headers['x-original-host'] || '').toLowerCase();

@@ -610,6 +610,40 @@ router.post('/microsites/:id/manual-product', authenticate, async (req, res) => 
     }
 });
 
+// PUT /api/storefront/microsites/:msId/products/:prodId — edit an existing product
+router.put('/microsites/:msId/products/:prodId', authenticate, async (req, res) => {
+    try {
+        const { affiliate_url, product_name, product_desc, price_label, card_image_url, slug, sort_order } = req.body;
+
+        // Build dynamic SET clause — only update fields that were sent
+        const updates = [];
+        const params = [];
+        let idx = 1;
+
+        if (affiliate_url !== undefined) { updates.push(`affiliate_url = $${idx++}`); params.push(affiliate_url); }
+        if (product_name !== undefined) { updates.push(`product_name = $${idx++}`); params.push(product_name); }
+        if (product_desc !== undefined) { updates.push(`product_desc = $${idx++}`); params.push(product_desc); }
+        if (price_label !== undefined) { updates.push(`price_label = $${idx++}`); params.push(price_label); }
+        if (card_image_url !== undefined) { updates.push(`card_image_url = $${idx++}`); params.push(card_image_url); }
+        if (slug !== undefined) { updates.push(`slug = $${idx++}`); params.push(slug.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/(^-|-$)/g, '')); }
+        if (sort_order !== undefined) { updates.push(`sort_order = $${idx++}`); params.push(sort_order); }
+
+        if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
+
+        params.push(req.params.prodId, req.params.msId, req.user.id);
+        const result = await query(
+            `UPDATE microsite_products SET ${updates.join(', ')} WHERE id = $${idx++} AND microsite_id = $${idx++} AND user_id = $${idx++} RETURNING *`,
+            params
+        );
+
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Product not found' });
+        res.json({ product: result.rows[0] });
+    } catch (err) {
+        console.error('Update product error:', err);
+        res.status(500).json({ error: 'Failed to update product' });
+    }
+});
+
 // DELETE /api/storefront/microsites/:msId/products/:prodId
 router.delete('/microsites/:msId/products/:prodId', authenticate, async (req, res) => {
     try {

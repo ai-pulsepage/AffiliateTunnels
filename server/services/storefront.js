@@ -666,7 +666,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#fafafa;color:#1a1a2e;l
     <a href="/reviews" style="padding:8px 14px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;color:#555;transition:all .2s">Reviews</a>
     <a href="/blog" style="padding:8px 14px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;color:#555;transition:all .2s">Blog</a>
   </nav>
-  <a href="${link}" class="hdr-cta" target="_blank" rel="noopener">Shop Now →</a>
+  <a href="${link}" class="hdr-cta" target="_blank" rel="noopener">Get Started →</a>
 </div>
 </header>
 
@@ -674,7 +674,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#fafafa;color:#1a1a2e;l
 <section class="hero">
   <div>
     <div class="carousel" id="carousel">
-      ${carouselSlides || `<div class="slide active"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#ccc"><svg width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></div>`}
+      ${carouselSlides || `<div class="slide active"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,${accent}22,${accent}08);flex-direction:column;gap:8px"><div style="width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,${accent},#a855f7);display:flex;align-items:center;justify-content:center"><svg width="28" height="28" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div><span style="color:${accent};font-size:13px;font-weight:600">${name}</span></div></div>`}
       ${images.length > 1 ? `<button class="nav-btn nav-prev" onclick="prevSlide()">‹</button><button class="nav-btn nav-next" onclick="nextSlide()">›</button>` : ''}
       ${images.length > 1 ? `<div class="dots">${carouselDots}</div>` : ''}
     </div>
@@ -687,8 +687,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:#fafafa;color:#1a1a2e;l
     ${price ? `<div class="price-tag">${price} <span class="price-sub">USD</span></div>` : ''}
     ${badgesHtml ? `<div class="badges">${badgesHtml}</div>` : ''}
     ${salesDesc ? `<p class="info-desc">${salesDesc}</p>` : ''}
-    <a href="${link}" class="cta-primary" target="_blank" rel="noopener">Shop Now — ${price || 'View Pricing'} →</a>
-    <p class="cta-micro">✓ Secure checkout${intel.shipping ? ` · ${escapeHtml(intel.shipping)}` : ''}</p>
+    <a href="${link}" class="cta-primary" target="_blank" rel="noopener">${price ? `Get ${name} — ${price}` : `Get ${name}`} →</a>
+    <p class="cta-micro">✓ Secure checkout${intel.shipping ? ` · ${escapeHtml(intel.shipping)}` : (intel.deliveryTime ? ` · ${escapeHtml(intel.deliveryTime)}` : ` · Instant digital delivery`)}</p>
   </div>
 </section>
 
@@ -696,13 +696,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:#fafafa;color:#1a1a2e;l
 ${featuresHtml ? `<div class="features-strip"><div class="features-inner">${featuresHtml}</div></div>` : ''}
 
 <!-- Specs -->
-${specsHtml ? `<section class="specs-section"><h2>Product Specifications</h2><div class="specs-grid">${specsHtml}</div></section>` : ''}
+${specsHtml ? `<section class="specs-section"><h2>${intel.specifications ? 'Specifications' : 'Details'}</h2><div class="specs-grid">${specsHtml}</div></section>` : ''}
 
 <!-- Final CTA -->
 <section class="final-cta">
   <h2>Ready to Experience ${name}?</h2>
-  <p>Join thousands of satisfied customers. Order today and transform your space.</p>
-  <a href="${link}" class="cta-primary" target="_blank" rel="noopener" style="margin:0 auto">Get Yours Now →</a>
+  <p>Join thousands of satisfied customers. ${intel.guarantee ? escapeHtml(intel.guarantee) + '.' : 'Get started today — satisfaction guaranteed.'}</p>
+  <a href="${link}" class="cta-primary" target="_blank" rel="noopener" style="margin:0 auto">${price ? `Get ${name} — ${price}` : `Get ${name} Now`} →</a>
 </section>
 
 ${buildMicrositeFooter(microsite, accent)}

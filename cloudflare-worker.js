@@ -9,7 +9,7 @@
  */
 
 const ORIGIN = 'https://dealfindai.com';
-const RESERVED = ['app', 'www', 'mail', 'api', 'admin', 'ftp', 'smtp', 'pop', 'imap', 'ns1', 'ns2'];
+const RESERVED = ['app', 'www', 'mail', 'api', 'admin', 'ftp', 'smtp', 'pop', 'imap', 'ns1', 'ns2', 'electronics'];
 
 export default {
     async fetch(request) {

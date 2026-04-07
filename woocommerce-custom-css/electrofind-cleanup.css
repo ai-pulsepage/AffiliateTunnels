@@ -1,0 +1,471 @@
+/* ============================================
+   ElectroFind — FINAL Complete CSS Cleanup
+   Paste into: Appearance → Customize → Additional CSS
+   Last updated: 2026-03-18
+   ============================================ */
+
+/* --- GOOGLE FONT IMPORT --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* --- GLOBAL TYPOGRAPHY --- */
+body,
+.site-description,
+.woocommerce ul.products li.product .price,
+.woocommerce ul.products li.product a,
+button, input, select, textarea {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+/* --- HEADER CLEANUP --- */
+.site-header {
+  padding-top: 15px !important;
+  padding-bottom: 0 !important;
+}
+
+.site-branding {
+  margin-bottom: 8px !important;
+}
+
+.site-title {
+  font-size: 1.6rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.3px !important;
+}
+
+.site-description {
+  font-size: 0.85rem !important;
+  color: #666 !important;
+  margin-top: 2px !important;
+}
+
+/* Tighten navigation spacing */
+.main-navigation {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.main-navigation ul li a {
+  font-size: 0.88rem !important;
+  font-weight: 500 !important;
+  padding: 12px 16px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  transition: color 0.2s ease !important;
+}
+
+.main-navigation ul li a:hover {
+  color: #2563eb !important;
+}
+
+/* --- HIDE "HOME" PAGE TITLE --- */
+.page-title,
+.entry-title {
+  display: none !important;
+}
+
+/* --- RECOMMENDED PRODUCTS SECTION --- */
+.woocommerce .storefront-product-section .section-title {
+  font-size: 1.3rem !important;
+  font-weight: 600 !important;
+  color: #1a1a2e !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  margin-bottom: 25px !important;
+  padding-bottom: 10px !important;
+  border-bottom: 2px solid #2563eb !important;
+  display: inline-block !important;
+}
+
+/* --- PRODUCT GRID CLEANUP (Classic WooCommerce Loop) --- */
+.woocommerce ul.products {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 25px !important;
+}
+
+.woocommerce ul.products li.product {
+  display: flex !important;
+  flex-direction: column !important;
+  background: #fff !important;
+  border-radius: 12px !important;
+  padding: 18px !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+  border: 1px solid #f0f0f0 !important;
+}
+
+.woocommerce ul.products li.product:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Force uniform product image heights */
+.woocommerce ul.products li.product a img,
+.woocommerce ul.products li.product img {
+  height: 200px !important;
+  object-fit: contain !important;
+  width: 100% !important;
+  border-radius: 8px !important;
+  background: #fafafa !important;
+  padding: 10px !important;
+  margin-bottom: 12px !important;
+}
+
+/* ============================================
+   FIX: PRODUCT TITLE FONT SIZE
+   Targets BOTH classic WooCommerce loop titles
+   AND the new WooCommerce Block/Gutenberg titles
+   (Hand-Picked Products, Product Collection, etc.)
+   ============================================ */
+
+/* Classic WooCommerce product titles */
+.woocommerce ul.products li.product .woocommerce-loop-product__title,
+.woocommerce ul.products li.product h2,
+.woocommerce ul.products li.product a h2 {
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  color: #1a1a2e !important;
+  text-decoration: none !important;
+  min-height: 3.8em !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 3 !important;
+  line-clamp: 3 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  margin-bottom: 8px !important;
+}
+
+/* WooCommerce BLOCK product titles (Hand-Picked Products, Product Collection) */
+/* The .has-medium-font-size class forces 19.2px — we override it here */
+h2.wp-block-post-title,
+h2.wp-block-post-title.has-medium-font-size,
+.wp-block-woocommerce-product-collection .wp-block-post-title,
+.wc-block-grid__product-title,
+.wc-block-grid__product-title a,
+.wc-block-components-product-title,
+.wc-block-product .wp-block-post-title {
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  color: #1a1a2e !important;
+  text-decoration: none !important;
+  margin-bottom: 8px !important;
+}
+
+/* WooCommerce Block product title links */
+h2.wp-block-post-title a,
+.wp-block-post-title a,
+.wc-block-grid__product-title a {
+  font-size: 0.85rem !important;
+  color: #1a1a2e !important;
+  text-decoration: none !important;
+}
+
+h2.wp-block-post-title a:hover,
+.wp-block-post-title a:hover,
+.wc-block-grid__product-title a:hover {
+  color: #2563eb !important;
+}
+
+/* Remove underline from product title links */
+.woocommerce ul.products li.product a {
+  text-decoration: none !important;
+}
+
+.woocommerce ul.products li.product a:hover h2,
+.woocommerce ul.products li.product a:hover .woocommerce-loop-product__title {
+  color: #2563eb !important;
+}
+
+/* --- PRICE STYLING --- */
+.woocommerce ul.products li.product .price {
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  color: #16a34a !important;
+  margin-top: auto !important;
+  margin-bottom: 12px !important;
+}
+
+/* --- "SELECT OPTIONS" BUTTON --- */
+.woocommerce ul.products li.product .button,
+.woocommerce ul.products li.product a.button {
+  background: #1a1a2e !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 10px 20px !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  transition: background 0.2s ease, transform 0.1s ease !important;
+  width: 100% !important;
+  text-align: center !important;
+  margin-top: auto !important;
+}
+
+.woocommerce ul.products li.product .button:hover,
+.woocommerce ul.products li.product a.button:hover {
+  background: #2563eb !important;
+  transform: scale(1.02) !important;
+}
+
+/* ============================================
+   CUSTOMER VOICES / TESTIMONIALS
+   ============================================ */
+
+/* The overall columns container — center the grid */
+.entry-content .wp-block-columns {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 220px)) !important;
+  justify-content: center !important;
+  gap: 16px !important;
+  max-width: 960px !important;
+  margin: 20px auto 40px !important;
+  padding: 0 20px !important;
+}
+
+/* "Customer Voices" heading */
+.entry-content h2:not(.woocommerce-loop-product__title):not(.wp-block-post-title) {
+  font-size: 1.2rem !important;
+  font-weight: 600 !important;
+  color: #1a1a2e !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  margin-bottom: 10px !important;
+}
+
+/* Each testimonial card (column) */
+.entry-content .wp-block-column {
+  background: #fff !important;
+  border-radius: 10px !important;
+  padding: 16px 14px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid #eee !important;
+  text-align: center !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.entry-content .wp-block-column:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Kill the massive inner padding from .wp-block-group inside testimonials */
+.entry-content .wp-block-column .wp-block-group {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Testimonial name */
+.entry-content .wp-block-column h3,
+.entry-content .wp-block-column .wp-block-heading {
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  color: #1a1a2e !important;
+  margin: 0 0 8px 0 !important;
+  letter-spacing: 0.3px !important;
+}
+
+/* Testimonial review text */
+.entry-content .wp-block-column p {
+  color: #555 !important;
+  font-size: 0.78rem !important;
+  line-height: 1.5 !important;
+  font-style: italic !important;
+  margin: 0 !important;
+}
+
+/* Add a decorative quote before review text */
+.entry-content .wp-block-column .wp-block-group p::before {
+  content: "\201C" !important;
+  font-size: 1.8rem !important;
+  color: #2563eb !important;
+  display: block !important;
+  margin-bottom: 4px !important;
+  line-height: 1 !important;
+}
+
+/* Mobile: stack testimonials in 2 columns */
+@media (max-width: 768px) {
+  .entry-content .wp-block-columns {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .entry-content .wp-block-columns {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* --- CONTACT US SECTION --- */
+.entry-content > .wp-block-group {
+  padding: 30px 20px !important;
+}
+
+/* ============================================
+   SHOP PAGE — FIX WAVY 2-COLUMN GRID
+   Uses CSS Grid instead of floats to prevent
+   products from shifting left/right based on
+   neighbor height
+   ============================================ */
+.woocommerce-page ul.products {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 25px !important;
+}
+
+.woocommerce-page ul.products li.product {
+  width: 100% !important;
+  margin: 0 !important;
+  float: none !important;
+  clear: none !important;
+}
+
+/* Ensure uniform images on shop page */
+.woocommerce-page ul.products li.product a img {
+  aspect-ratio: 1 / 1 !important;
+  object-fit: contain !important;
+  background: #fafafa !important;
+}
+
+/* ============================================
+   FOOTER — Professional Footer Navigation
+   ============================================ */
+
+/* Hide "Built with WooCommerce" and "Powered by WordPress" */
+.site-info .powered-by,
+.site-info a[href*="woocommerce"],
+.site-info a[href*="wordpress.org"] {
+  display: none !important;
+}
+
+.site-info {
+  text-align: center !important;
+  padding: 20px 0 !important;
+  font-size: 0.85rem !important;
+  color: #888 !important;
+}
+
+/* Footer navigation menu (horizontal link bar) */
+.site-footer .widget_nav_menu ul,
+.site-footer ul.menu {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 15px 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 0 !important;
+  flex-wrap: wrap !important;
+}
+
+.site-footer .widget_nav_menu ul li,
+.site-footer ul.menu li {
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.site-footer .widget_nav_menu ul li a,
+.site-footer ul.menu li a {
+  color: #555 !important;
+  text-decoration: none !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  padding: 4px 12px !important;
+  transition: color 0.2s ease !important;
+}
+
+.site-footer .widget_nav_menu ul li a:hover,
+.site-footer ul.menu li a:hover {
+  color: #2563eb !important;
+}
+
+/* Add separator pipe between footer links */
+.site-footer .widget_nav_menu ul li:not(:last-child)::after,
+.site-footer ul.menu li:not(:last-child)::after {
+  content: "|" !important;
+  color: #ccc !important;
+  font-size: 0.85rem !important;
+}
+
+/* --- PAGE BACKGROUND --- */
+body,
+.site-content,
+.hentry {
+  background-color: #f8f9fc !important;
+}
+
+.content-area {
+  padding-top: 20px !important;
+}
+
+/* --- SEARCH BAR STYLE --- */
+.site-search .search-field,
+.widget_product_search input[type="search"] {
+  border-radius: 25px !important;
+  border: 1px solid #e0e0e0 !important;
+  padding: 10px 18px 10px 36px !important;
+  font-size: 0.85rem !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.site-search .search-field:focus,
+.widget_product_search input[type="search"]:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+  outline: none !important;
+}
+
+/* --- CART WIDGET IN HEADER --- */
+.site-header-cart .cart-contents {
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+}
+
+/* --- MOBILE RESPONSIVE TWEAKS --- */
+@media (max-width: 768px) {
+  .woocommerce ul.products li.product a img,
+  .woocommerce ul.products li.product img {
+    height: 160px !important;
+  }
+
+  .woocommerce ul.products li.product .woocommerce-loop-product__title,
+  .woocommerce ul.products li.product h2 {
+    font-size: 0.82rem !important;
+    min-height: auto !important;
+    -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
+  }
+
+  .site-title {
+    font-size: 1.3rem !important;
+  }
+
+  .site-description {
+    font-size: 0.78rem !important;
+  }
+
+  .wp-block-column {
+    margin-bottom: 15px !important;
+  }
+
+  /* Shop page: single column on mobile */
+  .woocommerce-page ul.products {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* --- SMOOTH SCROLLING --- */
+html {
+  scroll-behavior: smooth !important;
+}
+
+/* --- SELECTION COLOR --- */
+::selection {
+  background: #2563eb !important;
+  color: #fff !important;
+}

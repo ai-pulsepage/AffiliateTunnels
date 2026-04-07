@@ -1,10 +1,55 @@
 import { useState, useEffect } from 'react';
-import { Globe, Plus, Trash2, Settings, Package, Mail, ExternalLink, ChevronDown, ChevronUp, Users, FileText, Loader2, Link2 } from 'lucide-react';
+import { Globe, Plus, Trash2, Settings, Package, Mail, ExternalLink, ChevronDown, ChevronUp, Users, FileText, Loader2, Link2, Pencil, Save, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../lib/api';
 
 const DEFAULT_FORM = { subdomain: '', site_title: '', site_subtitle: '', accent_color: '#6366f1' };
 const COLOR_PRESETS = ['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#1e293b'];
+const SOCIAL_FIELDS = [['instagram', '📷 Instagram'], ['twitter', '𝕏 Twitter / X'], ['tiktok', '🎵 TikTok'], ['youtube', '▶️ YouTube'], ['facebook', '📘 Facebook'], ['linkedin', '💼 LinkedIn']];
+
+function FooterSocialsEditor({ ms, onSaved }) {
+    const parseSocials = (s) => { try { return typeof s === 'string' ? JSON.parse(s || '{}') : (s || {}); } catch { return {}; } };
+    const [companyName, setCompanyName] = useState(ms.footer_company_name || '');
+    const [website, setWebsite] = useState(ms.footer_website || '');
+    const [socials, setSocials] = useState(parseSocials(ms.footer_socials));
+    const [saving, setSaving] = useState(false);
+
+    async function saveFooter() {
+        setSaving(true);
+        try {
+            await api(`/storefront/microsites/${ms.id}`, {
+                method: 'PUT',
+                body: { footer_company_name: companyName, footer_website: website, footer_socials: socials }
+            });
+            toast.success('Footer & socials saved!');
+            if (onSaved) onSaved();
+        } catch (err) { toast.error(err.message || 'Failed to save'); }
+        setSaving(false);
+    }
+
+    return (
+        <div className="bg-surface-700 rounded-xl p-4">
+            <h5 className="text-white text-sm font-semibold flex items-center gap-2 mb-3"><Globe className="w-4 h-4 text-cyan-400" /> Footer & Socials</h5>
+            <p className="text-gray-400 text-xs mb-3">These appear in the footer across all pages. Leave blank to hide.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Company Name" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
+                <input value={website} onChange={e => setWebsite(e.target.value)} placeholder="Website URL (https://...)" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
+            </div>
+            <p className="text-gray-400 text-xs mt-3 mb-2">Social links (paste full URLs)</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {SOCIAL_FIELDS.map(([key, label]) => (
+                    <input key={key} value={socials[key] || ''} onChange={e => setSocials({ ...socials, [key]: e.target.value })}
+                        placeholder={label} style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm placeholder:text-gray-500" />
+                ))}
+            </div>
+            <div className="flex justify-end mt-3">
+                <button onClick={saveFooter} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition-colors">
+                    {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</> : '💾 Save Footer & Socials'}
+                </button>
+            </div>
+        </div>
+    );
+}
 
 export default function Microsites() {
     const [microsites, setMicrosites] = useState([]);
@@ -16,6 +61,9 @@ export default function Microsites() {
     const [addingProduct, setAddingProduct] = useState(null); // microsite id
     const [productForm, setProductForm] = useState({ source_url: '', affiliate_url: '' });
     const [generating, setGenerating] = useState(false);
+    const [editingProduct, setEditingProduct] = useState(null); // product id being edited
+    const [editForm, setEditForm] = useState({});
+    const [savingEdit, setSavingEdit] = useState(false);
 
     useEffect(() => { loadMicrosites(); }, []);
 
@@ -89,6 +137,32 @@ export default function Microsites() {
             toast.success('Product removed');
             loadProducts(msId);
         } catch (err) { toast.error(err.message || 'Failed to remove product'); }
+    }
+
+    function startEditProduct(product) {
+        setEditingProduct(product.id);
+        setEditForm({
+            affiliate_url: product.affiliate_url || '',
+            product_name: product.product_name || '',
+            product_desc: product.product_desc || '',
+            price_label: product.price_label || '',
+            card_image_url: product.card_image_url || '',
+        });
+    }
+
+    async function updateProduct(msId, prodId) {
+        setSavingEdit(true);
+        try {
+            await api(`/storefront/microsites/${msId}/products/${prodId}`, {
+                method: 'PUT',
+                body: editForm
+            });
+            toast.success('Product updated!');
+            setEditingProduct(null);
+            setEditForm({});
+            loadProducts(msId);
+        } catch (err) { toast.error(err.message || 'Failed to update product'); }
+        setSavingEdit(false);
     }
 
     async function deleteMicrosite(msId, subdomain) {
@@ -215,25 +289,7 @@ export default function Microsites() {
                                     </div>
 
                                     {/* Footer & Socials Settings */}
-                                    <div className="bg-surface-700 rounded-xl p-4">
-                                        <h5 className="text-white text-sm font-semibold flex items-center gap-2 mb-3"><Globe className="w-4 h-4 text-cyan-400" /> Footer & Socials</h5>
-                                        <p className="text-gray-400 text-xs mb-3">These appear in the footer across all pages. Leave blank to hide.</p>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                            <input defaultValue={ms.footer_company_name || ''} onBlur={e => updateOptinText(ms.id, 'footer_company_name', e.target.value)} placeholder="Company Name" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
-                                            <input defaultValue={ms.footer_website || ''} onBlur={e => updateOptinText(ms.id, 'footer_website', e.target.value)} placeholder="Website URL (https://...)" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
-                                        </div>
-                                        <p className="text-gray-400 text-xs mt-3 mb-2">Social links (paste full URLs)</p>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                            {[['instagram', '📷 Instagram'], ['twitter', '𝕏 Twitter / X'], ['tiktok', '🎵 TikTok'], ['youtube', '▶️ YouTube'], ['facebook', '📘 Facebook'], ['linkedin', '💼 LinkedIn']].map(([key, label]) => (
-                                                <input key={key} defaultValue={(typeof ms.footer_socials === 'string' ? JSON.parse(ms.footer_socials || '{}') : (ms.footer_socials || {}))[key] || ''}
-                                                    onBlur={e => {
-                                                        const socials = typeof ms.footer_socials === 'string' ? JSON.parse(ms.footer_socials || '{}') : (ms.footer_socials || {});
-                                                        updateOptinText(ms.id, 'footer_socials', { ...socials, [key]: e.target.value });
-                                                    }}
-                                                    placeholder={label} style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm placeholder:text-gray-500" />
-                                            ))}
-                                        </div>
-                                    </div>
+                                    <FooterSocialsEditor ms={ms} onSaved={loadMicrosites} />
 
                                     {/* Products */}
                                     <div className="bg-surface-700 rounded-xl p-4">
@@ -338,15 +394,58 @@ export default function Microsites() {
                                         {(products[ms.id] || []).length > 0 ? (
                                             <div className="space-y-2">
                                                 {products[ms.id].map(p => (
-                                                    <div key={p.id} className="flex items-center justify-between bg-surface-600 rounded-lg px-3 py-2">
-                                                        <div className="flex items-center gap-2 min-w-0">
-                                                            {p.images?.[0] && <img src={typeof p.images === 'string' ? JSON.parse(p.images)[0] : p.images[0]} className="w-8 h-8 rounded object-cover" />}
-                                                            <span className="text-white text-sm truncate">{p.product_name}</span>
+                                                    <div key={p.id} className="bg-surface-600 rounded-lg overflow-hidden">
+                                                        <div className="flex items-center justify-between px-3 py-2">
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                {p.card_image_url && <img src={p.card_image_url} className="w-8 h-8 rounded object-cover" />}
+                                                                {!p.card_image_url && p.images && (() => { try { const imgs = typeof p.images === 'string' ? JSON.parse(p.images) : p.images; return imgs[0] ? <img src={imgs[0]} className="w-8 h-8 rounded object-cover" /> : null; } catch { return null; } })()}
+                                                                <div className="min-w-0">
+                                                                    <span className="text-white text-sm truncate block">{p.product_name}</span>
+                                                                    {p.affiliate_url && <span className="text-gray-500 text-[10px] truncate block max-w-[300px]" title={p.affiliate_url}>🔗 {p.affiliate_url.substring(0, 50)}{p.affiliate_url.length > 50 ? '…' : ''}</span>}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <button onClick={() => editingProduct === p.id ? setEditingProduct(null) : startEditProduct(p)} className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded transition-colors ${editingProduct === p.id ? 'bg-amber-500/20 text-amber-400' : 'text-gray-400 hover:text-amber-400'}`}>
+                                                                    <Pencil className="w-3 h-3" /> Edit
+                                                                </button>
+                                                                <a href={`https://${ms.subdomain}.dealfindai.com/${p.slug}`} target="_blank" rel="noopener" className="text-xs text-brand-400 hover:text-brand-300">View</a>
+                                                                <button onClick={() => deleteProduct(ms.id, p.id)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center gap-2 shrink-0">
-                                                            <a href={`https://${ms.subdomain}.dealfindai.com/${p.slug}`} target="_blank" rel="noopener" className="text-xs text-brand-400 hover:text-brand-300">View</a>
-                                                            <button onClick={() => deleteProduct(ms.id, p.id)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
-                                                        </div>
+
+                                                        {/* Inline Edit Panel */}
+                                                        {editingProduct === p.id && (
+                                                            <div className="px-3 pb-3 pt-1 border-t border-white/5 space-y-2">
+                                                                <div>
+                                                                    <label className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider block mb-0.5">Affiliate / CTA URL</label>
+                                                                    <input value={editForm.affiliate_url || ''} onChange={e => setEditForm({ ...editForm, affiliate_url: e.target.value })} placeholder="https://your-affiliate-link.com" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-amber-500/30 rounded-lg text-sm focus:border-amber-500 focus:outline-none" />
+                                                                </div>
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                                    <div>
+                                                                        <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Product Name</label>
+                                                                        <input value={editForm.product_name || ''} onChange={e => setEditForm({ ...editForm, product_name: e.target.value })} style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Price Label</label>
+                                                                        <input value={editForm.price_label || ''} onChange={e => setEditForm({ ...editForm, price_label: e.target.value })} placeholder="$4,999" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
+                                                                    </div>
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Description</label>
+                                                                    <textarea value={editForm.product_desc || ''} onChange={e => setEditForm({ ...editForm, product_desc: e.target.value })} rows={2} style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm resize-none" />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Card Image URL</label>
+                                                                    <input value={editForm.card_image_url || ''} onChange={e => setEditForm({ ...editForm, card_image_url: e.target.value })} placeholder="https://example.com/image.jpg" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
+                                                                </div>
+                                                                <div className="flex items-center gap-2 pt-1">
+                                                                    <button onClick={() => updateProduct(ms.id, p.id)} disabled={savingEdit} className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors">
+                                                                        {savingEdit ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</> : <><Save className="w-3 h-3" /> Save Changes</>}
+                                                                    </button>
+                                                                    <button onClick={() => { setEditingProduct(null); setEditForm({}); }} className="px-3 py-2 text-gray-400 hover:text-white text-xs transition-colors">Cancel</button>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ))}
                                             </div>

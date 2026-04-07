@@ -94,7 +94,7 @@ Product: ${productIntel.productName || productName}
 Brand: ${productIntel.brand || 'N/A'}
 Tagline: ${productIntel.tagline || 'N/A'}
 Description: ${productIntel.description || productDescription}
-Target Audience: ${productIntel.targetAudience || 'General health-conscious adults'}
+Target Audience: ${productIntel.targetAudience || 'General audience'}
 Problem It Solves: ${productIntel.problemItSolves || 'N/A'}
 How It Works: ${productIntel.howItWorks || 'N/A'}
 Unique Angle: ${productIntel.uniqueAngle || 'N/A'}
@@ -105,19 +105,27 @@ ${(productIntel.mainClaims || []).map(c => `- ${c}`).join('\n') || '- N/A'}
 KEY STATS:
 ${(productIntel.keyStats || []).map(s => `- ${s}`).join('\n') || '- N/A'}
 
-INGREDIENTS:
+KEY FEATURES / COMPONENTS:
+${(productIntel.keyFeatures || []).map(f => `- ${typeof f === 'string' ? f : f.name || f.feature || ''}`).join('\n') || '- N/A'}
+
+INGREDIENTS (health products only — omit for non-health products):
 ${(productIntel.ingredients || []).map(i => `- ${i.name}: ${i.benefit}`).join('\n') || '- N/A'}
 
-SCIENTIFIC REFERENCES:
+SCIENTIFIC REFERENCES (if applicable):
 ${(productIntel.scientificClaims || []).map(s => `- ${s}`).join('\n') || '- N/A'}
+
+SELLING POINTS:
+${(productIntel.sellingPoints || []).map(sp => `- ${sp.icon || ''} ${sp.title}: ${sp.detail || ''}`).join('\n') || '- N/A'}
 
 REAL TESTIMONIALS FROM THE PRODUCT PAGE:
 ${(productIntel.testimonials || []).map(t => `"${t.quote}" — ${t.name}${t.detail ? `, ${t.detail}` : ''}`).join('\n') || '- N/A'}
 
 PRICING:
-${(productIntel.pricing || []).map(p => `- ${p.tier}: ${p.bottles} bottles at ${p.pricePerBottle}/bottle = ${p.totalPrice}`).join('\n') || '- N/A'}
+${(productIntel.pricing || []).map(p => `- ${p.tier}: ${p.totalPrice}${p.pricePerBottle ? ` (${p.pricePerBottle} each)` : ''}`).join('\n') || '- N/A'}
 
 GUARANTEE: ${productIntel.guarantee || 'N/A'}
+SHIPPING/DELIVERY: ${productIntel.shipping || productIntel.deliveryTime || 'N/A'}
+WARRANTY: ${productIntel.warranty || 'N/A'}
 BONUSES: ${(productIntel.bonuses || []).join(', ') || 'N/A'}`;
 }
 
@@ -169,7 +177,7 @@ OUTPUT: Return ONLY the HTML elements. No markdown, no explanation, no code fenc
 // ─── Style-specific prompt builders ────────────────────────────
 
 function buildReviewArticlePrompt({ productContext, affiliateLink, dateStr, year, emailSwipes }) {
-   return `You are an expert wellness blogger and content creator who writes deeply researched, engaging product review articles. Your articles read like real editorial content — informative, trustworthy, and compelling — not like sales pages.
+   return `You are an expert content creator who writes deeply researched, engaging product review articles for ANY type of product or service — physical products, digital services, software, courses, subscriptions, etc. Your articles read like real editorial content — informative, trustworthy, and compelling — not like sales pages.
 
 TODAY'S DATE: ${dateStr}
 CURRENT YEAR: ${year}
@@ -178,42 +186,63 @@ ${emailSwipes ? `EMAIL SWIPES (use for tone/angles):\n${emailSwipes}` : ''}
 
 ${productContext}
 
-STYLE: Write as a comprehensive, Pinterest blog-style product review article (3000+ words). This should read like a real wellness blogger wrote it after thoroughly researching and trying the product.
+CRITICAL: DETECT THE PRODUCT TYPE from the intelligence above and ADAPT your language:
+- Physical product → talk about build quality, materials, shipping, unboxing
+- Digital service → talk about onboarding, delivery, support, results
+- Software/SaaS → talk about features, ease of use, integrations, value
+- Health/supplement → talk about ingredients, research, formulation
+- Course/info product → talk about curriculum, instructors, learning outcomes
+- Financial service → talk about ROI, risk, track record
+NEVER use health/supplement language (ingredients, formula, clinical) for non-health products.
+
+STYLE: Write as a comprehensive, blog-style product review article (3000+ words). This should read like a real blogger wrote it after thoroughly researching and trying the product.
 
 Write a COMPLETE, long-form review article with the following structure. EACH numbered item below must be its OWN separate top-level HTML element:
 
 1. <div> — Small "ADVERTISEMENT" disclaimer bar (gray background, centered, uppercase, tiny text)
 
-2. <p> — Category label in red/brand color, uppercase, small font (e.g., "HEALTH & WELLNESS REVIEW")
+2. <p> — Category label in red/brand color, uppercase, small font. ADAPT to the product type — e.g. "PRODUCT REVIEW", "SERVICE REVIEW", "SOFTWARE REVIEW", "COURSE REVIEW", etc. NEVER default to "HEALTH & WELLNESS REVIEW" unless the product is actually a health product.
 
-3. <h1> — Compelling, curiosity-driven headline. Not clickbait but intriguing. Example: "I Tried [Product] For 30 Days — Here's My Honest Review (And the Science Behind It)"
+3. <h1> — Compelling, curiosity-driven headline. Not clickbait but intriguing. Adapt to the product type.
+   - For services: "I Tried [Service] — Here's My Honest ${year} Review"
+   - For software: "[Product] Review ${year}: Is It Worth It? (Hands-On Look)"
+   - For physical: "I Tested [Product] For 30 Days — Here's What Happened"
 
 4. <p> — Author byline: "By [Author Name] | ${dateStr} | X min read" in gray
 
-5. <div data-media-slot="hero" style="margin:24px 0;border-radius:12px;overflow:hidden;background:#f5f5f5;min-height:220px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add hero image</span></div>
+5. <div data-media-slot="hero" style="margin:24px 0;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#f0f4ff,#e8eeff);min-height:220px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#6366f1;font-size:14px;font-weight:600;">Click to add hero image</span></div>
 
-6-8. <p> paragraphs — Opening hook. Personal story angle: "When my friend told me about [product], I was skeptical..." Build intrigue about the problem this product solves. 2-3 separate <p> elements.
+6-8. <p> paragraphs — Opening hook. Personal story angle adapted to the product type. Build intrigue about the problem this product solves. 2-3 separate <p> elements.
 
-9. <h2> — "What Is [Product]?" or "The Science Behind [Product]"
+9. <h2> — Title adapted to product type:
+   - Service: "What Is [Product] and How Does It Work?"
+   - Software: "[Product] Features Overview"
+   - Physical: "What Makes [Product] Different?"
+   - Health: "What Is [Product]? (The Science)"
 
-10-12. <p> paragraphs — Deep explanation of the problem (use the product intelligence: mechanism, research, stats). Each paragraph is its own <p> element. Reference actual research if available.
+10-12. <p> paragraphs — Deep explanation. Use the product intelligence. Each paragraph is its own <p> element.
 
-13. <blockquote> — Expert quote with attribution. Style: border-left: 4px solid #e63946; padding: 16px 24px; background: #fef2f2; border-radius: 0 8px 8px 0; font-style: italic;
+13. <blockquote> — Expert/user quote with attribution. Style: border-left: 4px solid #e63946; padding: 16px 24px; background: #fef2f2; border-radius: 0 8px 8px 0; font-style: italic;
 
-14. <h2> — "What's Inside the Formula?" or "Key Ingredients Breakdown"
+14. <h2> — Adapt to product type:
+   - Service: "Key Service Components & What You Get"
+   - Software: "Feature Deep-Dive"
+   - Physical: "Build Quality & Design"
+   - Health: "Key Ingredients Breakdown"
+   - Course: "What's Inside the Program"
 
-15-20. For EACH major ingredient, output a separate element:
+15-20. For EACH major component/feature/ingredient, output a separate element:
     <div style="padding:16px 20px;margin:12px 0;background:#f8fafc;border-radius:8px;border-left:3px solid #3b82f6;">
-      <strong style="font-size:17px;color:#1e293b;">[Ingredient Name]</strong>
-      <p style="margin:6px 0 0;color:#475569;font-size:15px;">[What it does and why it matters — cite research if available]</p>
+      <strong style="font-size:17px;color:#1e293b;">[Feature/Component Name]</strong>
+      <p style="margin:6px 0 0;color:#475569;font-size:15px;">[What it does and why it matters — be specific]</p>
     </div>
 
-21. <div data-media-slot="mid" style="margin:24px 0;border-radius:12px;overflow:hidden;background:#f5f5f5;min-height:180px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#999;font-size:14px;">Click to add image</span></div>
+21. <div data-media-slot="mid" style="margin:24px 0;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#f5f3ff,#ede9fe);min-height:180px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#7c3aed;font-size:14px;font-weight:600;">Click to add image</span></div>
 
-22. Email opt-in form — output as a single top-level element:
+22. Email opt-in form — ADAPT text to the product type. Output as a single top-level element:
 <div style="max-width:520px;margin:48px auto;padding:36px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border-radius:16px;border:2px solid #86efac;text-align:center;">
-  <h3 style="font-size:22px;font-weight:700;color:#166534;margin-bottom:8px;">Want the Full Research Breakdown?</h3>
-  <p style="color:#4d7c0f;font-size:15px;margin-bottom:20px;">Enter your email to get exclusive research, ingredient analysis, and reader results — free.</p>
+  <h3 style="font-size:22px;font-weight:700;color:#166534;margin-bottom:8px;">Want Our Full Breakdown?</h3>
+  <p style="color:#4d7c0f;font-size:15px;margin-bottom:20px;">Enter your email to get our exclusive deep-dive analysis and reader results — free.</p>
   <form data-at-form="optin" style="display:flex;flex-direction:column;gap:10px;max-width:360px;margin:0 auto;">
     <input type="text" name="name" placeholder="Your Name" style="width:100%;padding:14px 18px;border:1px solid #d1d5db;border-radius:10px;font-size:15px;box-sizing:border-box;" />
     <input type="email" name="email" placeholder="Your Email Address" required style="width:100%;padding:14px 18px;border:1px solid #d1d5db;border-radius:10px;font-size:15px;box-sizing:border-box;" />
@@ -224,7 +253,7 @@ Write a COMPLETE, long-form review article with the following structure. EACH nu
 
 23. <h2> — "Real Results: What Actual Users Are Saying"
 
-24-26. For EACH testimonial, output as a separate <blockquote> with the person's name, age, location. Use the real testimonials from the product intelligence if available.
+24-26. For EACH testimonial, output as a separate blockquote with the person's name and detail. Use the real testimonials from the product intelligence if available.
 
 27. <div data-media-slot="video" style="text-align:center;padding:50px;background:#111;border-radius:12px;margin:24px 0;min-height:300px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><span style="color:#666;font-size:16px;">▶ Click to add video</span></div>
 
@@ -234,9 +263,9 @@ Write a COMPLETE, long-form review article with the following structure. EACH nu
 
 31. <h2> — "Pros & Cons"
 
-32. <div> — Pros section. Follow the PROS/CONS HTML REFERENCE from the rules section EXACTLY. Use full-width stacked cards with border-left: 4px solid #22c55e, green #f0fdf4 background. Each item has <strong>Label</strong> — description in one <p> tag. NEVER use a grid or two-column layout.
+32. <div> — Pros section. Follow the PROS/CONS HTML REFERENCE from the rules section EXACTLY. Use full-width stacked cards with border-left: 4px solid #22c55e, green #f0fdf4 background.
 
-33. <div> — Cons section. Same card format but amber colors (border-left: #f59e0b, background: #fffbeb). Be genuinely balanced — include 3-5 real cons.
+33. <div> — Cons section. Same card format but amber colors. Be genuinely balanced — include 3-5 real cons.
 
 34. <h2> — "Pricing & Value" (if pricing data available)
 
@@ -256,7 +285,7 @@ REMINDERS:
 - Every section must be its own TOP-LEVEL HTML element — NO wrapper divs
 - Inline styles only
 - Sound like a real blogger, not a salesperson
-- Include specific numbers, ingredients, and research where available
+- ADAPT language to the product type — never use health/supplement jargon for non-health products
 - Be slightly skeptical at first, then won over by the evidence — this builds trust
 - Use today's date: ${dateStr}. NEVER use a past year.
 ${sharedBlockRules()}`;
@@ -455,7 +484,7 @@ Write a FOCUSED lead magnet page (~400-500 words). Each numbered item must be it
    Each <li> style: margin-bottom:8px;
    Example bullets:
    - "The #1 mistake 90% of people make (and the simple fix)"
-   - "3 research-backed ingredients that actually work"
+   - "3 proven strategies that actually deliver results"
    - "The 'morning ritual' that [specific benefit]"
 
 6. <blockquote> — A testimonial or trust element. Example: "I downloaded this guide and it completely changed how I approach [topic]" — Reader name
@@ -526,7 +555,7 @@ Then for each major section (6-8 sections), create separate elements:
 Insert between sections as appropriate:
 - <blockquote> for testimonials/expert quotes
 - <div data-media-slot="..."> for image placeholders
-- <ul> / <ol> for lists of benefits, ingredients, tips
+- <ul> / <ol> for lists of benefits, features, tips
 
 After section 4 or 5, insert email opt-in:
 <div style="max-width:520px;margin:40px auto;padding:32px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border-radius:16px;border:2px solid #86efac;text-align:center;">
