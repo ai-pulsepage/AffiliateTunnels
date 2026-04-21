@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Globe, Plus, Trash2, Settings, Package, Mail, ExternalLink, ChevronDown, ChevronUp, Users, FileText, Loader2, Link2, Pencil, Save, X } from 'lucide-react';
+import { Globe, Plus, Trash2, Settings, Package, Mail, ExternalLink, ChevronDown, ChevronUp, Users, FileText, Loader2, Link2, Pencil, Save, X, Store, ShoppingBag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../lib/api';
 
@@ -64,8 +64,20 @@ export default function Microsites() {
     const [editingProduct, setEditingProduct] = useState(null); // product id being edited
     const [editForm, setEditForm] = useState({});
     const [savingEdit, setSavingEdit] = useState(false);
+    const [stores, setStores] = useState([]);
+    const [pushingProductId, setPushingProductId] = useState(null);
 
-    useEffect(() => { loadMicrosites(); }, []);
+    useEffect(() => { 
+        loadMicrosites(); 
+        loadStores();
+    }, []);
+
+    async function loadStores() {
+        try {
+            const data = await api('/stores');
+            setStores(data.stores?.filter(s => s.is_active) || []);
+        } catch (err) { console.error('Failed to load stores', err); }
+    }
 
     async function loadMicrosites() {
         try {
@@ -147,6 +159,14 @@ export default function Microsites() {
             product_desc: product.product_desc || '',
             price_label: product.price_label || '',
             card_image_url: product.card_image_url || '',
+            price: product.price || '',
+            compare_at_price: product.compare_at_price || '',
+            sku: product.sku || '',
+            barcode: product.barcode || '',
+            weight: product.weight || '',
+            weight_unit: product.weight_unit || 'kg',
+            tags: product.tags || '',
+            vendor_name: product.vendor_name || ''
         });
     }
 
@@ -163,6 +183,21 @@ export default function Microsites() {
             loadProducts(msId);
         } catch (err) { toast.error(err.message || 'Failed to update product'); }
         setSavingEdit(false);
+    }
+
+    async function pushProductToStore(storeId, prodId, product) {
+        setPushingProductId(prodId);
+        try {
+            const data = await api(`/stores/push`, {
+                method: 'POST',
+                body: { store_id: storeId, product_id: prodId, product_data: product }
+            });
+            toast.success(`Product pushed to store!`);
+            window.open(data.syncData.external_url, '_blank');
+        } catch (err) {
+            toast.error(err.message || 'Failed to push product');
+        }
+        setPushingProductId(null);
     }
 
     async function deleteMicrosite(msId, subdomain) {
@@ -190,12 +225,12 @@ export default function Microsites() {
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                        <Globe className="w-7 h-7 text-brand-400" /> Microsites
+                        <Globe className="w-7 h-7 text-brand-400" /> Content Network
                     </h1>
-                    <p className="text-gray-400 text-sm mt-1">Manage your subdomain sites, products, and opt-in settings</p>
+                    <p className="text-gray-400 text-sm mt-1">Manage brand properties, subdomains, and monitor content staleness</p>
                 </div>
                 <button onClick={() => setShowCreate(!showCreate)} className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-sm font-medium transition-colors">
-                    <Plus className="w-4 h-4" /> New Microsite
+                    <Plus className="w-4 h-4" /> New Brand Property
                 </button>
             </div>
 
@@ -230,10 +265,18 @@ export default function Microsites() {
                                 <input value={form.accent_color} onChange={e => setForm({ ...form, accent_color: e.target.value })} className="w-24 px-2 py-1.5 bg-surface-700 border border-white/10 rounded-lg text-white text-xs font-mono" />
                             </div>
                         </div>
+                        <div>
+                            <label className="text-sm text-gray-400 block mb-1">Target Store URL (optional)</label>
+                            <input value={form.target_store_url || ''} onChange={e => setForm({ ...form, target_store_url: e.target.value })} placeholder="https://my-shopify-store.com" className="w-full px-3 py-2.5 bg-surface-700 border border-white/10 rounded-lg text-white text-sm" />
+                        </div>
+                        <div>
+                            <label className="text-sm text-gray-400 block mb-1">Target Store Name (optional)</label>
+                            <input value={form.target_store_name || ''} onChange={e => setForm({ ...form, target_store_name: e.target.value })} placeholder="My Store" className="w-full px-3 py-2.5 bg-surface-700 border border-white/10 rounded-lg text-white text-sm" />
+                        </div>
                     </div>
                     <div className="flex justify-end gap-3">
                         <button type="button" onClick={() => { setShowCreate(false); setForm({ ...DEFAULT_FORM }); }} className="px-4 py-2 text-sm text-gray-400">Cancel</button>
-                        <button type="submit" className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-sm font-medium">Create Microsite</button>
+                        <button type="submit" className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-sm font-medium">Create Brand Property</button>
                     </div>
                 </form>
             )}
@@ -246,7 +289,15 @@ export default function Microsites() {
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {microsites.map(ms => (
+                    {microsites.map(ms => {
+                        let stalenessColor = 'text-green-400 bg-green-400/10';
+                        let stalenessText = 'Fresh';
+                        if (ms.staleness_level === 'no_content') { stalenessColor = 'text-gray-400 bg-gray-400/10'; stalenessText = 'No Content'; }
+                        else if (ms.staleness_level === 'critical') { stalenessColor = 'text-red-400 bg-red-400/10'; stalenessText = `Critical (${ms.days_since_content}d)`; }
+                        else if (ms.staleness_level === 'overdue') { stalenessColor = 'text-orange-400 bg-orange-400/10'; stalenessText = `Overdue (${ms.days_since_content}d)`; }
+                        else if (ms.days_since_content !== null) { stalenessText = `Fresh (${ms.days_since_content}d)`; }
+
+                        return (
                         <div key={ms.id} className="bg-surface-800 border border-white/10 rounded-xl overflow-hidden">
                             <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => toggleExpand(ms.id)}>
                                 <div className="flex items-center gap-3">
@@ -254,8 +305,11 @@ export default function Microsites() {
                                         <Globe className="w-5 h-5" style={{ color: ms.accent_color }} />
                                     </div>
                                     <div>
-                                        <h4 className="text-white font-medium text-sm">{ms.subdomain}.dealfindai.com</h4>
-                                        <p className="text-gray-500 text-xs">{ms.site_title || 'Untitled'} · {ms.product_count || 0} products</p>
+                                        <h4 className="text-white font-medium text-sm flex items-center gap-2">
+                                            {ms.site_title || 'Untitled Brand'}
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${stalenessColor}`}>{stalenessText}</span>
+                                        </h4>
+                                        <p className="text-gray-500 text-xs">{ms.subdomain}.dealfindai.com · {ms.product_count || 0} products {ms.target_store_name ? `· Target: ${ms.target_store_name}` : ''}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -271,6 +325,25 @@ export default function Microsites() {
 
                             {expanded === ms.id && (
                                 <div className="px-4 pb-4 space-y-4 border-t border-white/5 pt-4">
+                                    {/* Store Target Settings */}
+                                    <div className="bg-surface-700 rounded-xl p-4">
+                                        <h5 className="text-white text-sm font-semibold flex items-center gap-2 mb-3"><Link2 className="w-4 h-4 text-brand-400" /> Target Store & Staleness</h5>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                            <div>
+                                                <label className="text-xs text-gray-400 block mb-1">Target Store URL</label>
+                                                <input defaultValue={ms.target_store_url || ''} onBlur={e => api(`/storefront/microsites/${ms.id}`, { method: 'PUT', body: { target_store_url: e.target.value } })} placeholder="https://store.com" className="w-full px-3 py-2 bg-surface-600 border border-white/10 rounded-lg text-white text-sm" />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-gray-400 block mb-1">Target Store Name</label>
+                                                <input defaultValue={ms.target_store_name || ''} onBlur={e => api(`/storefront/microsites/${ms.id}`, { method: 'PUT', body: { target_store_name: e.target.value } })} placeholder="Store Name" className="w-full px-3 py-2 bg-surface-600 border border-white/10 rounded-lg text-white text-sm" />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-gray-400 block mb-1">Staleness Threshold (Days)</label>
+                                                <input type="number" defaultValue={ms.staleness_days || 7} onBlur={e => api(`/storefront/microsites/${ms.id}`, { method: 'PUT', body: { staleness_days: parseInt(e.target.value) || 7 } }).then(loadMicrosites)} className="w-full px-3 py-2 bg-surface-600 border border-white/10 rounded-lg text-white text-sm" />
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     {/* Opt-in Settings */}
                                     <div className="bg-surface-700 rounded-xl p-4">
                                         <div className="flex items-center justify-between mb-3">
@@ -410,6 +483,20 @@ export default function Microsites() {
                                                                 </button>
                                                                 <a href={`https://${ms.subdomain}.dealfindai.com/${p.slug}`} target="_blank" rel="noopener" className="text-xs text-brand-400 hover:text-brand-300">View</a>
                                                                 <button onClick={() => deleteProduct(ms.id, p.id)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+                                                                {stores.length > 0 && (
+                                                                    <div className="relative group/push inline-block ml-1">
+                                                                        <button className="flex items-center gap-1 text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded transition-colors hover:bg-blue-500/20">
+                                                                            {pushingProductId === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Store className="w-3 h-3" />} Push
+                                                                        </button>
+                                                                        <div className="absolute right-0 top-full mt-1 w-48 bg-surface-800 border border-white/10 rounded-lg shadow-xl opacity-0 invisible group-hover/push:opacity-100 group-hover/push:visible transition-all z-10 flex flex-col p-1">
+                                                                            {stores.map(store => (
+                                                                                <button key={store.id} onClick={() => pushProductToStore(store.id, p.id, p)} className="text-left px-3 py-2 text-xs text-white hover:bg-white/10 rounded font-medium flex items-center gap-2">
+                                                                                    <ShoppingBag className="w-3 h-3" /> {store.store_name}
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
 
@@ -438,6 +525,47 @@ export default function Microsites() {
                                                                     <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Card Image URL</label>
                                                                     <input value={editForm.card_image_url || ''} onChange={e => setEditForm({ ...editForm, card_image_url: e.target.value })} placeholder="https://example.com/image.jpg" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-3 py-2 border border-white/10 rounded-lg text-sm" />
                                                                 </div>
+
+                                                                <div className="border-t border-white/10 mt-3 pt-3">
+                                                                    <p className="text-xs text-blue-400 font-bold mb-2 flex items-center gap-1"><Store className="w-3 h-3" /> E-commerce Sync Fields</p>
+                                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                                                                        <div>
+                                                                            <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Numeric Price</label>
+                                                                            <input value={editForm.price || ''} onChange={e => setEditForm({ ...editForm, price: e.target.value })} placeholder="499.99" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-2 py-1.5 border border-white/10 rounded-lg text-xs" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Compare At Price</label>
+                                                                            <input value={editForm.compare_at_price || ''} onChange={e => setEditForm({ ...editForm, compare_at_price: e.target.value })} placeholder="699.99" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-2 py-1.5 border border-white/10 rounded-lg text-xs" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">SKU</label>
+                                                                            <input value={editForm.sku || ''} onChange={e => setEditForm({ ...editForm, sku: e.target.value })} style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-2 py-1.5 border border-white/10 rounded-lg text-xs" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Barcode</label>
+                                                                            <input value={editForm.barcode || ''} onChange={e => setEditForm({ ...editForm, barcode: e.target.value })} style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-2 py-1.5 border border-white/10 rounded-lg text-xs" />
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                                                                        <div>
+                                                                            <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Weight</label>
+                                                                            <input value={editForm.weight || ''} onChange={e => setEditForm({ ...editForm, weight: e.target.value })} style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-2 py-1.5 border border-white/10 rounded-lg text-xs" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Unit (kg/lb)</label>
+                                                                            <input value={editForm.weight_unit || ''} onChange={e => setEditForm({ ...editForm, weight_unit: e.target.value })} placeholder="kg" style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-2 py-1.5 border border-white/10 rounded-lg text-xs" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Vendor Name</label>
+                                                                            <input value={editForm.vendor_name || ''} onChange={e => setEditForm({ ...editForm, vendor_name: e.target.value })} style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-2 py-1.5 border border-white/10 rounded-lg text-xs" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Tags (comma-separated)</label>
+                                                                            <input value={editForm.tags || ''} onChange={e => setEditForm({ ...editForm, tags: e.target.value })} style={{ background: '#1a1a2e', color: '#fff' }} className="w-full px-2 py-1.5 border border-white/10 rounded-lg text-xs" />
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
                                                                 <div className="flex items-center gap-2 pt-1">
                                                                     <button onClick={() => updateProduct(ms.id, p.id)} disabled={savingEdit} className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors">
                                                                         {savingEdit ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving...</> : <><Save className="w-3 h-3" /> Save Changes</>}
@@ -455,14 +583,15 @@ export default function Microsites() {
                                     </div>
 
                                     <div className="flex gap-3">
-                                        <button onClick={() => deleteMicrosite(ms.id)} className="flex items-center gap-1.5 px-3 py-1.5 text-red-400 hover:bg-red-500/10 rounded-lg text-xs font-medium transition-colors">
-                                            <Trash2 className="w-3.5 h-3.5" /> Delete Microsite
+                                        <button onClick={() => deleteMicrosite(ms.id, ms.subdomain)} className="flex items-center gap-1.5 px-3 py-1.5 text-red-400 hover:bg-red-500/10 rounded-lg text-xs font-medium transition-colors">
+                                            <Trash2 className="w-3.5 h-3.5" /> Delete Brand Property
                                         </button>
                                     </div>
                                 </div>
                             )}
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>

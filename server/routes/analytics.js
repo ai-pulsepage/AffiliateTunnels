@@ -98,6 +98,61 @@ router.get('/funnel/:funnelId', async (req, res) => {
     }
 });
 
+// GET /api/analytics/dashboard
+router.get('/dashboard', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        // 1. Funnel/Analytics Data
+        const funnels = await query('SELECT COUNT(*) as count FROM funnels WHERE user_id = $1', [userId]);
+        const analytics = await query(`
+            SELECT 
+                COUNT(*) FILTER (WHERE event_type = 'pageview') as total_views,
+                COUNT(*) FILTER (WHERE event_type = 'form_submit') as total_leads
+            FROM analytics_events ae
+            JOIN funnels f ON ae.funnel_id = f.id
+            WHERE f.user_id = $1
+        `, [userId]);
+
+        // 2. Stores Data
+        const stores = await query('SELECT COUNT(*) as count FROM connected_stores WHERE user_id = $1', [userId]);
+
+        // 3. Microsite Staleness (No content generated in the last 7 days)
+        const staleMicrosites = await query(`
+            SELECT id, subdomain, site_title, last_content_at 
+            FROM microsites 
+            WHERE user_id = $1 
+            AND (last_content_at IS NULL OR last_content_at < NOW() - INTERVAL '7 days')
+            ORDER BY last_content_at ASC NULLS FIRST
+            LIMIT 5
+        `, [userId]);
+
+        // 4. Content Queue (Pending Blog Posts)
+        const contentQueue = await query(`
+            SELECT bq.id, bq.topic, bq.status, bq.created_at, ms.subdomain
+            FROM blog_queue bq
+            LEFT JOIN microsites ms ON bq.microsite_id = ms.id
+            WHERE bq.user_id = $1 AND bq.status = 'pending'
+            ORDER BY bq.created_at DESC
+            LIMIT 5
+        `, [userId]);
+
+        res.json({
+            metrics: {
+                total_funnels: parseInt(funnels.rows[0].count),
+                total_views: parseInt(analytics.rows[0].total_views || 0),
+                total_leads: parseInt(analytics.rows[0].total_leads || 0),
+                total_stores: parseInt(stores.rows[0].count),
+            },
+            stale_microsites: staleMicrosites.rows,
+            content_queue: contentQueue.rows
+        });
+    } catch (err) {
+        console.error('Dashboard aggregation error:', err);
+        res.status(500).json({ error: 'Failed to load dashboard data' });
+    }
+});
+
 // GET /api/analytics/export/:funnelId - CSV export
 router.get('/export/:funnelId', async (req, res) => {
     try {

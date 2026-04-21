@@ -342,6 +342,12 @@ router.post('/posts/:postId/publish', async (req, res) => {
             [req.params.postId, req.user.id]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+        
+        // Update microsite staleness tracker
+        if (result.rows[0].microsite_id) {
+            await query(`UPDATE microsites SET last_content_at = NOW() WHERE id = $1`, [result.rows[0].microsite_id]);
+        }
+        
         res.json({ post: result.rows[0] });
     } catch (err) {
         res.status(500).json({ error: 'Failed to publish post' });

@@ -173,6 +173,11 @@ router.post('/:id/publish', async (req, res) => {
             [uploaded.url, post.id]
         );
 
+        // Update microsite staleness tracker
+        if (post.microsite_id) {
+            await query(`UPDATE microsites SET last_content_at = NOW() WHERE id = $1`, [post.microsite_id]);
+        }
+
         // Regenerate blog index
         try {
             const allPosts = await query(

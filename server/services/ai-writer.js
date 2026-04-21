@@ -981,4 +981,48 @@ async function generateArticlePage({ productName, productDescription, affiliateL
    return html;
 }
 
-module.exports = { generateArticlePage, extractProductIntelligence, buildProductContext };
+async function generateAdsCopy(keywords, niche) {
+   const { query } = require('../config/db');
+   const result = await query("SELECT settings->>'gemini_api_key' as api_key FROM ai_settings WHERE id = 1");
+   let apiKey = result.rows[0]?.api_key || process.env.GEMINI_API_KEY;
+
+   if (!apiKey) {
+      throw new Error("Gemini API key is missing. Add it in AI Settings.");
+   }
+
+   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+   
+   const prompt = `You are a world-class Google Ads copywriter. I need high-converting ad copy for the following keywords/niche:
+Niche: ${niche || 'E-commerce product'}
+Target Keywords: ${keywords.join(', ')}
+
+Please provide 3 complete Google Search Ad variations.
+For each ad, output exactly this structure:
+
+AD VARIATION X
+Headline 1 (max 30 chars): ...
+Headline 2 (max 30 chars): ...
+Headline 3 (max 30 chars): ...
+Description 1 (max 90 chars): ...
+Description 2 (max 90 chars): ...
+
+Make the copy highly relevant to the keywords, use strong CTAs, and focus on benefits.`;
+
+   const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+         contents: [{ parts: [{ text: prompt }] }],
+         generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
+      }),
+   });
+
+   if (!response.ok) {
+      throw new Error('Gemini API Error');
+   }
+
+   const data = await response.json();
+   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+module.exports = { generateArticlePage, extractProductIntelligence, buildProductContext, generateAdsCopy };

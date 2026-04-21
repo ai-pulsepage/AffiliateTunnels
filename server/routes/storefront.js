@@ -332,11 +332,29 @@ router.get('/microsites', authenticate, async (req, res) => {
     try {
         const result = await query(
             `SELECT m.*,
-                    (SELECT COUNT(*) FROM microsite_products mp WHERE mp.microsite_id = m.id)::int AS product_count
+                    (SELECT COUNT(*) FROM microsite_products mp WHERE mp.microsite_id = m.id)::int AS product_count,
+                    (SELECT MAX(bp.published_at) FROM blog_posts bp WHERE bp.microsite_subdomain = m.subdomain AND bp.status = 'published') AS last_blog_at
              FROM microsites m WHERE m.user_id = $1 ORDER BY m.created_at DESC`,
             [req.user.id]
         );
-        res.json({ microsites: result.rows });
+        // Compute staleness on each row
+        const now = Date.now();
+        const microsites = result.rows.map(ms => {
+            const threshold = ms.staleness_days || 7;
+            // Use explicit last_content_at, or fall back to last blog post
+            const lastAt = ms.last_content_at || ms.last_blog_at;
+            const daysSince = lastAt ? Math.floor((now - new Date(lastAt).getTime()) / 86400000) : null;
+            return {
+                ...ms,
+                days_since_content: daysSince,
+                is_stale: daysSince !== null ? daysSince >= threshold : false,
+                staleness_level: daysSince === null ? 'no_content'
+                    : daysSince >= threshold * 2 ? 'critical'
+                    : daysSince >= threshold ? 'overdue'
+                    : 'fresh',
+            };
+        });
+        res.json({ microsites });
     } catch (err) {
         res.status(500).json({ error: 'Failed to load microsites' });
     }
@@ -368,31 +386,59 @@ router.post('/microsites', authenticate, async (req, res) => {
 // PUT /api/storefront/microsites/:id — update microsite settings
 router.put('/microsites/:id', authenticate, async (req, res) => {
     try {
-        const { site_title, site_subtitle, accent_color, logo_url, optin_enabled, optin_headline, optin_incentive, is_active,
-            footer_company_name, footer_website, footer_socials } = req.body;
+        const {
+            site_title, site_subtitle, accent_color, logo_url,
+            optin_enabled, optin_headline, optin_incentive, is_active,
+            footer_company_name, footer_website, footer_socials,
+            target_store_url, target_store_name, staleness_days,
+        } = req.body;
 
         const result = await query(
             `UPDATE microsites SET
                 site_title = COALESCE($1, site_title),
                 site_subtitle = COALESCE($2, site_subtitle),
                 accent_color = COALESCE($3, accent_color),
-                logo_url = $4,
+                logo_url = COALESCE($4, logo_url),
                 optin_enabled = COALESCE($5, optin_enabled),
                 optin_headline = COALESCE($6, optin_headline),
                 optin_incentive = COALESCE($7, optin_incentive),
                 is_active = COALESCE($8, is_active),
                 footer_company_name = COALESCE($11, footer_company_name),
                 footer_website = COALESCE($12, footer_website),
-                footer_socials = COALESCE($13, footer_socials)
+                footer_socials = COALESCE($13, footer_socials),
+                target_store_url = COALESCE($14, target_store_url),
+                target_store_name = COALESCE($15, target_store_name),
+                staleness_days = COALESCE($16, staleness_days)
              WHERE id = $9 AND user_id = $10 RETURNING *`,
-            [site_title, site_subtitle, accent_color, logo_url ?? null, optin_enabled, optin_headline, optin_incentive, is_active,
+            [
+                site_title ?? null, site_subtitle ?? null, accent_color ?? null, logo_url ?? null,
+                optin_enabled ?? null, optin_headline ?? null, optin_incentive ?? null, is_active ?? null,
                 req.params.id, req.user.id,
-                footer_company_name, footer_website, footer_socials ? JSON.stringify(footer_socials) : null]
+                footer_company_name ?? null, footer_website ?? null,
+                footer_socials !== undefined ? JSON.stringify(footer_socials) : null,
+                target_store_url ?? null, target_store_name ?? null,
+                staleness_days !== undefined ? parseInt(staleness_days) || 7 : null,
+            ]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Microsite not found' });
         res.json({ microsite: result.rows[0] });
     } catch (err) {
+        console.error('Microsite update error:', err);
         res.status(500).json({ error: 'Failed to update microsite' });
+    }
+});
+
+// PATCH /api/storefront/microsites/:id/ping-content — stamp last_content_at
+router.patch('/microsites/:id/ping-content', authenticate, async (req, res) => {
+    try {
+        const result = await query(
+            `UPDATE microsites SET last_content_at = NOW() WHERE id = $1 AND user_id = $2 RETURNING id, last_content_at`,
+            [req.params.id, req.user.id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Microsite not found' });
+        res.json({ ok: true, last_content_at: result.rows[0].last_content_at });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update content timestamp' });
     }
 });
 
@@ -613,7 +659,10 @@ router.post('/microsites/:id/manual-product', authenticate, async (req, res) => 
 // PUT /api/storefront/microsites/:msId/products/:prodId — edit an existing product
 router.put('/microsites/:msId/products/:prodId', authenticate, async (req, res) => {
     try {
-        const { affiliate_url, product_name, product_desc, price_label, card_image_url, slug, sort_order } = req.body;
+        const { 
+            affiliate_url, product_name, product_desc, price_label, card_image_url, slug, sort_order,
+            price, compare_at_price, sku, barcode, weight, weight_unit, vendor_name, tags
+        } = req.body;
 
         // Build dynamic SET clause — only update fields that were sent
         const updates = [];
@@ -627,6 +676,16 @@ router.put('/microsites/:msId/products/:prodId', authenticate, async (req, res) 
         if (card_image_url !== undefined) { updates.push(`card_image_url = $${idx++}`); params.push(card_image_url); }
         if (slug !== undefined) { updates.push(`slug = $${idx++}`); params.push(slug.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/(^-|-$)/g, '')); }
         if (sort_order !== undefined) { updates.push(`sort_order = $${idx++}`); params.push(sort_order); }
+        
+        // E-commerce fields
+        if (price !== undefined) { updates.push(`price = $${idx++}`); params.push(price === '' ? null : price); }
+        if (compare_at_price !== undefined) { updates.push(`compare_at_price = $${idx++}`); params.push(compare_at_price === '' ? null : compare_at_price); }
+        if (sku !== undefined) { updates.push(`sku = $${idx++}`); params.push(sku); }
+        if (barcode !== undefined) { updates.push(`barcode = $${idx++}`); params.push(barcode); }
+        if (weight !== undefined) { updates.push(`weight = $${idx++}`); params.push(weight === '' ? null : weight); }
+        if (weight_unit !== undefined) { updates.push(`weight_unit = $${idx++}`); params.push(weight_unit || 'kg'); }
+        if (vendor_name !== undefined) { updates.push(`vendor_name = $${idx++}`); params.push(vendor_name); }
+        if (tags !== undefined) { updates.push(`tags = $${idx++}`); params.push(tags); }
 
         if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
 

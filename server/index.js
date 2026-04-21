@@ -33,6 +33,9 @@ const aiRoutes = require('./routes/ai');
 const blogRoutes = require('./routes/blog');
 const storefrontRoutes = require('./routes/storefront');
 const blogmakerRoutes = require('./routes/blogmaker');
+const suppliersRoutes = require('./routes/suppliers');
+const storesRoutes = require('./routes/stores');
+const keywordsRoutes = require('./routes/keywords');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -78,6 +81,9 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/blog', blogRoutes);
 app.use('/api/storefront', storefrontRoutes);
 app.use('/api/blogmaker', blogmakerRoutes);
+app.use('/api/suppliers', suppliersRoutes);
+app.use('/api/stores', storesRoutes);
+app.use('/api/keywords', keywordsRoutes);
 
 // === Public Routes ===
 
