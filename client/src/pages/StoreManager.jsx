@@ -46,10 +46,17 @@ export default function StoreManager() {
         };
 
         try {
-            await api('/stores', {
+            const data = await api('/stores', {
                 method: 'POST',
                 body: payload
             });
+            
+            if (data.oauthUrl) {
+                // Redirect to Shopify for OAuth
+                window.location.href = data.oauthUrl;
+                return;
+            }
+
             toast.success('Store connected successfully!');
             setShowConnectModal(false);
             resetForm();
@@ -207,21 +214,32 @@ export default function StoreManager() {
                             </div>
 
                             {platform === 'shopify' ? (
-                                <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
-                                    <h4 className="text-blue-300 font-bold mb-2 text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Setup Instructions</h4>
-                                    <ol className="text-xs text-blue-200/70 list-decimal list-inside space-y-1 mb-4">
-                                        <li>Go to your Shopify Admin -> Settings -> Apps and sales channels</li>
-                                        <li>Click "Develop apps" -> "Create an app"</li>
-                                        <li>Configure Admin API Scopes: Give read/write access to "Products" and read access to "Orders"</li>
-                                        <li>Install app and copy the <strong>Admin API access token</strong> (starts with shpat_)</li>
+                                <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl space-y-4">
+                                    <h4 className="text-blue-300 font-bold text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> OAuth Setup</h4>
+                                    <ol className="text-xs text-blue-200/70 list-decimal list-inside space-y-1 mb-2">
+                                        <li>Go to Shopify Partner Dashboard -> Apps -> Create App.</li>
+                                        <li>Under App Setup, set App URL to your domain.</li>
+                                        <li>Set Allowed redirection URI to: <code className="bg-black/50 px-1 py-0.5 rounded text-blue-300">{window.location.origin}/api/stores/shopify/callback</code></li>
+                                        <li>Copy Client ID and Client Secret below.</li>
                                     </ol>
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">Admin API Access Token</label>
-                                    <input 
-                                        type="password" required
-                                        value={accessToken} onChange={e => setAccessToken(e.target.value)}
-                                        placeholder="shpat_xxxxxxxxxxxxxxxxxxxx"
-                                        className="w-full bg-[#131320] border border-white/10 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-blue-500/50"
-                                    />
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Client ID</label>
+                                        <input 
+                                            type="text" required
+                                            value={apiKey} onChange={e => setApiKey(e.target.value)}
+                                            placeholder="c043b6b..."
+                                            className="w-full bg-[#131320] border border-white/10 rounded-xl py-2.5 px-4 text-white focus:ring-2 focus:ring-blue-500/50"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Client Secret</label>
+                                        <input 
+                                            type="password" required
+                                            value={apiSecret} onChange={e => setApiSecret(e.target.value)}
+                                            placeholder="shpss_..."
+                                            className="w-full bg-[#131320] border border-white/10 rounded-xl py-2.5 px-4 text-white focus:ring-2 focus:ring-blue-500/50"
+                                        />
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="p-4 bg-[#96588a]/10 border border-[#96588a]/30 rounded-xl space-y-4">

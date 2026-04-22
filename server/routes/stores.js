@@ -46,17 +46,82 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
+        let isActive = true;
+        let authUrl = null;
+
+        if (platform === 'shopify') {
+            isActive = false; // Need to complete OAuth
+        }
+
         const result = await query(
-            `INSERT INTO connected_stores (user_id, store_name, platform, store_url, api_key, api_secret, access_token)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO connected_stores (user_id, store_name, platform, store_url, api_key, api_secret, access_token, is_active)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING id, store_name, platform, store_url, is_active`,
-            [req.user.id, store_name, platform, store_url, api_key, api_secret, access_token]
+            [req.user.id, store_name, platform, store_url, api_key, api_secret, access_token, isActive]
         );
+
+        const storeId = result.rows[0].id;
+
+        if (platform === 'shopify') {
+            const cleanUrl = store_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            const redirectUri = \`\${req.protocol}://\${req.get('host')}/api/stores/shopify/callback\`;
+            authUrl = \`https://\${cleanUrl}/admin/oauth/authorize?client_id=\${api_key}&scope=read_products,write_products,read_orders&redirect_uri=\${redirectUri}&state=\${storeId}\`;
+            return res.json({ store: result.rows[0], oauthUrl: authUrl });
+        }
 
         res.json({ store: result.rows[0] });
     } catch (err) {
         console.error('Failed to add store:', err);
         res.status(500).json({ error: 'Failed to add store' });
+    }
+});
+
+// GET /api/stores/shopify/callback
+// (No auth middleware here because it's a redirect from Shopify)
+router.get('/shopify/callback', async (req, res) => {
+    try {
+        const { code, shop, state } = req.query;
+        if (!code || !shop || !state) {
+            return res.status(400).send('Missing required parameters from Shopify');
+        }
+
+        // The state is our store ID
+        const storeRes = await query('SELECT * FROM connected_stores WHERE id = $1', [state]);
+        if (storeRes.rows.length === 0) return res.status(404).send('Store not found');
+        
+        const store = storeRes.rows[0];
+
+        // Exchange code for access token
+        const tokenRes = await fetch(\`https://\${shop}/admin/oauth/access_token\`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                client_id: store.api_key,
+                client_secret: store.api_secret,
+                code: code
+            })
+        });
+
+        if (!tokenRes.ok) {
+            const errText = await tokenRes.text();
+            console.error('Shopify Token Error:', errText);
+            return res.status(400).send('Failed to get access token from Shopify');
+        }
+
+        const data = await tokenRes.json();
+        const accessToken = data.access_token;
+
+        // Update the store with the access token and mark active
+        await query(
+            'UPDATE connected_stores SET access_token = $1, is_active = true WHERE id = $2',
+            [accessToken, store.id]
+        );
+
+        // Redirect back to the Store Manager
+        res.redirect('/store-manager');
+    } catch (err) {
+        console.error('Shopify callback error:', err);
+        res.status(500).send('Internal Server Error during Shopify authentication');
     }
 });
 
