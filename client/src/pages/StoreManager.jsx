@@ -206,6 +206,9 @@ export default function StoreManager() {
                                     <label className="block text-sm font-medium text-gray-300 mb-2">Store URL</label>
                                     <input 
                                         type="url" required
+                                        name="store_url_unique"
+                                        autoComplete="off"
+                                        data-form-type="other"
                                         value={storeUrl} onChange={e => setStoreUrl(e.target.value)}
                                         placeholder="https://mystore.com"
                                         className="w-full bg-[#131320] border border-white/10 rounded-xl py-3 px-4 text-white focus:ring-2 focus:ring-blue-500/50"
