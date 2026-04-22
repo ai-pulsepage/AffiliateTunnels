@@ -64,7 +64,8 @@ router.post('/', async (req, res) => {
 
         if (platform === 'shopify') {
             const cleanUrl = store_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-            const redirectUri = `${req.protocol}://${req.get('host')}/api/stores/shopify/callback`;
+            const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+            const redirectUri = `${protocol}://${req.get('host')}/api/stores/shopify/callback`;
             authUrl = `https://${cleanUrl}/admin/oauth/authorize?client_id=${api_key}&scope=read_products,write_products,read_orders&redirect_uri=${redirectUri}&state=${storeId}`;
             return res.json({ store: result.rows[0], oauthUrl: authUrl });
         }
