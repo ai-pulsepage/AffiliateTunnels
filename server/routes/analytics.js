@@ -131,8 +131,9 @@ router.get('/dashboard', async (req, res) => {
         const contentQueue = await query(`
             SELECT bq.id, bq.topic, bq.status, bq.created_at, ms.subdomain
             FROM blog_queue bq
-            LEFT JOIN microsites ms ON bq.microsite_id = ms.id
-            WHERE bq.user_id = $1 AND bq.status = 'pending'
+            JOIN blog_workers bw ON bq.worker_id = bw.id
+            JOIN microsites ms ON bw.microsite_id = ms.id
+            WHERE bw.user_id = $1 AND bq.status = 'pending'
             ORDER BY bq.created_at DESC
             LIMIT 5
         `, [userId]);
