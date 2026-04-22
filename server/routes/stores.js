@@ -4,12 +4,11 @@ const { authenticate } = require('../middleware/auth');
 const { pushToShopify, pushToWooCommerce, getStoreMetrics } = require('../services/store-sync');
 
 const router = express.Router();
-router.use(authenticate);
 
 // ─── CONNECTED STORES CRUD ──────────────────────────────────────────
 
 // GET /api/stores
-router.get('/', async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
     try {
         const result = await query(
             `SELECT id, store_name, platform, store_url, is_active, created_at 
@@ -38,7 +37,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/stores
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
     try {
         const { store_name, platform, store_url, api_key, api_secret, access_token } = req.body;
 
@@ -127,7 +126,7 @@ router.get('/shopify/callback', async (req, res) => {
 });
 
 // DELETE /api/stores/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, async (req, res) => {
     try {
         await query('DELETE FROM connected_stores WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
         res.json({ success: true });
@@ -139,7 +138,7 @@ router.delete('/:id', async (req, res) => {
 // ─── PRODUCT PUSHING ────────────────────────────────────────────────
 
 // POST /api/stores/push
-router.post('/push', async (req, res) => {
+router.post('/push', authenticate, async (req, res) => {
     try {
         const { store_id, product_id, product_data } = req.body;
         
