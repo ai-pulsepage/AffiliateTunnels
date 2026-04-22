@@ -64,8 +64,8 @@ router.post('/', async (req, res) => {
 
         if (platform === 'shopify') {
             const cleanUrl = store_url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-            const redirectUri = \`\${req.protocol}://\${req.get('host')}/api/stores/shopify/callback\`;
-            authUrl = \`https://\${cleanUrl}/admin/oauth/authorize?client_id=\${api_key}&scope=read_products,write_products,read_orders&redirect_uri=\${redirectUri}&state=\${storeId}\`;
+            const redirectUri = `${req.protocol}://${req.get('host')}/api/stores/shopify/callback`;
+            authUrl = `https://${cleanUrl}/admin/oauth/authorize?client_id=${api_key}&scope=read_products,write_products,read_orders&redirect_uri=${redirectUri}&state=${storeId}`;
             return res.json({ store: result.rows[0], oauthUrl: authUrl });
         }
 
@@ -92,7 +92,7 @@ router.get('/shopify/callback', async (req, res) => {
         const store = storeRes.rows[0];
 
         // Exchange code for access token
-        const tokenRes = await fetch(\`https://\${shop}/admin/oauth/access_token\`, {
+        const tokenRes = await fetch(`https://${shop}/admin/oauth/access_token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
