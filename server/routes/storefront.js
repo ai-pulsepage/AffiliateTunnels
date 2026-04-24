@@ -333,7 +333,7 @@ router.get('/microsites', authenticate, async (req, res) => {
         const result = await query(
             `SELECT m.*,
                     (SELECT COUNT(*) FROM microsite_products mp WHERE mp.microsite_id = m.id)::int AS product_count,
-                    (SELECT MAX(bp.published_at) FROM blog_posts bp WHERE bp.microsite_subdomain = m.subdomain AND bp.status = 'published') AS last_blog_at
+                    (SELECT MAX(bp.published_at) FROM blog_posts bp JOIN blog_workers bw ON bp.worker_id = bw.id WHERE bw.microsite_id = m.id AND bp.status = 'published') AS last_blog_at
              FROM microsites m WHERE m.user_id = $1 ORDER BY m.created_at DESC`,
             [req.user.id]
         );
