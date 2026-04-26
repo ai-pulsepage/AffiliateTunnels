@@ -82,6 +82,15 @@ footer{text-align:center;padding:40px 24px;color:#475569;font-size:13px;border-t
   .services{grid-template-columns:1fr}
 }
 </style>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DCTXYP1ZVF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-DCTXYP1ZVF');
+    </script>
 </head>
 <body>
 

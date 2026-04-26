@@ -319,6 +319,15 @@ function generatePublishedHTML(page, funnel, pages) {
     [data-faq] > div.open > button span:last-child{display:inline-block;transform:rotate(45deg);}
     ${page.css_output || ''}
   </style>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DCTXYP1ZVF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-DCTXYP1ZVF');
+    </script>
 </head>
 <body>
   <div class="page-container">
@@ -546,6 +555,15 @@ function generateBlogHTML(post) {
       .blog-content h3 { font-size: 18px; }
     }
   </style>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DCTXYP1ZVF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-DCTXYP1ZVF');
+    </script>
 </head>
 <body>
   <article class="blog-container">
@@ -641,6 +659,15 @@ function generateBlogIndexHTML(posts) {
       .blog-grid { grid-template-columns: 1fr; }
     }
   </style>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DCTXYP1ZVF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-DCTXYP1ZVF');
+    </script>
 </head>
 <body>
   <div class="blog-index">

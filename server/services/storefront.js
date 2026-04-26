@@ -273,6 +273,15 @@ function generateStorefrontHTML(settings, categories, items) {
         .sf-card:nth-child(8) { animation-delay: 0.4s; }
         .sf-card:nth-child(9) { animation-delay: 0.45s; }
     </style>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DCTXYP1ZVF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-DCTXYP1ZVF');
+    </script>
 </head>
 <body>
     <!-- Header -->
@@ -651,6 +660,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:#fafafa;color:#1a1a2e;l
   .features-inner{grid-template-columns:1fr}
 }
 </style>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DCTXYP1ZVF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-DCTXYP1ZVF');
+    </script>
 </head>
 <body>
 
@@ -784,6 +802,15 @@ body{font-family:'Inter',sans-serif;background:#fafafa;color:#1a1a2e;line-height
 .ms-card:nth-child(1){animation-delay:.05s}.ms-card:nth-child(2){animation-delay:.1s}.ms-card:nth-child(3){animation-delay:.15s}.ms-card:nth-child(4){animation-delay:.2s}
 @media(max-width:768px){.ms-hero{padding:40px 16px 24px}.ms-grid{padding:0 16px 40px;grid-template-columns:1fr}}
 </style>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DCTXYP1ZVF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-DCTXYP1ZVF');
+    </script>
 </head>
 <body>
 <header class="hdr"><div class="hdr-inner"><a href="/" class="brand"><div class="brand-icon"><svg fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div>${escapeHtml(title)}</a><nav style="display:flex;gap:4px;align-items:center;margin-left:auto"><a href="/products" style="padding:8px 14px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;color:${accent};background:${accent}12">Products</a><a href="/reviews" style="padding:8px 14px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;color:#555">Reviews</a><a href="/blog" style="padding:8px 14px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;color:#555">Blog</a></nav></div></header>
@@ -983,6 +1010,15 @@ a{color:var(--accent)}
 footer{text-align:center;padding:32px;color:#888;font-size:13px;border-top:1px solid rgba(0,0,0,0.06)}
 @media(max-width:768px){.card-grid{grid-template-columns:1fr}}
 </style>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DCTXYP1ZVF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-DCTXYP1ZVF');
+    </script>
 </head>
 <body>
 ${bodyHtml}
