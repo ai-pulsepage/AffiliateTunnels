@@ -2,13 +2,14 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
     LayoutDashboard, Layers, Mail, BarChart3, Image, Globe,
-    Settings, Users, Shield, Activity, LogOut, ChevronDown, Menu, X, Bot, Briefcase, Store, Hash
+    Settings, Users, Shield, Activity, LogOut, ChevronDown, Menu, X, Bot, Briefcase, Store, Hash, Database
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Command Center', exact: true },
     { to: '/supplier-search', icon: Briefcase, label: 'Supplier Search' },
+    { to: '/vendor-intel', icon: Database, label: 'Product Refiner' },
     { to: '/store-manager', icon: Store, label: 'Store Manager' },
     { to: '/content-network', icon: Globe, label: 'Content Network' },
     { to: '/keywords', icon: Hash, label: 'Keyword Ads' },

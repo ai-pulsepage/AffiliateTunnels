@@ -33,8 +33,10 @@ const aiRoutes = require('./routes/ai');
 const blogRoutes = require('./routes/blog');
 const storefrontRoutes = require('./routes/storefront');
 const blogmakerRoutes = require('./routes/blogmaker');
-const suppliersRoutes = require('./routes/suppliers');
+const websitesRoutes = require('./routes/websites');
 const storesRoutes = require('./routes/stores');
+const vendorProductsRoutes = require('./routes/vendor-products');
+const paymentsRoutes = require('./routes/payments');
 const keywordsRoutes = require('./routes/keywords');
 
 const app = express();
@@ -81,8 +83,10 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/blog', blogRoutes);
 app.use('/api/storefront', storefrontRoutes);
 app.use('/api/blogmaker', blogmakerRoutes);
-app.use('/api/suppliers', suppliersRoutes);
+app.use('/api/websites', websitesRoutes);
 app.use('/api/stores', storesRoutes);
+app.use('/api/vendors', vendorProductsRoutes);
+app.use('/api/payments', paymentsRoutes);
 app.use('/api/keywords', keywordsRoutes);
 
 // === Public Routes ===

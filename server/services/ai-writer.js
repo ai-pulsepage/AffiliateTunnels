@@ -1025,4 +1025,244 @@ Make the copy highly relevant to the keywords, use strong CTAs, and focus on ben
    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-module.exports = { generateArticlePage, extractProductIntelligence, buildProductContext, generateAdsCopy };
+/**
+ * Refines a messy, poorly translated product description into high-converting e-commerce copy.
+ * @param {string} rawTitle 
+ * @param {string} rawText 
+ * @returns {Promise<{title: string, description: string}>}
+ */
+async function refineProductCopy(rawTitle, rawText) {
+    const prompt = `You are a world-class Direct Response Copywriter and E-commerce Merchandising Expert.
+Your task is to take a poorly formatted, messy, or poorly translated product listing (often from a Chinese supplier) and transform it into premium, high-converting e-commerce copy.
+
+RAW PRODUCT DATA:
+Title: ${rawTitle}
+Text/Specs:
+${rawText}
+
+INSTRUCTIONS:
+1. Extract the core factual details (dimensions, materials, features, power requirements, etc.).
+2. Ignore any weird shipping text, broken translations, or irrelevant supplier notes.
+3. Write a brand new, premium Product Title (clean, benefit-driven, no keyword stuffing).
+4. Write a brand new, highly persuasive HTML Product Description.
+   - Use <p> tags for an engaging, emotive opening hook.
+   - Use <h3> tags for benefit-driven subheadings.
+   - Use <ul> and <li> tags to list the exact specifications and features clearly.
+   - Make it sound like it belongs to a luxury or high-end D2C brand's website.
+
+Return ONLY a valid JSON object matching this exact structure:
+{
+  "title": "The New Premium Title",
+  "description": "The full HTML string containing the description and specs"
+}`;
+
+    const text = await callGemini(prompt, 'json');
+    try {
+        return JSON.parse(text);
+   const year = today.getFullYear();
+   const productContext = buildProductContext(productName, productDescription, productIntel);
+
+   const promptArgs = { productContext, affiliateLink, dateStr, year, emailSwipes, existingContent, templateHtml, images };
+
+   // Pick the right prompt builder based on style
+   let prompt;
+   let maxTokens = 32768;
+
+   if (existingContent) {
+      prompt = buildImprovePrompt(promptArgs);
+      maxTokens = 32768;
+   } else {
+      switch (style) {
+         case 'video_presell':
+         case 'vsl_classic':
+            prompt = buildVideoPresellPrompt(promptArgs);
+            maxTokens = 4096;
+            break;
+         case 'social_bridge':
+         case 'social_tiktok':
+         case 'social_instagram':
+            prompt = buildSocialBridgePrompt(promptArgs);
+            maxTokens = 4096;
+            break;
+         case 'lead_magnet':
+         case 'lead_minimal':
+         case 'lead_webinar':
+            prompt = buildLeadMagnetPrompt(promptArgs);
+            maxTokens = 8192;
+            break;
+         case 'squeeze_quick':
+         case 'squeeze_countdown':
+            prompt = buildSqueezePrompt(promptArgs);
+            maxTokens = 4096;
+            break;
+         case 'listicle':
+         case 'listicle_numbered':
+         case 'listicle_comparison':
+            prompt = buildListiclePrompt(promptArgs);
+            maxTokens = 16384;
+            break;
+         case 'blog_post':
+         case 'blog_editorial':
+         case 'blog_pinterest':
+            prompt = buildBlogPostPrompt(promptArgs);
+            maxTokens = 32768;
+            break;
+         case 'comparison_showdown':
+            prompt = buildComparisonPrompt(promptArgs);
+            maxTokens = 16384;
+            break;
+         case 'ad_side_by_side':
+            prompt = buildSideBySidePrompt(promptArgs);
+            maxTokens = 4096;
+            break;
+         case 'product_review':
+         case 'product_review_social':
+            prompt = buildProductReviewPrompt(promptArgs);
+            maxTokens = 16384;
+            break;
+         case 'microsite_showcase':
+            prompt = buildMicrositeShowcasePrompt(promptArgs);
+            maxTokens = 32768;
+            break;
+         case 'advertorial':
+         case 'health_review':
+         case 'review_article':
+         case 'review_clean':
+         case 'review_authority':
+         case 'review_urgent':
+         default:
+            prompt = buildReviewArticlePrompt(promptArgs);
+            maxTokens = 32768;
+            break;
+      }
+   }
+
+   // Inject template design context so AI matches the visual design
+   if (templateHtml && templateHtml.trim().length > 100) {
+      prompt += `\n\nTEMPLATE DESIGN CONTEXT — The user has selected a template with specific visual design. Study the following HTML carefully and MATCH its CSS styling patterns in your output. Replicate the same gradients, background colors, border-radius values, box-shadows, glassmorphism effects, font sizes, color palette, and layout patterns. Your generated HTML should feel like it belongs to this exact same design system:\n\n${templateHtml.substring(0, 8000)}`;
+   }
+
+   // Append custom direction if user provided one
+   if (customDirection && customDirection.trim()) {
+      prompt += `\n\nCUSTOM DIRECTION FROM THE USER — follow this closely:\n${customDirection.trim()}`;
+   }
+
+   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+
+   const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+         contents: [{ parts: [{ text: prompt }] }],
+         generationConfig: {
+            temperature: 0.85,
+            maxOutputTokens: maxTokens,
+         },
+      }),
+   });
+
+   if (!response.ok) {
+      const err = await response.text();
+      console.error('Gemini API error:', err);
+      throw new Error(`Gemini API error: ${response.status}`);
+   }
+
+   const data = await response.json();
+   let html = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+   // Clean up any markdown code fences if present
+   html = html.replace(/^```html?\s*/i, '').replace(/```\s*$/i, '').trim();
+
+   return html;
+}
+
+async function generateAdsCopy(keywords, niche) {
+   const { query } = require('../config/db');
+   const result = await query("SELECT settings->>'gemini_api_key' as api_key FROM ai_settings WHERE id = 1");
+   let apiKey = result.rows[0]?.api_key || process.env.GEMINI_API_KEY;
+
+   if (!apiKey) {
+      throw new Error("Gemini API key is missing. Add it in AI Settings.");
+   }
+
+   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+   
+   const prompt = `You are a world-class Google Ads copywriter. I need high-converting ad copy for the following keywords/niche:
+Niche: ${niche || 'E-commerce product'}
+Target Keywords: ${keywords.join(', ')}
+
+Please provide 3 complete Google Search Ad variations.
+For each ad, output exactly this structure:
+
+AD VARIATION X
+Headline 1 (max 30 chars): ...
+Headline 2 (max 30 chars): ...
+Headline 3 (max 30 chars): ...
+Description 1 (max 90 chars): ...
+Description 2 (max 90 chars): ...
+
+Make the copy highly relevant to the keywords, use strong CTAs, and focus on benefits.`;
+
+   const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+         contents: [{ parts: [{ text: prompt }] }],
+         generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
+      }),
+   });
+
+   if (!response.ok) {
+      throw new Error('Gemini API Error');
+   }
+
+   const data = await response.json();
+   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+/**
+ * Refines a messy, poorly translated product description into high-converting e-commerce copy.
+ * @param {string} rawTitle 
+ * @param {string} rawText 
+ * @returns {Promise<{title: string, description: string}>}
+ */
+async function refineProductCopy(rawTitle, rawText) {
+    const prompt = `You are a world-class Direct Response Copywriter and E-commerce Merchandising Expert.
+Your task is to take a poorly formatted, messy, or poorly translated product listing (often from a Chinese supplier) and transform it into premium, high-converting e-commerce copy.
+
+RAW PRODUCT DATA:
+Title: ${rawTitle}
+Text/Specs:
+${rawText}
+
+INSTRUCTIONS:
+1. Extract the core factual details (dimensions, materials, features, power requirements, etc.).
+2. Ignore any weird shipping text, broken translations, or irrelevant supplier notes.
+3. Write a brand new, premium Product Title (clean, benefit-driven, no keyword stuffing).
+4. Write a brand new, highly persuasive HTML Product Description.
+   - Use <p> tags for an engaging, emotive opening hook.
+   - Use <h3> tags for benefit-driven subheadings.
+   - Use <ul> and <li> tags to list the exact specifications and features clearly.
+   - Make it sound like it belongs to a luxury or high-end D2C brand's website.
+
+Return ONLY a valid JSON object matching this exact structure:
+{
+  "title": "The New Premium Title",
+  "description": "The full HTML string containing the description and specs"
+}`;
+
+    const text = await callGemini(prompt, 'json');
+    try {
+        return JSON.parse(text);
+    } catch (e) {
+        throw new Error("AI failed to return valid JSON for product copy");
+    }
+}
+
+module.exports = { 
+    generateArticlePage, 
+    extractProductIntelligence, 
+    buildProductContext, 
+    generateAdsCopy,
+    refineProductCopy 
+};
