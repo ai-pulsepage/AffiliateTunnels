@@ -1244,11 +1244,13 @@ INSTRUCTIONS:
    - Use <h3> tags for benefit-driven subheadings.
    - Use <ul> and <li> tags to list the exact specifications and features clearly.
    - Make it sound like it belongs to a luxury or high-end D2C brand's website.
+5. Generate an array of 5-7 SEO-friendly Product Tags (e.g., ["Modern", "Living Room", "Leather"]).
 
 Return ONLY a valid JSON object matching this exact structure:
 {
   "title": "The New Premium Title",
-  "description": "The full HTML string containing the description and specs"
+  "description": "The full HTML string containing the description and specs",
+  "tags": ["Tag1", "Tag2", "Tag3"]
 }`;
 
     const text = await callGemini(prompt, 'json');

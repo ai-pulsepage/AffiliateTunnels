@@ -36,9 +36,10 @@ async function processVendorScrapeQueue() {
                     original_price = $4,
                     refined_title = $5,
                     refined_desc = $6,
+                    tags = $7,
                     status = 'pending_review',
                     updated_at = NOW()
-                WHERE id = $7
+                WHERE id = $8
             `, [
                 rawData.title, 
                 rawData.rawText, 
@@ -46,6 +47,7 @@ async function processVendorScrapeQueue() {
                 rawData.price,
                 refined.title, 
                 refined.description,
+                JSON.stringify(refined.tags || []),
                 item.id
             ]);
 

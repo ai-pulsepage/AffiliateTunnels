@@ -95,10 +95,12 @@ router.post('/:id/push', async (req, res) => {
         const pushPayload = {
             product_name: product.refined_title,
             product_desc: product.refined_desc,
-            price: product.original_price, // Assuming auto pricing tools handle the rest as per user
+            price: product.original_price, 
             images: product.original_images,
             sku: product.sku || '',
-            vendor_name: product.vendor_name
+            vendor_name: product.vendor_name,
+            shipping_class_id: product.shipping_class_id,
+            tags: product.tags
         };
 
         let pushResult;

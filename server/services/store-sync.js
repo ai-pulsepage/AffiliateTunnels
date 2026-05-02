@@ -19,9 +19,9 @@ async function pushToWooCommerce(store, product) {
     } catch(e) {}
 
     // Format Tags
-    // Note: WooCommerce expects tag objects ({ id: X }). If we just pass strings, we might need a separate call to create/find tags. 
-    // To keep it simple, we pass it without tags if we don't have tag IDs, or we create them if we had a more complex sync.
-    // For now, we skip tags in simple product creation or leave to user manual tagging, or just use categories if needed.
+    const tags = Array.isArray(product.tags) 
+        ? product.tags.map(tag => ({ name: typeof tag === 'object' ? tag.name : tag }))
+        : (product.tags ? [{ name: product.tags }] : []);
 
     const payload = {
         name: product.product_name,
@@ -32,6 +32,7 @@ async function pushToWooCommerce(store, product) {
         sku: product.sku || '',
         weight: product.weight ? product.weight.toString() : '',
         images: images,
+        tags: tags,
         manage_stock: false,
     };
 
