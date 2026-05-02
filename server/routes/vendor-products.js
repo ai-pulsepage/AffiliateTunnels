@@ -8,42 +8,33 @@ const { pushToShopify } = require('../services/store-sync');
 const router = express.Router();
 router.use(authenticate);
 
-// 1. Scrape and Refine (Ingestion)
+// 1. Queue URLs for Batch Scraping
 router.post('/scrape', async (req, res) => {
     try {
-        const { source_url } = req.body;
-        if (!source_url) return res.status(400).json({ error: 'source_url is required' });
+        const { source_urls } = req.body;
+        if (!source_urls || !Array.isArray(source_urls) || source_urls.length === 0) {
+            return res.status(400).json({ error: 'source_urls array is required' });
+        }
 
-        // Scrape raw data
-        const rawData = await scrapeProductData(source_url);
+        const { v4: uuidv4 } = require('uuid');
+        const batchId = uuidv4();
 
-        // Parse vendor name roughly from URL
-        let vendorName = '';
-        try {
-            vendorName = new URL(source_url).hostname.replace('www.', '');
-        } catch(e) {}
+        // Insert all URLs as pending
+        for (const url of source_urls) {
+            let vendorName = '';
+            try { vendorName = new URL(url).hostname.replace('www.', ''); } catch(e) {}
 
-        // Run AI Refinement
-        const refined = await refineProductCopy(rawData.title, rawData.rawText);
+            await query(`
+                INSERT INTO vendor_products (
+                    user_id, source_url, vendor_name, status, batch_id
+                ) VALUES ($1, $2, $3, 'pending_scrape', $4)
+            `, [req.user.id, url, vendorName, batchId]);
+        }
 
-        // Save to DB
-        const result = await query(`
-            INSERT INTO vendor_products (
-                user_id, source_url, vendor_name, 
-                original_title, original_desc, original_images, original_price,
-                refined_title, refined_desc, status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending_review')
-            RETURNING *
-        `, [
-            req.user.id, source_url, vendorName,
-            rawData.title, rawData.rawText, JSON.stringify(rawData.images), rawData.price,
-            refined.title, refined.description
-        ]);
-
-        res.json({ product: result.rows[0] });
+        res.json({ success: true, batch_id: batchId, message: `Queued ${source_urls.length} products for scraping` });
     } catch (err) {
-        console.error('Vendor Scrape Error:', err);
-        res.status(500).json({ error: err.message || 'Failed to scrape and refine product' });
+        console.error('Vendor Queue Error:', err);
+        res.status(500).json({ error: err.message || 'Failed to queue products' });
     }
 });
 
@@ -52,7 +43,7 @@ router.get('/queue', async (req, res) => {
     try {
         const result = await query(`
             SELECT * FROM vendor_products 
-            WHERE user_id = $1 AND status = 'pending_review'
+            WHERE user_id = $1 AND status IN ('pending_scrape', 'scraping', 'pending_review', 'failed')
             ORDER BY created_at DESC
         `, [req.user.id]);
         
@@ -62,19 +53,20 @@ router.get('/queue', async (req, res) => {
     }
 });
 
-// 3. Update Refined Copy
+// 3. Update Refined Copy & Shipping Class
 router.put('/:id', async (req, res) => {
     try {
-        const { refined_title, refined_desc, target_store_id } = req.body;
+        const { refined_title, refined_desc, target_store_id, shipping_class_id } = req.body;
         const result = await query(`
             UPDATE vendor_products 
             SET refined_title = COALESCE($1, refined_title),
                 refined_desc = COALESCE($2, refined_desc),
                 target_store_id = COALESCE($3, target_store_id),
+                shipping_class_id = COALESCE($4, shipping_class_id),
                 updated_at = NOW()
-            WHERE id = $4 AND user_id = $5
+            WHERE id = $5 AND user_id = $6
             RETURNING *
-        `, [refined_title, refined_desc, target_store_id, req.params.id, req.user.id]);
+        `, [refined_title, refined_desc, target_store_id, shipping_class_id, req.params.id, req.user.id]);
         
         res.json({ product: result.rows[0] });
     } catch (err) {

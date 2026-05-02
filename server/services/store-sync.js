@@ -153,8 +153,37 @@ async function getStoreMetrics(store) {
     return { orders_count: 0, status: 'error' };
 }
 
+/**
+ * Fetches available shipping classes from WooCommerce
+ */
+async function getWooCommerceShippingClasses(storeConfig) {
+    try {
+        const credentials = Buffer.from(`${storeConfig.api_key}:${storeConfig.api_secret}`).toString('base64');
+        const baseUrl = storeConfig.store_url.startsWith('http') ? storeConfig.store_url : `https://${storeConfig.store_url}`;
+
+        const res = await fetch(`${baseUrl}/wp-json/wc/v3/products/shipping_classes`, {
+            headers: {
+                'Authorization': `Basic ${credentials}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!res.ok) {
+            console.error('WooCommerce Shipping Class Error:', await res.text());
+            return [];
+        }
+
+        const data = await res.json();
+        return data.map(sc => ({ id: sc.id, name: sc.name }));
+    } catch (error) {
+        console.error('getWooCommerceShippingClasses failed:', error);
+        return [];
+    }
+}
+
 module.exports = {
     pushToWooCommerce,
     pushToShopify,
-    getStoreMetrics
+    getStoreMetrics,
+    getWooCommerceShippingClasses
 };
