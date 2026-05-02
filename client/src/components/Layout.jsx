@@ -2,7 +2,7 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
     LayoutDashboard, Layers, Mail, BarChart3, Image, Globe,
-    Settings, Users, Shield, Activity, LogOut, ChevronDown, Menu, X, Bot, Briefcase, Store, Hash, Database
+    Settings, Users, Shield, Activity, LogOut, ChevronDown, Menu, X, Bot, Briefcase, Store, Hash, Database, Sun, Moon
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -38,8 +38,24 @@ export default function Layout() {
         setSidebarOpen(false);
     }, [location.pathname]);
 
+    const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+
+    // Handle theme changes
+    useEffect(() => {
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    };
+
     return (
-        <div className="flex h-screen overflow-hidden bg-surface-900">
+        <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-surface-900 transition-colors duration-200">
             {/* Mobile hamburger */}
             <button
                 onClick={() => setSidebarOpen(true)}
@@ -135,7 +151,10 @@ export default function Layout() {
                             <p className="text-sm font-medium text-white truncate">{user?.name || 'User'}</p>
                             <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                         </div>
-                        <button onClick={logout} className="text-gray-500 hover:text-red-400 transition-colors" title="Logout">
+                        <button onClick={toggleTheme} className="p-1.5 text-gray-500 hover:text-brand-400 transition-colors bg-white/5 rounded-lg" title="Toggle Theme">
+                            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                        </button>
+                        <button onClick={logout} className="p-1.5 text-gray-500 hover:text-red-400 transition-colors bg-white/5 rounded-lg" title="Logout">
                             <LogOut className="w-4 h-4" />
                         </button>
                     </div>
