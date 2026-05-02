@@ -36,6 +36,16 @@ async function pushToWooCommerce(store, product) {
         manage_stock: false,
     };
 
+    // Format Categories
+    if (product.category_id) {
+        payload.categories = [{ id: parseInt(product.category_id) }];
+    }
+
+    // Format Shipping Class
+    if (product.shipping_class_id) {
+        payload.shipping_class = product.shipping_class_id;
+    }
+
     if (product.compare_at_price && parseFloat(product.compare_at_price) > parseFloat(product.price || 0)) {
         payload.regular_price = product.compare_at_price.toString();
         payload.sale_price = product.price ? product.price.toString() : '';

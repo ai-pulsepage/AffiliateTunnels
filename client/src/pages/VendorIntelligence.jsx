@@ -4,15 +4,19 @@ import { toast } from 'react-hot-toast';
 import { Database, Search, ArrowRight, Wand2, RefreshCw, Trash2, ShoppingCart } from 'lucide-react';
 
 export default function VendorIntelligence() {
-    const [sourceUrl, setSourceUrl] = useState('');
+    const [sourceUrls, setSourceUrls] = useState('');
     const [scraping, setScraping] = useState(false);
     const [queue, setQueue] = useState([]);
     const [loading, setLoading] = useState(true);
     const [stores, setStores] = useState([]);
+    const [storeMetadata, setStoreMetadata] = useState({}); // { storeId: { categories, shipping_classes } }
 
     useEffect(() => {
         loadQueue();
         loadStores();
+        // Poll queue every 10 seconds to catch background worker updates
+        const interval = setInterval(loadQueue, 10000);
+        return () => clearInterval(interval);
     }, []);
 
     const loadQueue = async () => {
@@ -35,46 +39,65 @@ export default function VendorIntelligence() {
 
     const handleScrape = async (e) => {
         e.preventDefault();
-        if (!sourceUrl) return;
+        const urls = sourceUrls.split('\n').map(u => u.trim()).filter(u => u);
+        if (urls.length === 0) return;
 
         setScraping(true);
-        const toastId = toast.loading('Scraping product and running AI refinement... This takes about 15 seconds.');
+        const toastId = toast.loading(`Queueing ${urls.length} products for AI background processing...`);
         
         try {
             await api('/vendors/scrape', {
                 method: 'POST',
-                body: { source_url: sourceUrl }
+                body: { source_urls: urls }
             });
-            toast.success('Product scraped and refined successfully!', { id: toastId });
-            setSourceUrl('');
+            toast.success('Batch queued successfully! Background AI worker is now processing.', { id: toastId });
+            setSourceUrls('');
             loadQueue();
         } catch (err) {
-            toast.error(err.message || 'Failed to process product', { id: toastId });
+            toast.error(err.message || 'Failed to queue batch', { id: toastId });
         } finally {
             setScraping(false);
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!confirm('Remove this product from the queue?')) return;
+    const fetchStoreMetadata = async (storeId) => {
+        if (!storeId || storeMetadata[storeId]) return;
+        
         try {
-            await api(`/vendors/${id}`, { method: 'DELETE' });
-            setQueue(q => q.filter(item => item.id !== id));
-            toast.success('Removed');
+            const [catData, shipData] = await Promise.all([
+                api(`/stores/${storeId}/categories`),
+                api(`/stores/${storeId}/shipping-classes`)
+            ]);
+            setStoreMetadata(prev => ({
+                ...prev,
+                [storeId]: {
+                    categories: catData.categories || [],
+                    shipping_classes: shipData.shipping_classes || []
+                }
+            }));
         } catch (err) {
-            toast.error('Failed to remove');
+            toast.error('Failed to fetch store categories/shipping options');
         }
     };
 
     const handleUpdate = async (id, field, value) => {
         try {
+            // Optimistic UI update
+            setQueue(q => q.map(item => item.id === id ? { ...item, [field]: value } : item));
+            
             const updated = await api(`/vendors/${id}`, {
                 method: 'PUT',
                 body: { [field]: value }
             });
+            
+            if (field === 'target_store_id') {
+                fetchStoreMetadata(value);
+            }
+            
             setQueue(q => q.map(item => item.id === id ? updated.product : item));
         } catch (err) {
             toast.error('Failed to save edit');
+            loadQueue(); // Revert
         }
     };
 
@@ -112,24 +135,26 @@ export default function VendorIntelligence() {
                     <Search className="w-5 h-5 text-emerald-400" />
                     Product Ingestion
                 </h2>
-                <form onSubmit={handleScrape} className="flex gap-4">
-                    <input 
-                        type="url" 
+                <form onSubmit={handleScrape} className="flex flex-col gap-4">
+                    <textarea 
                         required
-                        value={sourceUrl}
-                        onChange={e => setSourceUrl(e.target.value)}
-                        placeholder="Paste vendor product URL (e.g., Alibaba, CJ Dropshipping, direct supplier)..."
-                        className="flex-1 bg-black/50 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                        value={sourceUrls}
+                        onChange={e => setSourceUrls(e.target.value)}
+                        placeholder="Paste vendor product URLs (one per line)..."
+                        className="w-full bg-black/50 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                         disabled={scraping}
+                        rows={4}
                     />
-                    <button 
-                        type="submit" 
-                        disabled={scraping || !sourceUrl}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-8 rounded-xl transition-all disabled:opacity-50 flex items-center gap-2"
-                    >
-                        {scraping ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
-                        {scraping ? 'Processing...' : 'Scrape & Refine'}
-                    </button>
+                    <div className="flex justify-end">
+                        <button 
+                            type="submit" 
+                            disabled={scraping || !sourceUrls}
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-8 rounded-xl transition-all disabled:opacity-50 flex items-center gap-2"
+                        >
+                            {scraping ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
+                            {scraping ? 'Queueing Batch...' : 'Queue Batch for AI Refinement'}
+                        </button>
+                    </div>
                 </form>
             </div>
 
@@ -148,7 +173,20 @@ export default function VendorIntelligence() {
                     </div>
                 ) : (
                     <div className="space-y-6">
-                        {queue.map(item => (
+                        {queue.map(item => {
+                            if (item.status === 'pending_scrape' || item.status === 'scraping') {
+                                return (
+                                    <div key={item.id} className="bg-[#131320] border border-white/10 rounded-2xl p-6 flex items-center gap-4">
+                                        <RefreshCw className="w-6 h-6 text-emerald-500 animate-spin" />
+                                        <div>
+                                            <div className="text-white font-bold">{item.status === 'scraping' ? 'AI is processing...' : 'Queued for processing'}</div>
+                                            <div className="text-sm text-gray-500 truncate max-w-xl">{item.source_url}</div>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            
+                            return (
                             <div key={item.id} className="bg-[#131320] border border-white/10 rounded-2xl overflow-hidden flex flex-col md:flex-row">
                                 {/* Left: Original */}
                                 <div className="flex-1 p-6 border-r border-white/10 bg-black/20">
@@ -207,7 +245,7 @@ export default function VendorIntelligence() {
                                     </div>
 
                                     <div className="mt-6 flex items-center gap-4 bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20">
-                                        <div className="flex-1">
+                                        <div className="flex-1 space-y-3">
                                             <select 
                                                 value={item.target_store_id || ''}
                                                 onChange={e => handleUpdate(item.id, 'target_store_id', e.target.value)}
@@ -218,6 +256,32 @@ export default function VendorIntelligence() {
                                                     <option key={s.id} value={s.id}>{s.store_name} ({s.platform})</option>
                                                 ))}
                                             </select>
+
+                                            {item.target_store_id && storeMetadata[item.target_store_id] && (
+                                                <div className="flex gap-3">
+                                                    <select 
+                                                        value={item.category_id || ''}
+                                                        onChange={e => handleUpdate(item.id, 'category_id', e.target.value)}
+                                                        className="flex-1 bg-black/50 border border-white/10 rounded-lg py-2 px-3 text-white text-sm"
+                                                    >
+                                                        <option value="">-- WooCommerce Category --</option>
+                                                        {storeMetadata[item.target_store_id].categories.map(c => (
+                                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                                        ))}
+                                                    </select>
+                                                    
+                                                    <select 
+                                                        value={item.shipping_class_id || ''}
+                                                        onChange={e => handleUpdate(item.id, 'shipping_class_id', e.target.value)}
+                                                        className="flex-1 bg-black/50 border border-white/10 rounded-lg py-2 px-3 text-white text-sm"
+                                                    >
+                                                        <option value="">-- Shipping Class --</option>
+                                                        {storeMetadata[item.target_store_id].shipping_classes.map(s => (
+                                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
                                         </div>
                                         <button 
                                             onClick={() => handlePush(item)}

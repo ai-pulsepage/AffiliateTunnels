@@ -56,17 +56,18 @@ router.get('/queue', async (req, res) => {
 // 3. Update Refined Copy & Shipping Class
 router.put('/:id', async (req, res) => {
     try {
-        const { refined_title, refined_desc, target_store_id, shipping_class_id } = req.body;
+        const { refined_title, refined_desc, target_store_id, shipping_class_id, category_id } = req.body;
         const result = await query(`
             UPDATE vendor_products 
             SET refined_title = COALESCE($1, refined_title),
                 refined_desc = COALESCE($2, refined_desc),
                 target_store_id = COALESCE($3, target_store_id),
                 shipping_class_id = COALESCE($4, shipping_class_id),
+                category_id = COALESCE($5, category_id),
                 updated_at = NOW()
-            WHERE id = $5 AND user_id = $6
+            WHERE id = $6 AND user_id = $7
             RETURNING *
-        `, [refined_title, refined_desc, target_store_id, shipping_class_id, req.params.id, req.user.id]);
+        `, [refined_title, refined_desc, target_store_id, shipping_class_id, category_id, req.params.id, req.user.id]);
         
         res.json({ product: result.rows[0] });
     } catch (err) {
@@ -100,6 +101,7 @@ router.post('/:id/push', async (req, res) => {
             sku: product.sku || '',
             vendor_name: product.vendor_name,
             shipping_class_id: product.shipping_class_id,
+            category_id: product.category_id,
             tags: product.tags
         };
 
