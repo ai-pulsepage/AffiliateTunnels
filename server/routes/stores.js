@@ -1,7 +1,7 @@
 const express = require('express');
 const { query } = require('../config/db');
 const { authenticate } = require('../middleware/auth');
-const { pushToShopify, pushToWooCommerce, getStoreMetrics, getWooCommerceShippingClasses } = require('../services/store-sync');
+const { pushToShopify, pushToWooCommerce, getStoreMetrics, getWooCommerceShippingClasses, getWooCommerceCategories } = require('../services/store-sync');
 
 const router = express.Router();
 
@@ -134,7 +134,7 @@ router.get('/:id/shipping-classes', authenticate, async (req, res) => {
         const store = storeRes.rows[0];
         
         if (store.platform !== 'woocommerce') {
-            return res.json({ shipping_classes: [] }); // Shopify handles shipping differently, usually via profiles
+            return res.json({ shipping_classes: [] });
         }
 
         const shippingClasses = await getWooCommerceShippingClasses(store);
@@ -142,6 +142,26 @@ router.get('/:id/shipping-classes', authenticate, async (req, res) => {
     } catch (err) {
         console.error('Failed to fetch shipping classes:', err);
         res.status(500).json({ error: 'Failed to fetch shipping classes' });
+    }
+});
+
+// GET /api/stores/:id/categories
+router.get('/:id/categories', authenticate, async (req, res) => {
+    try {
+        const storeRes = await query('SELECT * FROM connected_stores WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+        if (storeRes.rows.length === 0) return res.status(404).json({ error: 'Store not found' });
+        
+        const store = storeRes.rows[0];
+        
+        if (store.platform !== 'woocommerce') {
+            return res.json({ categories: [] });
+        }
+
+        const categories = await getWooCommerceCategories(store);
+        res.json({ categories });
+    } catch (err) {
+        console.error('Failed to fetch categories:', err);
+        res.status(500).json({ error: 'Failed to fetch categories' });
     }
 });
 

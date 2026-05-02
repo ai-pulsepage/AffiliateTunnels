@@ -181,9 +181,38 @@ async function getWooCommerceShippingClasses(storeConfig) {
     }
 }
 
+/**
+ * Fetches available product categories from WooCommerce
+ */
+async function getWooCommerceCategories(storeConfig) {
+    try {
+        const credentials = Buffer.from(`${storeConfig.api_key}:${storeConfig.api_secret}`).toString('base64');
+        const baseUrl = storeConfig.store_url.startsWith('http') ? storeConfig.store_url : `https://${storeConfig.store_url}`;
+
+        const res = await fetch(`${baseUrl}/wp-json/wc/v3/products/categories?per_page=100`, {
+            headers: {
+                'Authorization': `Basic ${credentials}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!res.ok) {
+            console.error('WooCommerce Categories Error:', await res.text());
+            return [];
+        }
+
+        const data = await res.json();
+        return data.map(c => ({ id: c.id, name: c.name }));
+    } catch (error) {
+        console.error('getWooCommerceCategories failed:', error);
+        return [];
+    }
+}
+
 module.exports = {
     pushToWooCommerce,
     pushToShopify,
     getStoreMetrics,
-    getWooCommerceShippingClasses
+    getWooCommerceShippingClasses,
+    getWooCommerceCategories
 };
