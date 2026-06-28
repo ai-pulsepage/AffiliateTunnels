@@ -38,7 +38,7 @@ const blogmakerRoutes = require('./routes/blogmaker');
 // const websitesRoutes = require('./routes/websites');
 const storesRoutes = require('./routes/stores');
 const vendorProductsRoutes = require('./routes/vendor-products');
-const paymentsRoutes = require('./routes/payments');
+// const paymentsRoutes = require('./routes/payments');
 const keywordsRoutes = require('./routes/keywords');
 const priceComparisonRoutes = require('./routes/price-comparison');
 
@@ -89,7 +89,7 @@ app.use('/api/blogmaker', blogmakerRoutes);
 // app.use('/api/websites', websitesRoutes);
 app.use('/api/stores', storesRoutes);
 app.use('/api/vendors', vendorProductsRoutes);
-app.use('/api/payments', paymentsRoutes);
+// app.use('/api/payments', paymentsRoutes);
 app.use('/api/keywords', keywordsRoutes);
 app.use('/api/price-comparison', priceComparisonRoutes);
 
