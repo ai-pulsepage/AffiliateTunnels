@@ -183,6 +183,7 @@ router.get('/:id/collections', authenticate, async (req, res) => {
         console.error('Failed to fetch collections:', err);
         res.status(500).json({ error: 'Failed to fetch collections' });
     }
+});
 
 // DELETE /api/stores/:id
 router.delete('/:id', authenticate, async (req, res) => {
