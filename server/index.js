@@ -12,7 +12,6 @@ const path = require('path');
 const cron = require('node-cron');
 
 const { pool } = require('./config/db');
-const { dripWorker } = require('./workers/drip');
 const { processVendorScrapeQueue } = require('./workers/vendor-scraper');
 const { loadSettings } = require('./config/settings');
 const { apiLimiter } = require('./middleware/rateLimiter');
@@ -517,11 +516,6 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // --- Workers ---
-cron.schedule('*/5 * * * *', async () => {
-    console.log('[Cron] Running drip campaign worker...');
-    await dripWorker();
-});
-
 cron.schedule('* * * * *', async () => {
     // Runs every minute
     await processVendorScrapeQueue();
