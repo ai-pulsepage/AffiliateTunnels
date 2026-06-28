@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../utils/api';
+import { api } from '../lib/api';
 import { toast } from 'react-hot-toast';
 import { Database, Search, ArrowRight, Wand2, RefreshCw, Trash2, ShoppingCart } from 'lucide-react';
 
@@ -300,7 +300,8 @@ export default function VendorIntelligence() {
                                     </div>
                                 </div>
                             </div>
-                        ))}
+                        );
+                    })}
                     </div>
                 )}
             </div>

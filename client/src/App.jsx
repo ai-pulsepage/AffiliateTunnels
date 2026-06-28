@@ -23,9 +23,10 @@ import BlogMaker from './pages/BlogMaker';
 import Microsites from './pages/Microsites';
 import SupplierSearch from './pages/SupplierSearch';
 import StoreManager from './pages/StoreManager';
-import SupplierIntelligence from './pages/SupplierIntelligence';
+// import SupplierIntelligence from './pages/SupplierIntelligence';
 import VendorIntelligence from './pages/VendorIntelligence';
 import KeywordIntelligence from './pages/KeywordIntelligence';
+import PriceMonitor from './pages/PriceMonitor';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminStats from './pages/admin/AdminStats';
@@ -81,9 +82,10 @@ export default function App() {
                 <Route path="content-network" element={<Microsites />} />
                 <Route path="supplier-search" element={<SupplierSearch />} />
                 <Route path="store-manager" element={<StoreManager />} />
-                <Route path="supplier-intel" element={<SupplierIntelligence />} />
+                {/* <Route path="supplier-intel" element={<SupplierIntelligence />} /> */}
                 <Route path="vendor-intel" element={<VendorIntelligence />} />
                 <Route path="keywords" element={<KeywordIntelligence />} />
+                <Route path="price-monitor" element={<ProtectedRoute><PriceMonitor /></ProtectedRoute>} />
                 <Route path="settings" element={<Settings />} />
 
                 {/* Admin routes */}

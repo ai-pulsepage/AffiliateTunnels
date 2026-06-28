@@ -220,10 +220,202 @@ async function getWooCommerceCategories(storeConfig) {
     }
 }
 
+/**
+ * Fetches collections from Shopify
+ */
+async function getShopifyCollections(store) {
+    try {
+        const url = new URL(store.store_url);
+        const customUrl = `${url.origin}/admin/api/2023-10/custom_collections.json`;
+        const smartUrl = `${url.origin}/admin/api/2023-10/smart_collections.json`;
+        const headers = { 'X-Shopify-Access-Token': store.access_token };
+
+        const [customRes, smartRes] = await Promise.all([
+            fetch(customUrl, { headers }),
+            fetch(smartUrl, { headers })
+        ]);
+
+        let collections = [];
+        if (customRes.ok) {
+            const data = await customRes.json();
+            collections = collections.concat((data.custom_collections || []).map(c => ({ id: c.id.toString(), name: c.title })));
+        }
+        if (smartRes.ok) {
+            const data = await smartRes.json();
+            collections = collections.concat((data.smart_collections || []).map(c => ({ id: c.id.toString(), name: c.title })));
+        }
+        return collections;
+    } catch (err) {
+        console.error('getShopifyCollections failed:', err);
+        return [];
+    }
+}
+
+/**
+ * Fetches products from Shopify (with optional collection filter)
+ */
+async function getShopifyProducts(store, collectionId = null) {
+    const url = new URL(store.store_url);
+    let endpoint = `${url.origin}/admin/api/2023-10/products.json?limit=250`;
+    if (collectionId) {
+        endpoint += `&collection_id=${collectionId}`;
+    }
+
+    const response = await fetch(endpoint, {
+        headers: { 'X-Shopify-Access-Token': store.access_token }
+    });
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Shopify products fetch failed: ${response.status} - ${errText}`);
+    }
+
+    const data = await response.json();
+    const products = [];
+    for (const p of (data.products || [])) {
+        for (const v of (p.variants || [])) {
+            products.push({
+                sku: v.sku || `NO-SKU-${v.id}`,
+                title: p.title + (p.variants.length > 1 ? ` - ${v.title}` : ''),
+                barcode: v.barcode || '',
+                current_price: parseFloat(v.price) || 0,
+                external_variant_id: v.id.toString(),
+                cost: 0.00
+            });
+        }
+    }
+    return products;
+}
+
+/**
+ * Updates a product variant's price in Shopify
+ */
+async function updateShopifyPrice(store, variantId, newPrice) {
+    const url = new URL(store.store_url);
+    const endpoint = `${url.origin}/admin/api/2023-10/variants/${variantId}.json`;
+    const payload = {
+        variant: {
+            id: parseInt(variantId),
+            price: newPrice.toString()
+        }
+    };
+
+    const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Shopify-Access-Token': store.access_token
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Shopify variant update failed: ${response.status} - ${errText}`);
+    }
+
+    return await response.json();
+}
+
+/**
+ * Fetches products from WooCommerce
+ */
+async function getWooCommerceProducts(store, page = 1, perPage = 50) {
+    const credentials = Buffer.from(`${store.api_key}:${store.api_secret}`).toString('base64');
+    const baseUrl = store.store_url.startsWith('http') ? store.store_url : `https://${store.store_url}`;
+
+    const response = await fetch(`${baseUrl}/wp-json/wc/v3/products?page=${page}&per_page=${perPage}`, {
+        headers: {
+            'Authorization': `Basic ${credentials}`,
+            'Content-Type': 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`WooCommerce products fetch failed: ${response.status} - ${errText}`);
+    }
+
+    return await response.json();
+}
+
+/**
+ * Gets or creates a category in WooCommerce
+ */
+async function getOrCreateWooCommerceCategory(store, name, parentId = 0) {
+    const credentials = Buffer.from(`${store.api_key}:${store.api_secret}`).toString('base64');
+    const baseUrl = store.store_url.startsWith('http') ? store.store_url : `https://${store.store_url}`;
+
+    // Look up existing first
+    const searchRes = await fetch(`${baseUrl}/wp-json/wc/v3/products/categories?search=${encodeURIComponent(name)}`, {
+        headers: { 'Authorization': `Basic ${credentials}` }
+    });
+
+    if (searchRes.ok) {
+        const cats = await searchRes.json();
+        const exactMatch = cats.find(c => c.name.toLowerCase() === name.toLowerCase() && c.parent === parentId);
+        if (exactMatch) return exactMatch.id;
+    }
+
+    // Create if not found
+    const createRes = await fetch(`${baseUrl}/wp-json/wc/v3/products/categories`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Basic ${credentials}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name, parent: parentId })
+    });
+
+    if (!createRes.ok) {
+        const errText = await createRes.text();
+        try {
+            const errJson = JSON.parse(errText);
+            if (errJson.code === 'term_exists' || errJson.data?.resource_id) {
+                return errJson.data.resource_id;
+            }
+        } catch (e) {}
+        throw new Error(`Failed to create category: ${createRes.status} - ${errText}`);
+    }
+
+    const data = await createRes.json();
+    return data.id;
+}
+
+/**
+ * Updates a product in WooCommerce
+ */
+async function updateWooCommerceProduct(store, productId, data) {
+    const credentials = Buffer.from(`${store.api_key}:${store.api_secret}`).toString('base64');
+    const baseUrl = store.store_url.startsWith('http') ? store.store_url : `https://${store.store_url}`;
+
+    const response = await fetch(`${baseUrl}/wp-json/wc/v3/products/${productId}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Basic ${credentials}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`WooCommerce product update failed: ${response.status} - ${errText}`);
+    }
+
+    return await response.json();
+}
+
 module.exports = {
     pushToWooCommerce,
     pushToShopify,
     getStoreMetrics,
     getWooCommerceShippingClasses,
-    getWooCommerceCategories
+    getWooCommerceCategories,
+    getShopifyCollections,
+    getShopifyProducts,
+    updateShopifyPrice,
+    getWooCommerceProducts,
+    getOrCreateWooCommerceCategory,
+    updateWooCommerceProduct
 };

@@ -41,6 +41,7 @@ const storesRoutes = require('./routes/stores');
 const vendorProductsRoutes = require('./routes/vendor-products');
 const paymentsRoutes = require('./routes/payments');
 const keywordsRoutes = require('./routes/keywords');
+const priceComparisonRoutes = require('./routes/price-comparison');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -91,6 +92,7 @@ app.use('/api/stores', storesRoutes);
 app.use('/api/vendors', vendorProductsRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/keywords', keywordsRoutes);
+app.use('/api/price-comparison', priceComparisonRoutes);
 
 // === Public Routes ===
 

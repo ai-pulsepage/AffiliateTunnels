@@ -1,7 +1,7 @@
 const express = require('express');
 const { query } = require('../config/db');
 const { authenticate } = require('../middleware/auth');
-const { pushToShopify, pushToWooCommerce, getStoreMetrics, getWooCommerceShippingClasses, getWooCommerceCategories } = require('../services/store-sync');
+const { pushToShopify, pushToWooCommerce, getStoreMetrics, getWooCommerceShippingClasses, getWooCommerceCategories, getShopifyCollections } = require('../services/store-sync');
 
 const router = express.Router();
 
@@ -164,6 +164,25 @@ router.get('/:id/categories', authenticate, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch categories' });
     }
 });
+
+// GET /api/stores/:id/collections
+router.get('/:id/collections', authenticate, async (req, res) => {
+    try {
+        const storeRes = await query('SELECT * FROM connected_stores WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+        if (storeRes.rows.length === 0) return res.status(404).json({ error: 'Store not found' });
+        
+        const store = storeRes.rows[0];
+        
+        if (store.platform !== 'shopify') {
+            return res.json({ collections: [] });
+        }
+
+        const collections = await getShopifyCollections(store);
+        res.json({ collections });
+    } catch (err) {
+        console.error('Failed to fetch collections:', err);
+        res.status(500).json({ error: 'Failed to fetch collections' });
+    }
 
 // DELETE /api/stores/:id
 router.delete('/:id', authenticate, async (req, res) => {

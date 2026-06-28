@@ -220,7 +220,7 @@ export default function StoreManager() {
                                 <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl space-y-4">
                                     <h4 className="text-blue-300 font-bold text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> OAuth Setup</h4>
                                     <ol className="text-xs text-blue-200/70 list-decimal list-inside space-y-1 mb-2">
-                                        <li>Go to Shopify Partner Dashboard -> Apps -> Create App.</li>
+                                        <li>Go to Shopify Partner Dashboard &rarr; Apps &rarr; Create App.</li>
                                         <li>Under App Setup, set App URL to your domain.</li>
                                         <li>Set Allowed redirection URI to: <code className="bg-black/50 px-1 py-0.5 rounded text-blue-300">{window.location.origin}/api/stores/shopify/callback</code></li>
                                         <li>Copy Client ID and Client Secret below.</li>
@@ -248,7 +248,7 @@ export default function StoreManager() {
                                 <div className="p-4 bg-[#96588a]/10 border border-[#96588a]/30 rounded-xl space-y-4">
                                     <h4 className="text-[#96588a] font-bold text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Setup Instructions</h4>
                                     <ol className="text-xs text-[#96588a]/70 list-decimal list-inside space-y-1 mb-2">
-                                        <li>Go to WooCommerce -> Settings -> Advanced -> REST API</li>
+                                        <li>Go to WooCommerce &rarr; Settings &rarr; Advanced &rarr; REST API</li>
                                         <li>Add Key (Permissions: Read/Write)</li>
                                         <li>Copy Consumer Key and Secret below</li>
                                     </ol>
